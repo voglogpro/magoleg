@@ -1,0 +1,19 @@
+{
+  "name": "magoleg",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "corepack pnpm --filter @magoleg/mini-app dev",
+    "build": "corepack pnpm --filter @magoleg/mini-app build",
+    "test": "corepack pnpm --filter @magoleg/mini-app test",
+    "typecheck": "corepack pnpm --filter @magoleg/mini-app typecheck"
+  },
+  "devDependencies": {
+    "turbo": "2.10.12",
+    "typescript": "7.0.2"
+  }
+}
