@@ -2,15 +2,21 @@
   "name": "magoleg",
   "version": "0.1.0",
   "private": true,
+  "main": "main.js",
   "packageManager": "pnpm@10.15.1",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
+    "start": "node main.js",
+    "start:bot": "node main.js",
     "dev": "corepack pnpm --filter @magoleg/mini-app dev",
     "build": "corepack pnpm --filter @magoleg/mini-app build",
     "test": "corepack pnpm --filter @magoleg/mini-app test",
     "typecheck": "corepack pnpm --filter @magoleg/mini-app typecheck"
+  },
+  "dependencies": {
+    "grammy": "1.46.0"
   },
   "devDependencies": {
     "turbo": "2.10.12",
