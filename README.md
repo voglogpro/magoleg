@@ -27,6 +27,10 @@ python main.py
 
 Для Bothost рекомендуется выбрать стек `Dockerfile`: корневой `Dockerfile` явно устанавливает Python-зависимости и запускает `python main.py`, поэтому Node.js не участвует в запуске бота.
 
+Dockerfile также собирает React Mini App и помещает его в `/app/public`. Python-процесс одновременно запускает Telegram long polling и HTTP-сервер на `0.0.0.0:$PORT`. Проверка доступности: `GET /health`.
+
+Проверки Python-части: `python -m unittest discover -s tests`.
+
 Проверки:
 
 ```bash

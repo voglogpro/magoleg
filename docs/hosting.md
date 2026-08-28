@@ -12,6 +12,8 @@
 
 Для принудительного Python-запуска также добавлен корневой `Dockerfile` с `CMD ["python", "main.py"]`. В настройках Bothost следует выбрать стек `Dockerfile` (или включить «Использовать собственный Dockerfile») и выполнить новый деплой.
 
+Dockerfile выполняет multi-stage сборку: Node.js используется только на этапе компиляции Mini App, а итоговый контейнер работает на Python. Собранная статика хранится в `/opt/magoleg/public`, вне bind mount `/app` платформы. `main.py` запускает Telegram long polling и раздачу статики на `0.0.0.0:$PORT`, поэтому домен Bothost не возвращает `502 Bad Gateway`.
+
 Обязательные секреты BotHost:
 
 - `BOT_TOKEN` — токен Telegram-бота;
