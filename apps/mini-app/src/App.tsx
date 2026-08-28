@@ -56,7 +56,7 @@ function Header({ theme, count, onTheme, onCart }: { theme: Theme; count: number
 
 function ProductCard({ product, index, onOpen }: { product: Product; index: number; onOpen: () => void }) {
   return (
-    <article className="product-card">
+    <article className="product-card" data-reveal>
       <button className="product-card__visual" onClick={onOpen} aria-label={`Открыть ${product.name}`}>
         <span className="model-index">{String(index + 1).padStart(2, '0')}</span>
         <ScooterVisual product={product} compact />
@@ -86,6 +86,24 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
   const filtered = useMemo(() => products.filter((product) => (category === 'all' || product.category === category) && product.name.toLowerCase().includes(query.toLowerCase())), [category, query]);
   const chooseRoute = (next: Category) => { setCategory(next); document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' }); };
 
+  useEffect(() => {
+    const elements = document.querySelectorAll<HTMLElement>('[data-reveal]');
+    if (!('IntersectionObserver' in window)) {
+      elements.forEach((element) => element.classList.add('is-visible'));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [category, query]);
+
   return (
     <main className="catalog">
       <section className="hero">
@@ -110,7 +128,7 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
         <p className="hero-footnote">* Характеристики и цены в прототипе демонстрационные. Финальные данные подтвердит менеджер.</p>
       </section>
 
-      <section className="route-section" aria-labelledby="route-title">
+      <section className="route-section" aria-labelledby="route-title" data-reveal>
         <div className="section-title"><span>01</span><div><p>Задача</p><h2 id="route-title">Для какого маршрута?</h2></div></div>
         <div className="route-list">
           <button onClick={() => chooseRoute('city')}><span>Город</span><small>Ежедневные поездки</small><ChevronRight /></button>
@@ -119,7 +137,7 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
         </div>
       </section>
 
-      <section className="catalog-section" id="catalog">
+      <section className="catalog-section" id="catalog" data-reveal>
         <div className="section-title"><span>02</span><div><p>Модельный ряд</p><h2>Скутеры GShop</h2></div></div>
         <div className="catalog-tools">
           <div className="category-tabs" role="tablist" aria-label="Категории">{categories.map((item) => <button key={item.id} role="tab" aria-selected={category === item.id} className={category === item.id ? 'is-active' : ''} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div>
@@ -130,7 +148,7 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
         {!filtered.length && <div className="empty-state"><h3>Модель не найдена</h3><p>Измените запрос или выберите другую категорию.</p></div>}
       </section>
 
-      <section className="compare-section" id="compare">
+      <section className="compare-section" id="compare" data-reveal>
         <div className="section-title"><span>03</span><div><p>Короткий список</p><h2>Сравнить главное.</h2></div></div>
         <p className="section-lead">Три сценария — три разных приоритета. Цифры относятся к конкретной демонстрационной комплектации.</p>
         <div className="compare-table" role="table" aria-label="Сравнение электроскутеров">
@@ -139,7 +157,7 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
         </div>
       </section>
 
-      <section className="service-section" id="service">
+      <section className="service-section" id="service" data-reveal>
         <div className="section-title section-title--light"><span>04</span><div><p>GShop в Сочи</p><h2>От выбора до первого маршрута.</h2></div></div>
         <div className="service-list">
           <div><b>01</b><span><strong>Подбор</strong><small>Сопоставим пробег, рельеф и нагрузку.</small></span></div>
@@ -149,7 +167,7 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
         <div className="service-cta"><p>Не уверены, какая модель выдержит ваш маршрут?</p><button className="primary-button" onClick={() => document.getElementById('contacts')?.scrollIntoView({ behavior: 'smooth' })}>Получить консультацию <ChevronRight size={19} /></button></div>
       </section>
 
-      <section className="faq-section">
+      <section className="faq-section" data-reveal>
         <div className="section-title"><span>05</span><div><p>Перед выбором</p><h2>Коротко о важном.</h2></div></div>
         <div className="faq-list">
           <details><summary>Какие цены указаны на сайте?<Plus size={18} /></summary><p>Сейчас это демонстрационные цены для прототипа. Менеджер подтвердит актуальную стоимость после подключения каталога поставщика.</p></details>
@@ -159,7 +177,7 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
         </div>
       </section>
 
-      <section className="contact-section" id="contacts">
+      <section className="contact-section" id="contacts" data-reveal>
         <div className="contact-panel">
           <p className="section-number">GSHOP / OLEGSHOP / SOCHI</p>
           <h2>Начните с маршрута,<br />а не с характеристик.</h2>

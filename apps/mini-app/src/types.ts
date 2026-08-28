@@ -16,6 +16,8 @@ export type Product = {
   stockTone: 'available' | 'limited' | 'preorder';
   color: string;
   colorSoft: string;
+  image: string;
+  imageAlt: string;
   visualVariant: 'step' | 'cargo' | 'compact';
   description: string;
   features: string[];
@@ -33,4 +35,3 @@ export type CartLine = {
   quantity: number;
   addons: Addon[];
 };
-
