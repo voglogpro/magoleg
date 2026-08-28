@@ -15,13 +15,14 @@ pnpm install
 pnpm dev
 ```
 
-Запуск Telegram-бота через совместимую с BotHost точку входа:
+Установка и запуск Telegram-бота через Python-точку входа для BotHost:
 
 ```bash
-BOT_TOKEN=... MINI_APP_URL=https://... pnpm start
+python -m pip install -r requirements.txt
+python main.py
 ```
 
-В корне присутствуют обе точки входа, которые может потребовать конфигурация хостинга: `main.js` и `index.js`.
+В корне присутствуют обе Python-точки входа, которые может потребовать конфигурация хостинга: `main.py` и `index.py`. Значения `BOT_TOKEN` и `MINI_APP_URL` задаются через секреты/переменные окружения BotHost.
 
 Проверки:
 

@@ -9,6 +9,10 @@ test-results/
 !.env.example
 *.log
 *.tsbuildinfo
+__pycache__/
+*.py[cod]
+.venv/
+.bot-test-env/
 .DS_Store
 .idea/
 .vscode/
