@@ -8,6 +8,8 @@
 
 Точки входа находятся в корне репозитория: `main.py` — основная для запуска, `index.py` — совместимая альтернативная точка и реализация бота на aiogram. Зависимости перечислены в `requirements.txt`. Команда запуска: `python main.py`.
 
+В корне намеренно нет `package.json`: это не позволяет автодетекту Bothost ошибочно выбрать Node.js и вложенный `apps/mini-app/vite.config.ts`. Frontend является отдельным Node.js-проектом внутри `apps/mini-app`.
+
 Обязательные секреты BotHost:
 
 - `BOT_TOKEN` — токен Telegram-бота;

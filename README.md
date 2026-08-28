@@ -8,11 +8,12 @@ checkout-заглушка. Внешние API, персональные данн
 
 ## Запуск
 
-Требуется Node.js 24+ и pnpm 10.
+Для Mini App требуется Node.js 20.19+.
 
 ```bash
-pnpm install
-pnpm dev
+cd apps/mini-app
+npm install
+npm run dev
 ```
 
 Установка и запуск Telegram-бота через Python-точку входа для BotHost:
@@ -27,14 +28,15 @@ python main.py
 Проверки:
 
 ```bash
-pnpm typecheck
-pnpm test
-pnpm build
+npm run typecheck
+npm test
+npm run build
 ```
 
 ## Структура
 
 - `apps/mini-app` — React/Vite Mini App.
+- `main.py`, `index.py`, `requirements.txt` — изолированный Python-бот в корне для автодетекта BotHost.
 - `docs/design-system.md` — визуальные токены и ограничения mock-версии.
 - `docs/hosting.md` — зафиксированная схема размещения с BotHost для Telegram-бота.
 - `.env.example` — только имена будущих настроек, без секретов.
