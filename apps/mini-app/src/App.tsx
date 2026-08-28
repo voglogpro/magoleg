@@ -32,12 +32,19 @@ const categories: { id: Category; label: string }[] = [
 ];
 
 function Header({ theme, count, onTheme, onCart }: { theme: Theme; count: number; onTheme: () => void; onCart: () => void }) {
+  const goTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   return (
     <header className="app-header">
       <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="GShop, наверх">
         <span className="brand-name">GSHOP</span>
         <span className="brand-by">by OLEG</span>
       </button>
+      <nav className="desktop-nav" aria-label="Навигация по сайту">
+        <button onClick={() => goTo('catalog')}>Модели</button>
+        <button onClick={() => goTo('compare')}>Сравнение</button>
+        <button onClick={() => goTo('service')}>Сервис</button>
+        <button onClick={() => goTo('contacts')}>Контакты</button>
+      </nav>
       <div className="header-actions">
         <span className="location"><i />Сочи</span>
         <button className="icon-button" onClick={onTheme} aria-label="Сменить тему">{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
@@ -123,15 +130,46 @@ function Catalog({ onOpen }: { onOpen: (product: Product) => void }) {
         {!filtered.length && <div className="empty-state"><h3>Модель не найдена</h3><p>Измените запрос или выберите другую категорию.</p></div>}
       </section>
 
-      <section className="service-section">
-        <div className="section-title section-title--light"><span>03</span><div><p>GShop в Сочи</p><h2>От выбора до первого маршрута.</h2></div></div>
+      <section className="compare-section" id="compare">
+        <div className="section-title"><span>03</span><div><p>Короткий список</p><h2>Сравнить главное.</h2></div></div>
+        <p className="section-lead">Три сценария — три разных приоритета. Цифры относятся к конкретной демонстрационной комплектации.</p>
+        <div className="compare-table" role="table" aria-label="Сравнение электроскутеров">
+          <div className="compare-row compare-row--head" role="row"><span role="columnheader">Модель</span><span role="columnheader">Ход</span><span role="columnheader">Нагрузка</span><span role="columnheader">Цена</span></div>
+          {products.slice(0, 3).map((product) => <button className="compare-row" role="row" key={product.id} onClick={() => onOpen(product)}><strong role="cell">{product.name}<small>{product.kicker}</small></strong><span role="cell">до {product.range} км</span><span role="cell">{product.payload} кг</span><b role="cell">{formatPrice(product.price)}</b></button>)}
+        </div>
+      </section>
+
+      <section className="service-section" id="service">
+        <div className="section-title section-title--light"><span>04</span><div><p>GShop в Сочи</p><h2>От выбора до первого маршрута.</h2></div></div>
         <div className="service-list">
           <div><b>01</b><span><strong>Подбор</strong><small>Сопоставим пробег, рельеф и нагрузку.</small></span></div>
           <div><b>02</b><span><strong>Тест-драйв</strong><small>Уточните доступные модели и время у менеджера.</small></span></div>
           <div><b>03</b><span><strong>Получение</strong><small>Доступные варианты доставки появятся после подключения API.</small></span></div>
         </div>
-        <p className="brand-story">GShop — OleGShop, магазин электротранспорта в Сочи.</p>
+        <div className="service-cta"><p>Не уверены, какая модель выдержит ваш маршрут?</p><button className="primary-button" onClick={() => document.getElementById('contacts')?.scrollIntoView({ behavior: 'smooth' })}>Получить консультацию <ChevronRight size={19} /></button></div>
       </section>
+
+      <section className="faq-section">
+        <div className="section-title"><span>05</span><div><p>Перед выбором</p><h2>Коротко о важном.</h2></div></div>
+        <div className="faq-list">
+          <details><summary>Какие цены указаны на сайте?<Plus size={18} /></summary><p>Сейчас это демонстрационные цены для прототипа. Менеджер подтвердит актуальную стоимость после подключения каталога поставщика.</p></details>
+          <details><summary>Можно ли заказать тест-драйв?<Plus size={18} /></summary><p>Форма заявки уже подготовлена. Доступные модели, место и время тест-драйва будут подтверждаться менеджером.</p></details>
+          <details><summary>Как рассчитывается запас хода?<Plus size={18} /></summary><p>Фактический пробег зависит от веса, скорости, рельефа, температуры и режима езды. В рабочей версии рядом с каждой цифрой появятся условия измерения.</p></details>
+          <details><summary>Есть ли доставка по Сочи?<Plus size={18} /></summary><p>Способ получения и стоимость доставки будут рассчитываться после подключения адресного API. Сейчас можно оставить заявку без обязательств.</p></details>
+        </div>
+      </section>
+
+      <section className="contact-section" id="contacts">
+        <div className="contact-panel">
+          <p className="section-number">GSHOP / OLEGSHOP / SOCHI</p>
+          <h2>Начните с маршрута,<br />а не с характеристик.</h2>
+          <p>Расскажите, сколько вы ездите, какой груз перевозите и где храните скутер. Мы подготовим подходящую конфигурацию.</p>
+          <button className="primary-button" onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })}>Открыть каталог <ChevronRight size={19} /></button>
+        </div>
+        <div className="contact-aside"><span>Регион работы</span><strong>Большой Сочи</strong><span>Статус проекта</span><strong>Каталог готов к API</strong></div>
+      </section>
+
+      <footer className="site-footer"><div><strong>GSHOP</strong><span>by OLEG</span></div><p>GShop — OleGShop, магазин электротранспорта в Сочи.</p><small>Цены и характеристики в прототипе не являются публичной офертой.</small></footer>
     </main>
   );
 }

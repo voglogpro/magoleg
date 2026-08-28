@@ -38,12 +38,17 @@ body { min-width: 320px; margin: 0; background: var(--canvas); }
 button, input { font: inherit; }
 button { color: inherit; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-.app-shell { width: min(100%, 840px); min-height: 100vh; margin: 0 auto; overflow: clip; background: var(--canvas); }
+.app-shell { width: min(100%, 1280px); min-height: 100vh; margin: 0 auto; overflow: clip; background: var(--canvas); }
 
 .app-header { position: sticky; z-index: 30; top: 0; display: flex; min-height: 62px; align-items: center; justify-content: space-between; padding: calc(8px + var(--safe-top)) 16px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--canvas) 96%, transparent); backdrop-filter: blur(12px); }
 .brand { display: grid; min-height: 44px; align-content: center; gap: 0; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
 .brand-name { font-size: 18px; font-weight: 900; letter-spacing: .12em; line-height: 1; }
 .brand-by { margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .11em; }
+.desktop-nav { display: none; align-items: stretch; align-self: stretch; gap: 26px; }
+.desktop-nav button { position: relative; padding: 0; border: 0; color: var(--muted); background: transparent; font-size: 12px; font-weight: 700; cursor: pointer; }
+.desktop-nav button:hover { color: var(--ink); }
+.desktop-nav button::after { position: absolute; right: 0; bottom: -9px; left: 0; height: 2px; background: var(--brand); content: ''; opacity: 0; transform: scaleX(.5); transition: opacity .18s ease, transform .18s ease; }
+.desktop-nav button:hover::after { opacity: 1; transform: scaleX(1); }
 .header-actions { display: flex; align-items: center; gap: 7px; }
 .location { display: flex; min-height: 40px; align-items: center; gap: 7px; padding: 0 6px; color: var(--muted); font-size: 12px; }
 .location i { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
@@ -88,7 +93,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); out
 .hero-product .visual-caption { color: #818ba2; }
 .scooter-visual--compact { min-height: 220px; }
 
-.route-section, .catalog-section { padding: 50px 16px; }
+.route-section, .catalog-section, .compare-section, .faq-section, .contact-section { padding: 50px 16px; }
 .route-section { border-bottom: 1px solid var(--line); background: var(--surface); }
 .section-title { display: grid; grid-template-columns: 34px 1fr; gap: 9px; align-items: start; }
 .section-title > span { padding-top: 3px; color: var(--brand); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; font-weight: 700; }
@@ -143,6 +148,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); out
 .empty-state h3 { margin: 12px 0 5px; }
 .empty-state p { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
 
+.compare-section { border-top: 1px solid var(--line); background: var(--surface); scroll-margin-top: 65px; }
+.section-lead { max-width: 550px; margin: 18px 0 28px 43px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.compare-table { border-top: 1px solid var(--line); }
+.compare-row { display: grid; grid-template-columns: minmax(120px, 1.4fr) repeat(2, minmax(66px, .7fr)); width: 100%; min-height: 82px; align-items: center; gap: 10px; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; }
+.compare-row > *:last-child { grid-column: 1 / -1; color: var(--brand); font-size: 15px; }
+.compare-row strong { display: grid; gap: 4px; font-size: 14px; }
+.compare-row strong small { color: var(--muted); font-size: 9px; font-weight: 500; }
+.compare-row span { color: var(--muted); font-size: 11px; }
+.compare-row--head { display: none; min-height: 42px; cursor: default; }
+.compare-row:hover { background: color-mix(in srgb, var(--ice) 42%, transparent); }
+
 .service-section { padding: 52px 16px calc(105px + var(--safe-bottom)); color: #f4f6fa; background: #090b12; }
 .section-title--light > span { color: #7b91ff; }
 .section-title--light p { color: #8f99ad; }
@@ -153,6 +169,33 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); out
 .service-list strong { font-size: 18px; }
 .service-list small { color: #9ca5b8; font-size: 13px; line-height: 1.45; }
 .brand-story { margin: 32px 0 0; color: #9ca5b8; font-size: 12px; }
+.service-cta { display: grid; gap: 16px; margin-top: 30px; padding-top: 28px; border-top: 1px solid #303747; }
+.service-cta p { max-width: 480px; margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -.025em; }
+.service-cta .primary-button { justify-self: start; }
+
+.faq-section { border-bottom: 1px solid var(--line); background: var(--surface); }
+.faq-list { margin-top: 30px; border-top: 1px solid var(--line); }
+.faq-list details { border-bottom: 1px solid var(--line); }
+.faq-list summary { display: grid; grid-template-columns: 1fr auto; min-height: 66px; align-items: center; gap: 16px; cursor: pointer; font-size: 15px; font-weight: 700; list-style: none; }
+.faq-list summary::-webkit-details-marker { display: none; }
+.faq-list summary svg { color: var(--brand); transition: transform .2s ease; }
+.faq-list details[open] summary svg { transform: rotate(45deg); }
+.faq-list details p { max-width: 680px; margin: -4px 42px 22px 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+.contact-section { display: grid; gap: 1px; background: var(--line); }
+.contact-panel, .contact-aside { background: var(--surface); }
+.contact-panel { padding: 34px 24px; }
+.contact-panel h2 { margin: 0; font-size: clamp(35px, 10vw, 64px); font-weight: 720; letter-spacing: -.06em; line-height: .96; }
+.contact-panel > p:not(.section-number) { max-width: 570px; margin: 22px 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.contact-aside { display: grid; align-content: center; gap: 7px; padding: 28px 24px; }
+.contact-aside span { margin-top: 18px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.contact-aside span:first-child { margin-top: 0; }
+.contact-aside strong { font-size: 18px; }
+.site-footer { display: grid; gap: 20px; padding: 36px 16px calc(100px + var(--safe-bottom)); color: #f4f6fa; background: #090b12; }
+.site-footer > div { display: grid; justify-items: start; }
+.site-footer > div strong { font-size: 18px; letter-spacing: .12em; }
+.site-footer > div span { color: #9aa4b7; font-size: 10px; letter-spacing: .11em; }
+.site-footer p, .site-footer small { margin: 0; color: #9aa4b7; font-size: 11px; line-height: 1.5; }
 
 .back-bar { position: sticky; z-index: 30; top: 0; display: grid; grid-template-columns: 44px 1fr 44px; min-height: 62px; align-items: center; padding: calc(8px + var(--safe-top)) 12px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--canvas) 96%, transparent); backdrop-filter: blur(12px); }
 .back-bar strong { text-align: center; font-size: 14px; }
@@ -196,6 +239,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); out
 .sticky-action--single .primary-button { width: 100%; }
 
 .page-body { padding: 34px 16px calc(110px + var(--safe-bottom)); }
+.detail-page, .plain-page { width: min(100%, 840px); margin: 0 auto; }
 .cart-list { margin-top: 28px; }
 .cart-line { display: grid; grid-template-columns: 100px 1fr; gap: 14px; padding: 15px 0; border-top: 1px solid var(--line); }
 .cart-line:last-child { border-bottom: 1px solid var(--line); }
@@ -246,7 +290,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); out
   .hero__actions { grid-template-columns: auto auto; justify-content: start; }
   .hero-product { margin-top: 0; }
   .hero-footnote { grid-column: 1 / -1; }
-  .route-section, .catalog-section, .service-section { padding-right: 24px; padding-left: 24px; }
+  .route-section, .catalog-section, .compare-section, .service-section, .faq-section, .contact-section { padding-right: 24px; padding-left: 24px; }
   .route-list { display: grid; grid-template-columns: repeat(3, 1fr); }
   .route-list button { grid-template-columns: 1fr; padding: 18px; border-right: 1px solid var(--line); }
   .route-list button svg { grid-row: auto; }
@@ -254,6 +298,39 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); out
   .product-card:nth-child(even) .product-card__visual { order: 2; }
   .product-card__body { display: flex; flex-direction: column; justify-content: center; padding: 26px; }
   .fit-grid { grid-template-columns: repeat(2, 1fr); }
+  .compare-row { grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(100px, .7fr)); }
+  .compare-row > *:last-child { grid-column: auto; }
+  .compare-row--head { display: grid; }
+  .contact-section { grid-template-columns: minmax(0, 1.6fr) minmax(240px, .7fr); }
+  .service-cta { grid-template-columns: 1fr auto; align-items: center; }
+  .site-footer { grid-template-columns: 180px 1fr 1fr; align-items: end; padding-right: 24px; padding-left: 24px; }
+}
+
+@media (min-width: 900px) {
+  .app-header { min-height: 76px; padding-right: 48px; padding-left: 48px; }
+  .desktop-nav { display: flex; }
+  .hero { min-height: 690px; grid-template-columns: minmax(330px, .78fr) minmax(500px, 1.22fr); gap: 64px; padding: 70px 48px 36px; }
+  .hero h1 { font-size: clamp(58px, 6vw, 82px); }
+  .hero-product .scooter-visual { min-height: 410px; }
+  .route-section, .catalog-section, .compare-section, .service-section, .faq-section, .contact-section { padding: 82px 48px; }
+  .section-title { grid-template-columns: 52px 1fr; }
+  .section-title h1, .section-title h2 { font-size: 44px; }
+  .route-list button { min-height: 140px; padding: 26px; }
+  .route-list button span { font-size: 26px; }
+  .product-grid { gap: 44px; }
+  .product-card { min-height: 480px; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr); }
+  .product-card__body { padding: 42px; }
+  .product-card h3 { font-size: 38px; }
+  .product-card .scooter-visual { min-height: 100%; }
+  .service-section { padding-bottom: 82px; }
+  .service-list { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .service-list > div { min-height: 180px; padding: 25px; border-right: 1px solid #303747; }
+  .service-list > div:last-child { border-right: 0; }
+  .faq-list summary { min-height: 78px; font-size: 18px; }
+  .contact-panel { padding: 54px 48px; }
+  .contact-aside { padding: 48px; }
+  .site-footer { padding: 48px 48px 56px; }
+  .bottom-nav { display: none; }
 }
 
 @media (max-width: 350px) {
