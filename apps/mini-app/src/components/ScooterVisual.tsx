@@ -17,7 +17,7 @@ export function ScooterVisual({ product, compact = false }: Props) {
       aria-label={`Демонстрационный силуэт ${product.name}`}
       role="img"
     >
-      <span className="visual-label">ДЕМО-ВИЗУАЛ</span>
+      <span className="visual-label" aria-hidden="true">GSHOP / CONCEPT</span>
       <svg viewBox="0 0 360 230" aria-hidden="true">
         <path className="ground" d="M35 199H325" />
         <circle className="wheel" cx={mini ? 105 : 92} cy="177" r={mini ? 31 : 38} />
@@ -43,7 +43,7 @@ export function ScooterVisual({ product, compact = false }: Props) {
         {cargo && <path className="rack" d="M62 88 H126 V104 H55 M61 88 L71 68 H118 L127 88" />}
         <circle className="lamp" cx="255" cy="59" r="8" />
       </svg>
-      <span className="visual-code">{product.id.toUpperCase()}</span>
+      <span className="visual-code" aria-hidden="true">{product.id.toUpperCase()}</span>
     </div>
   );
 }

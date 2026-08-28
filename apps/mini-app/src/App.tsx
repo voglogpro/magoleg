@@ -15,9 +15,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   SlidersHorizontal,
-  Sparkles,
   Sun,
-  Truck,
   X,
   Zap,
 } from 'lucide-react';
@@ -41,8 +39,8 @@ const categories: { id: Category; label: string }[] = [
 function DemoNotice({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`demo-notice ${compact ? 'demo-notice--compact' : ''}`} role="note">
-      <Sparkles size={15} aria-hidden="true" />
-      <span>{compact ? 'Демо-режим' : 'Демо-макет: цены, наличие и условия — заглушки'}</span>
+      <i aria-hidden="true" />
+      <span>{compact ? 'DEMO' : 'Демо-каталог · цены и наличие уточняются'}</span>
     </div>
   );
 }
@@ -50,9 +48,9 @@ function DemoNotice({ compact = false }: { compact?: boolean }) {
 function Header({ theme, onTheme }: { theme: Theme; onTheme: () => void }) {
   return (
     <header className="app-header">
-      <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Маголег электроскутеры, наверх">
-        <span className="brand-mark"><Zap size={20} strokeWidth={2.6} /></span>
-        <span className="brand-copy"><strong>МАГОЛЕГ</strong><small>электроскутеры</small></span>
+      <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="GShop Ole G Shop Sochi, наверх">
+        <span className="brand-mark">G</span>
+        <span className="brand-copy"><strong>GSHOP</strong><small>OLE G SHOP · SOCHI</small></span>
       </button>
       <div className="header-actions">
         <DemoNotice compact />
@@ -112,28 +110,32 @@ function Catalog({ onOpen, onAdd }: { onOpen: (product: Product) => void; onAdd:
       <section className="hero">
         <div className="hero__copy">
           <DemoNotice />
-          <p className="overline">Большой Сочи · для курьеров</p>
-          <h1>Скутер, который<br /><em>работает смену.</em></h1>
-          <p className="hero__lead">Подбираем электротранспорт под маршруты, загрузку и рельеф. Сейчас — визуальный прототип без реальных API.</p>
+          <p className="overline">GSHOP · OLEGSHOP · БОЛЬШОЙ СОЧИ</p>
+          <h1>Город работает.<br /><em>Вы — впереди.</em></h1>
+          <p className="hero__lead">Электроскутеры для ежедневных маршрутов, серьёзной нагрузки и уверенного движения по городу.</p>
+          <button className="hero__cta" onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })}>
+            Смотреть модели <ChevronRight size={18} />
+          </button>
           <div className="zone-list" aria-label="Зоны работы">
             <span>Адлер</span><span>Сириус</span><span>Красная Поляна</span>
           </div>
         </div>
-        <div className="hero__meter" aria-hidden="true">
-          <span>до</span><strong>80</strong><small>км хода</small>
-          <div className="meter-line"><i /></div>
+        <div className="hero__visual" aria-label="Концепт грузового электроскутера GShop">
+          <div className="hero__visual-top"><span>G / CARGO 01</span><b>СОЗДАН ДЛЯ МАРШРУТА</b></div>
+          <ScooterVisual product={products[1]} />
+          <div className="hero__visual-bottom"><span>32 А·ч</span><span>до 80 км</span><span>до 220 кг</span></div>
         </div>
       </section>
 
-      <section className="service-strip" aria-label="Преимущества">
-        <span><ShieldCheck size={20} /><b>Подбор</b><small>под нагрузку</small></span>
-        <span><PackageCheck size={20} /><b>Сервис</b><small>демо-условия</small></span>
-        <span><Truck size={20} /><b>Доставка</b><small>API отключён</small></span>
+      <section className="service-strip" aria-label="Ключевые характеристики каталога">
+        <span><b>80<sup> км</sup></b><small>макс. запас хода</small></span>
+        <span><b>220<sup> кг</sup></b><small>макс. нагрузка</small></span>
+        <span><b>6 140<sup> ₽</sup></b><small>от · в месяц</small></span>
       </section>
 
-      <section className="catalog-section">
+      <section className="catalog-section" id="catalog">
         <div className="section-heading">
-          <div><p className="overline">Каталог</p><h2>Электроскутеры</h2></div>
+          <div><p className="overline">Модельный ряд</p><h2>Скутеры GShop</h2></div>
           <button className="filter-button" aria-label="Фильтры пока недоступны"><SlidersHorizontal size={19} /><span>Фильтры</span></button>
         </div>
         <label className="search-field">
@@ -146,7 +148,7 @@ function Catalog({ onOpen, onAdd }: { onOpen: (product: Product) => void; onAdd:
             <button key={item.id} role="tab" aria-selected={category === item.id} className={category === item.id ? 'is-active' : ''} onClick={() => setCategory(item.id)}>{item.label}</button>
           ))}
         </div>
-        <div className="catalog-meta"><span>{filtered.length} модели</span><span>Цены демонстрационные</span></div>
+        <div className="catalog-meta"><span>{filtered.length} конфигурации</span><span>Данные демонстрационные</span></div>
         {filtered.length ? (
           <div className="product-grid">
             {filtered.map((product) => <ProductCard key={product.id} product={product} onOpen={() => onOpen(product)} onAdd={() => onAdd(product)} />)}
@@ -252,7 +254,7 @@ function BottomNav({ view, count, onCatalog, onCart }: { view: View; count: numb
 }
 
 export function App() {
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('dark');
   const [view, setView] = useState<View>('catalog');
   const [selectedProduct, setSelectedProduct] = useState<Product>(products[0]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -264,7 +266,7 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#161816' : '#f3f1e9');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#070b16' : '#f4f7ff');
   }, [theme]);
 
   const navigate = (next: View) => { hapticTap(); setView(next); window.scrollTo(0, 0); };

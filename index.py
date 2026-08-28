@@ -13,7 +13,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, W
 from aiohttp import web
 
 
-LOGGER = logging.getLogger("magoleg.bot")
+LOGGER = logging.getLogger("gshop.bot")
 PROJECT_DIR = Path(__file__).resolve().parent
 
 
@@ -48,14 +48,14 @@ def create_dispatcher(mini_app_url: str | None) -> Dispatcher:
                 ]
             )
             text = (
-                "Маголег — электроскутеры для работы в Большом Сочи. "
+                "GShop by OleGShop — электроскутеры для работы в Большом Сочи. "
                 "Сейчас открыт демонстрационный каталог: цены, наличие "
                 "и условия являются заглушками."
             )
         else:
             keyboard = None
             text = (
-                "Маголег готов к подключению Mini App. Укажите HTTPS-адрес "
+                "GShop готов к подключению Mini App. Укажите HTTPS-адрес "
                 "магазина в переменной MINI_APP_URL на BotHost."
             )
 
@@ -87,7 +87,7 @@ def create_web_app(static_dir: Path | None = None) -> web.Application:
         )
 
     async def health(_: web.Request) -> web.Response:
-        return web.json_response({"status": "ok", "service": "magoleg"})
+        return web.json_response({"status": "ok", "service": "gshop"})
 
     async def storefront(request: web.Request) -> web.StreamResponse:
         relative_path = request.match_info.get("path", "")

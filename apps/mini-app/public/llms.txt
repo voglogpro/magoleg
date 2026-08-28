@@ -1,4 +1,4 @@
-# Маголег
+# GShop by OleGShop
 
 UI-only прототип Telegram Mini App для магазина электроскутеров в Большом Сочи.
 
