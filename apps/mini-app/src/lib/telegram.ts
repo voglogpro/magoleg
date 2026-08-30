@@ -1,6 +1,7 @@
 type TelegramTheme = 'light' | 'dark';
 
 type TelegramWebApp = {
+  initData?: string;
   colorScheme?: TelegramTheme;
   ready?: () => void;
   expand?: () => void;
@@ -21,10 +22,14 @@ export const telegram = () => window.Telegram?.WebApp;
 
 export const prepareTelegram = () => {
   const app = telegram();
-  app?.ready?.();
-  app?.expand?.();
+  if (app?.initData) {
+    app.ready?.();
+    app.expand?.();
+  }
   return app;
 };
 
-export const hapticTap = () => telegram()?.HapticFeedback?.impactOccurred?.('light');
-
+export const hapticTap = () => {
+  const app = telegram();
+  if (app?.initData) app.HapticFeedback?.impactOccurred?.('light');
+};
