@@ -12,7 +12,7 @@ export function ScooterVisual({ product, compact = false }: { product: Product; 
         loading={compact ? 'lazy' : 'eager'}
         decoding="async"
       />
-      <div className="visual-caption"><span>GSHOP SELECT</span><b>{product.name.toUpperCase()}</b></div>
+      <div className="visual-caption"><span>G-PARTNER SELECT</span><b>{product.name.toUpperCase()}</b></div>
     </div>
   );
 }

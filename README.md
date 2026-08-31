@@ -1,4 +1,4 @@
-# GShop by OleGShop
+# G-Partner
 
 Telegram Mini App магазина электроскутеров для курьеров Большого Сочи.
 

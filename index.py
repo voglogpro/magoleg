@@ -48,14 +48,14 @@ def create_dispatcher(mini_app_url: str | None) -> Dispatcher:
                 ]
             )
             text = (
-                "GShop by OleGShop — электроскутеры для работы в Большом Сочи. "
+                "G-Partner — электроскутеры для города, работы и бизнеса в Большом Сочи. "
                 "Сейчас открыт демонстрационный каталог: цены, наличие "
                 "и условия являются заглушками."
             )
         else:
             keyboard = None
             text = (
-                "GShop готов к подключению Mini App. Укажите HTTPS-адрес "
+                "G-Partner готов к подключению Mini App. Укажите HTTPS-адрес "
                 "магазина в переменной MINI_APP_URL на BotHost."
             )
 

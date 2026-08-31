@@ -1,24 +1,23 @@
 import {
   ArrowLeft,
   BatteryCharging,
-  Bike,
-  Boxes,
   Check,
   ChevronRight,
   CircleGauge,
   Grid2X2,
+  Handshake,
   Heart,
   Home,
   MapPin,
   Minus,
-  Moon,
   PackageCheck,
   Plus,
   ReceiptText,
   Search,
   ShoppingBag,
   SlidersHorizontal,
-  Sun,
+  ShieldCheck,
+  Truck,
   UserRound,
   Wrench,
   X,
@@ -58,24 +57,29 @@ const categories: { id: Category; label: string }[] = [
   { id: 'compact', label: 'Компактные' },
 ];
 
-function Header({ theme, count, showTheme, onTheme, onCart }: { theme: Theme; count: number; showTheme: boolean; onTheme: () => void; onCart: () => void }) {
+function Header({ count, onCart, onProfile }: { count: number; onCart: () => void; onProfile: () => void }) {
   const goTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  const focusSearch = () => {
+    goTo('catalog');
+    window.setTimeout(() => document.getElementById('catalog-search')?.focus(), 450);
+  };
   return (
     <header className="app-header">
-      <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="GShop, наверх">
-        <span className="brand-name">GSHOP</span>
-        <span className="brand-by">by OLEG</span>
+      <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="G-Partner, наверх">
+        <span className="brand-name"><b>G-</b>PARTNER</span>
+        <Handshake className="brand-mark" size={24} aria-hidden="true" />
       </button>
       <nav className="desktop-nav" aria-label="Навигация по сайту">
-        <button onClick={() => goTo('catalog')}>Модели</button>
-        <button onClick={() => goTo('compare')}>Сравнение</button>
-        <button onClick={() => goTo('service')}>Сервис</button>
+        <button onClick={() => goTo('catalog')}>Каталог</button>
+        <button onClick={() => goTo('about')}>О компании</button>
+        <button onClick={() => goTo('partners')}>Партнёрам</button>
+        <button onClick={() => goTo('service')}>Доставка и оплата</button>
         <button onClick={() => goTo('contacts')}>Контакты</button>
       </nav>
       <div className="header-actions">
-        <span className="location"><i />Сочи</span>
-        {showTheme && <button className="icon-button theme-button" onClick={onTheme} aria-label="Сменить тему">{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>}
-        <button className="icon-button header-cart" onClick={onCart} aria-label={`Корзина, товаров: ${count}`}><ShoppingBag size={19} />{count > 0 && <b>{count}</b>}</button>
+        <button className="icon-button" onClick={focusSearch} aria-label="Открыть поиск"><Search size={21} /></button>
+        <button className="icon-button" onClick={onProfile} aria-label="Профиль"><UserRound size={21} /></button>
+        <button className="icon-button header-cart" onClick={onCart} aria-label={`Корзина, товаров: ${count}`}><ShoppingBag size={21} />{count > 0 && <b>{count}</b>}</button>
       </div>
     </header>
   );
@@ -96,7 +100,7 @@ function ProductCard({ product, index, favorite, onFavorite, onOpen, onAdd }: { 
     }} onPointerLeave={(event) => { event.currentTarget.style.setProperty('--pointer-x', '0'); event.currentTarget.style.setProperty('--pointer-y', '0'); }}>
       <button className="product-card__visual" onClick={onOpen} aria-label={`Открыть ${product.name}`}>
         <span className="model-index">{String(index + 1).padStart(2, '0')}</span>
-        <span className="product-hit">Хит</span>
+        {index < 2 && <span className="product-hit">Хит</span>}
         <ScooterVisual product={product} compact />
       </button>
       <div className="product-card__body">
@@ -220,45 +224,43 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
     <main className="catalog">
       <section className="hero" onPointerMove={moveHero} onPointerLeave={(event) => { event.currentTarget.style.setProperty('--hero-x', '0'); event.currentTarget.style.setProperty('--hero-y', '0'); }}>
         <div className="hero__intro">
-          <p className="section-number">GSHOP / ЭЛЕКТРОТРАНСПОРТ</p>
-          <h1>Город становится<br />ближе.</h1>
-          <p className="hero__lead">Электроскутеры для города, работы и маршрутов по Большому Сочи.</p>
-          <ul className="hero-benefits"><li><Check size={16} />Подбор под ваш маршрут</li><li><Check size={16} />Техника для города и дела</li><li><Check size={16} />Сервисное сопровождение</li></ul>
-          <div className="hero-price"><strong>{formatPrice(featured.price)}</strong><small>от {formatPrice(featured.monthly)}/мес.*</small></div>
+          <p className="section-number">G-PARTNER / ЭЛЕКТРОМОБИЛЬНОСТЬ</p>
+          <h1><span>ЭНЕРГИЯ ТЕХНОЛОГИЙ</span><br /><em>НА ВАШЕЙ СТОРОНЕ</em></h1>
+          <p className="hero__lead">Электроскутеры для личной мобильности, бизнеса и ежедневных маршрутов по Большому Сочи.</p>
           <div className="hero__actions">
-            <button className="primary-button" onClick={() => onOpen(featured)}>Подробнее о Cargo X <ChevronRight size={19} /></button>
-            <button className="hero-secondary" onClick={() => chooseRoute('all')}>Подобрать модель</button>
+            <button className="primary-button" onClick={() => chooseRoute('all')}>СМОТРЕТЬ КАТАЛОГ <ChevronRight size={19} /></button>
+            <button className="hero-secondary" onClick={() => document.getElementById('contacts')?.scrollIntoView({ behavior: 'smooth' })}>Получить консультацию</button>
           </div>
+          <ul className="hero-benefits"><li><ShieldCheck size={22} /><span><b>Подбор модели</b><small>под ваш маршрут</small></span></li><li><Truck size={22} /><span><b>Доставка</b><small>по согласованию</small></span></li><li><Wrench size={22} /><span><b>Сервис</b><small>и поддержка</small></span></li></ul>
         </div>
         <button className="hero-product" onClick={() => onOpen(featured)} aria-label="Открыть флагманскую модель Volt Cargo X">
-          <div className="hero-product__head"><span>Флагман / Cargo X</span><span>01—04</span></div>
-          <ScooterVisual product={featured} />
+          <div className="hero-product__head"><span>Флагман / Cargo X</span><span>{formatPrice(featured.price)}</span></div>
+          <img className="hero-cutout" src="/products/hero-cargo-orange.webp" alt="Графитовый трёхколёсный электроскутер с оранжевой контурной подсветкой" width="1400" height="933" fetchPriority="high" />
           <div className="hero-product__facts">
             <div><strong>{featured.range}</strong><span>км<br />запас хода</span></div>
             <div><strong>{featured.payload}</strong><span>кг<br />нагрузка</span></div>
-            <div><strong>5</strong><span>ч<br />зарядка*</span></div>
+            <div><strong>{featured.speed}</strong><span>км/ч<br />скорость</span></div>
           </div>
         </button>
-        <p className="hero-footnote">* Характеристики и цены в прототипе демонстрационные. Финальные данные подтвердит менеджер.</p>
+        <p className="hero-footnote">Цены и характеристики в прототипе демонстрационные. Финальные данные подтвердит менеджер.</p>
       </section>
 
       <section className="route-section" aria-labelledby="route-title" data-reveal>
-        <div className="section-heading-inline"><div><p>Категории</p><h2 id="route-title">Выберите формат</h2></div><button onClick={() => chooseRoute('all')}>Смотреть все <ChevronRight size={17} /></button></div>
+        <div className="section-heading-inline"><div><p>Под ваш сценарий</p><h2 id="route-title">КАТЕГОРИИ</h2></div><button onClick={() => chooseRoute('all')}>Смотреть все <ChevronRight size={17} /></button></div>
         <div className="route-list">
-          <button onClick={() => chooseRoute('city')}><span className="category-icon"><Bike /></span><strong>Городские</strong><small>На каждый день</small></button>
-          <button onClick={() => chooseRoute('cargo')}><span className="category-icon"><Boxes /></span><strong>Грузовые</strong><small>Для работы</small></button>
-          <button onClick={() => chooseRoute('compact')}><span className="category-icon"><CircleGauge /></span><strong>Компактные</strong><small>Манёвренные</small></button>
-          <button onClick={() => document.getElementById('service')?.scrollIntoView({ behavior: 'smooth' })}><span className="category-icon"><Wrench /></span><strong>Сервис</strong><small>Поддержка</small></button>
+          <button onClick={() => chooseRoute('city')}><span className="category-photo"><ScooterVisual product={products[0]} compact /></span><span><strong>Электроскутеры</strong><small>Для города и ежедневных поездок</small><ChevronRight size={19} /></span></button>
+          <button onClick={() => chooseRoute('cargo')}><span className="category-photo"><ScooterVisual product={products[1]} compact /></span><span><strong>Грузовые модели</strong><small>Для бизнеса и большой нагрузки</small><ChevronRight size={19} /></span></button>
+          <button onClick={() => chooseRoute('compact')}><span className="category-photo"><ScooterVisual product={products[2]} compact /></span><span><strong>Компактные модели</strong><small>Для плотного города и хранения</small><ChevronRight size={19} /></span></button>
         </div>
       </section>
 
       <section className="popular-section" data-reveal>
-        <div className="section-heading-inline"><div><p>Выбор GShop</p><h2>Популярные модели</h2></div><button onClick={() => chooseRoute('all')}>Все модели <ChevronRight size={17} /></button></div>
-        <div className="popular-rail">{products.slice(0, 3).map((product) => <PopularCard key={product.id} product={product} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
+        <div className="section-heading-inline"><div><p>Выбор G-Partner</p><h2>ХИТЫ ПРОДАЖ</h2></div><button onClick={() => chooseRoute('all')}>Смотреть все <ChevronRight size={17} /></button></div>
+        <div className="popular-rail">{products.map((product) => <PopularCard key={product.id} product={product} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
       </section>
 
       <section className="catalog-section" id="catalog" data-reveal>
-        <div className="section-heading-inline"><div><p>Модельный ряд</p><h2>Каталог GShop</h2></div><span>{modelCountLabel(filtered.length)}</span></div>
+        <div className="section-heading-inline"><div><p>Модельный ряд</p><h2>КАТАЛОГ G-PARTNER</h2></div><span>{modelCountLabel(filtered.length)}</span></div>
         <div className="catalog-tools">
           <label className="search-field" htmlFor="catalog-search"><Search size={19} aria-hidden="true" /><input id="catalog-search" name="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти модель" aria-label="Поиск по моделям" />{query && <button onClick={() => setQuery('')} aria-label="Очистить поиск"><X size={18} /></button>}</label>
           <div className="catalog-filter-row"><button ref={filterTriggerRef} className={minRange > 0 ? 'has-active' : ''} aria-expanded={filtersOpen} aria-controls="catalog-filters" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={18} />{minRange > 0 ? 'Фильтры · 1' : 'Фильтры'}{minRange > 0 && <i />}</button><button onClick={() => setSort((value) => value === 'popular' ? 'price' : 'popular')}>{sort === 'popular' ? 'По популярности' : 'Сначала дешевле'} <ChevronRight size={17} /></button><button className={layout === 'grid' ? 'is-active' : ''} onClick={() => setLayout((value) => value === 'list' ? 'grid' : 'list')} aria-label={layout === 'grid' ? 'Списочный вид' : 'Плиточный вид'} aria-pressed={layout === 'grid'}><Grid2X2 size={18} /></button></div>
@@ -271,9 +273,9 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
 
       {filtersOpen && createPortal(<div className="filter-backdrop" role="presentation" onClick={() => setFiltersOpen(false)}><section ref={filterSheetRef} id="catalog-filters" className="filter-sheet" role="dialog" aria-modal="true" aria-labelledby="filter-title" onClick={(event) => event.stopPropagation()}><div className="filter-sheet__head"><div><small>Каталог</small><h3 id="filter-title">Фильтры</h3></div><button ref={filterCloseRef} onClick={() => setFiltersOpen(false)} aria-label="Закрыть фильтры"><X /></button></div><fieldset><legend>Минимальный запас хода</legend><div className="filter-options">{[0, 50, 70].map((value) => <button type="button" key={value} className={minRange === value ? 'is-active' : ''} aria-pressed={minRange === value} onClick={() => setMinRange(value)}>{value === 0 ? 'Любой' : `от ${value} км`}</button>)}</div></fieldset><fieldset><legend>Назначение</legend><div className="filter-options">{categories.map((item) => <button type="button" key={item.id} className={category === item.id ? 'is-active' : ''} aria-pressed={category === item.id} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div></fieldset><div className="filter-sheet__actions"><button className="secondary-button" onClick={() => { setMinRange(0); setCategory('all'); }}>Сбросить</button><button className="primary-button" onClick={() => setFiltersOpen(false)}>Показать: {filtered.length}</button></div></section></div>, document.body)}
 
-      <section className="compare-section" id="compare" data-reveal>
-        <div className="section-title"><span>03</span><div><p>Короткий список</p><h2>Сравнить главное.</h2></div></div>
-        <p className="section-lead">Три сценария — три разных приоритета. Цифры относятся к конкретной демонстрационной комплектации.</p>
+      <section className="compare-section" id="about" data-reveal>
+        <div className="section-title"><span>03</span><div><p>О компании</p><h2>G-Partner помогает выбрать технику под задачу.</h2></div></div>
+        <p className="section-lead">Мы сравниваем модели по маршруту, нагрузке и бюджету — без перегруженных характеристик. Ниже короткий список для быстрого выбора.</p>
         <div className="compare-table" role="table" aria-label="Сравнение электроскутеров">
           <div className="compare-row compare-row--head" role="row"><span role="columnheader">Модель</span><span role="columnheader">Ход</span><span role="columnheader">Нагрузка</span><span role="columnheader">Цена</span></div>
           {products.slice(0, 3).map((product) => <button className="compare-row" role="row" key={product.id} onClick={() => onOpen(product)}><strong role="cell">{product.name}<small>{product.kicker}</small></strong><span role="cell">до {product.range} км</span><span role="cell">{product.payload} кг</span><b role="cell">{formatPrice(product.price)}</b></button>)}
@@ -281,13 +283,13 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
       </section>
 
       <section className="service-section" id="service" data-reveal>
-        <div className="section-title section-title--light"><span>04</span><div><p>GShop в Сочи</p><h2>От выбора до первого маршрута.</h2></div></div>
+        <div className="section-title section-title--light"><span>04</span><div><p>Доставка и оплата</p><h2>Понятный путь до первого маршрута.</h2></div></div>
         <div className="service-list">
           <div><b>01</b><span><strong>Подбор</strong><small>Сопоставим пробег, рельеф и нагрузку.</small></span></div>
-          <div><b>02</b><span><strong>Тест-драйв</strong><small>Уточните доступные модели и время у менеджера.</small></span></div>
-          <div><b>03</b><span><strong>Получение</strong><small>Доступные варианты доставки появятся после подключения API.</small></span></div>
+          <div><b>02</b><span><strong>Доставка</strong><small>Способ, стоимость и срок получения подтвердит менеджер.</small></span></div>
+          <div><b>03</b><span><strong>Оплата</strong><small>Можно выбрать полную оплату или запросить расчёт рассрочки в заявке.</small></span></div>
         </div>
-        <div className="service-cta"><p>Не уверены, какая модель выдержит ваш маршрут?</p><button className="primary-button" onClick={() => document.getElementById('contacts')?.scrollIntoView({ behavior: 'smooth' })}>Получить консультацию <ChevronRight size={19} /></button></div>
+        <div className="service-cta" id="partners"><p>Нужна техника для команды или партнёрская поставка?</p><button className="primary-button" onClick={() => document.getElementById('contacts')?.scrollIntoView({ behavior: 'smooth' })}>Стать партнёром <ChevronRight size={19} /></button></div>
       </section>
 
       <section className="faq-section" data-reveal>
@@ -302,7 +304,7 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
 
       <section className="contact-section" id="contacts" data-reveal>
         <div className="contact-panel">
-          <p className="section-number">GSHOP / OLEGSHOP / SOCHI</p>
+          <p className="section-number">G-PARTNER / ELECTRIC / SOCHI</p>
           <h2>Начните с маршрута,<br />а не с характеристик.</h2>
           <p>Расскажите, сколько вы ездите, какой груз перевозите и где храните скутер. Мы подготовим подходящую конфигурацию.</p>
           <ContactLead />
@@ -310,7 +312,7 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
         <div className="contact-aside"><span>Регион работы</span><strong>Большой Сочи</strong><span>Статус проекта</span><strong>Каталог готов к API</strong></div>
       </section>
 
-      <footer className="site-footer"><div><strong>GSHOP</strong><span>by OLEG</span></div><p>GShop — OleGShop, магазин электротранспорта в Сочи.</p><small>Цены и характеристики в прототипе не являются публичной офертой.</small></footer>
+      <footer className="site-footer"><div><strong><b>G-</b>PARTNER</strong><Handshake size={24} /></div><p>Электротранспорт для города, работы и бизнеса в Сочи.</p><small>Цены и характеристики в прототипе не являются публичной офертой.</small></footer>
     </main>
   );
 }
@@ -396,7 +398,7 @@ function Checkout({ total, onBack }: { total: number; onBack: () => void }) {
 
 function PlaceholderPage({ kind, onBack }: { kind: 'orders' | 'profile'; onBack: () => void }) {
   const orders = kind === 'orders';
-  return <main className="plain-page placeholder-page"><BackBar title={orders ? 'Заказы' : 'Профиль'} onBack={onBack} /><div className="page-body"><div className="placeholder-visual">{orders ? <ReceiptText size={34} /> : <UserRound size={34} />}</div><p className="section-number">РАЗДЕЛ ГОТОВ К API</p><h1>{orders ? 'Заказов пока нет' : 'Профиль GShop'}</h1><p>{orders ? 'После подключения API здесь появятся статусы заявок, комплектации и история обращений.' : 'После подключения Telegram API здесь появятся ваши контакты, избранное и настройки.'}</p><button className="primary-button" onClick={onBack}>{orders ? 'Перейти в каталог' : 'Вернуться в магазин'} <ChevronRight size={18} /></button></div></main>;
+  return <main className="plain-page placeholder-page"><BackBar title={orders ? 'Заказы' : 'Профиль'} onBack={onBack} /><div className="page-body"><div className="placeholder-visual">{orders ? <ReceiptText size={34} /> : <UserRound size={34} />}</div><p className="section-number">РАЗДЕЛ ГОТОВ К API</p><h1>{orders ? 'Заказов пока нет' : 'Профиль G-Partner'}</h1><p>{orders ? 'После подключения API здесь появятся статусы заявок, комплектации и история обращений.' : 'После подключения Telegram API здесь появятся ваши контакты, избранное и настройки.'}</p><button className="primary-button" onClick={onBack}>{orders ? 'Перейти в каталог' : 'Вернуться в магазин'} <ChevronRight size={18} /></button></div></main>;
 }
 
 function BottomNav({ view, count, catalogTab, onHome, onCatalog, onCart, onOrders, onProfile }: { view: View; count: number; catalogTab: 'home' | 'catalog'; onHome: () => void; onCatalog: () => void; onCart: () => void; onOrders: () => void; onProfile: () => void }) {
@@ -438,7 +440,7 @@ export function App() {
     media.addEventListener?.('change', syncSystemTheme);
     return () => media.removeEventListener?.('change', syncSystemTheme);
   }, []);
-  useEffect(() => { document.documentElement.dataset.theme = theme; document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#090b12' : '#f4f6fa'); }, [theme]);
+  useEffect(() => { document.documentElement.dataset.theme = 'dark'; document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#121214'); }, [theme]);
   useEffect(() => {
     if (view !== 'catalog') return;
     const updateTab = () => {
@@ -457,5 +459,5 @@ export function App() {
   const count = cart.reduce((sum, line) => sum + line.quantity, 0);
   const showHome = () => { if (view !== 'catalog') navigate('catalog'); setCatalogTab('home'); window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0); };
   const showCatalog = () => { if (view !== 'catalog') navigate('catalog'); setCatalogTab('catalog'); window.setTimeout(() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' }), 0); };
-  return <div className="app-shell">{view === 'catalog' && <><Header theme={theme} count={count} showTheme={!isTelegram} onTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')} onCart={() => navigate('cart')} /><Catalog onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} /></>}{view === 'product' && <ProductPage product={selectedProduct} onBack={returnToCatalog} onAdd={(selected) => addToCart(selectedProduct, selected)} />}{view === 'cart' && <CartPage lines={cart} onBack={returnToCatalog} onChange={changeQuantity} onCheckout={() => navigate('checkout')} />}{view === 'checkout' && <Checkout total={cartTotal(cart)} onBack={() => navigate('cart')} />}{view === 'orders' && <PlaceholderPage kind="orders" onBack={showCatalog} />}{view === 'profile' && <PlaceholderPage kind="profile" onBack={showHome} />}<BottomNav view={view} count={count} catalogTab={catalogTab} onHome={showHome} onCatalog={showCatalog} onCart={() => navigate('cart')} onOrders={() => navigate('orders')} onProfile={() => navigate('profile')} /></div>;
+  return <div className="app-shell">{view === 'catalog' && <><Header count={count} onCart={() => navigate('cart')} onProfile={() => navigate('profile')} /><Catalog onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} /></>}{view === 'product' && <ProductPage product={selectedProduct} onBack={returnToCatalog} onAdd={(selected) => addToCart(selectedProduct, selected)} />}{view === 'cart' && <CartPage lines={cart} onBack={returnToCatalog} onChange={changeQuantity} onCheckout={() => navigate('checkout')} />}{view === 'checkout' && <Checkout total={cartTotal(cart)} onBack={() => navigate('cart')} />}{view === 'orders' && <PlaceholderPage kind="orders" onBack={showCatalog} />}{view === 'profile' && <PlaceholderPage kind="profile" onBack={showHome} />}<BottomNav view={view} count={count} catalogTab={catalogTab} onHome={showHome} onCatalog={showCatalog} onCart={() => navigate('cart')} onOrders={() => navigate('orders')} onProfile={() => navigate('profile')} /></div>;
 }
