@@ -16,7 +16,6 @@ import {
   Search,
   ShoppingBag,
   SlidersHorizontal,
-  ShieldCheck,
   Truck,
   UserRound,
   Wrench,
@@ -31,8 +30,9 @@ import { cartTotal, formatPrice } from './lib/pricing';
 import { hapticTap, prepareTelegram } from './lib/telegram';
 import type { Addon, CartLine, Category, Product } from './types';
 
-type View = 'catalog' | 'product' | 'cart' | 'checkout' | 'orders' | 'profile';
+type View = 'home' | 'catalog' | 'product' | 'cart' | 'checkout' | 'orders' | 'profile';
 type Theme = 'light' | 'dark';
+type InfoTopic = 'about' | 'city' | 'delivery' | 'selection' | 'contact';
 
 const safeStorageGet = (kind: 'localStorage' | 'sessionStorage', key: string) => {
   try { return window[kind].getItem(key); } catch { return null; }
@@ -57,24 +57,23 @@ const categories: { id: Category; label: string }[] = [
   { id: 'compact', label: 'Компактные' },
 ];
 
-function Header({ count, onCart, onProfile }: { count: number; onCart: () => void; onProfile: () => void }) {
-  const goTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+function Header({ count, active, onHome, onCatalog, onInfo, onCart, onProfile }: { count: number; active: 'home' | 'catalog'; onHome: () => void; onCatalog: () => void; onInfo: (topic: InfoTopic) => void; onCart: () => void; onProfile: () => void }) {
   const focusSearch = () => {
-    goTo('catalog');
-    window.setTimeout(() => document.getElementById('catalog-search')?.focus(), 450);
+    onCatalog();
+    window.requestAnimationFrame(() => window.setTimeout(() => document.getElementById('catalog-search')?.focus(), 50));
   };
   return (
     <header className="app-header">
-      <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="G-Partner, наверх">
+      <button className="brand" onClick={onHome} aria-label="G-Partner, главная">
         <span className="brand-name"><b>G-</b>PARTNER</span>
         <Handshake className="brand-mark" size={24} aria-hidden="true" />
       </button>
       <nav className="desktop-nav" aria-label="Навигация по сайту">
-        <button onClick={() => goTo('catalog')}>Каталог</button>
-        <button onClick={() => goTo('about')}>О компании</button>
-        <button onClick={() => goTo('partners')}>Партнёрам</button>
-        <button onClick={() => goTo('service')}>Доставка и оплата</button>
-        <button onClick={() => goTo('contacts')}>Контакты</button>
+        <button className={active === 'catalog' ? 'is-active' : ''} onClick={onCatalog}>Каталог</button>
+        <button onClick={() => onInfo('about')}>О магазине</button>
+        <button onClick={() => onInfo('city')}>Большой Сочи</button>
+        <button onClick={() => onInfo('delivery')}>Доставка и оплата</button>
+        <button onClick={() => onInfo('contact')}>Контакты</button>
       </nav>
       <div className="header-actions">
         <button className="icon-button" onClick={focusSearch} aria-label="Открыть поиск"><Search size={21} /></button>
@@ -120,12 +119,6 @@ function ProductCard({ product, index, favorite, onFavorite, onOpen, onAdd }: { 
   );
 }
 
-function PopularCard({ product, onOpen, onAdd }: { product: Product; onOpen: () => void; onAdd: () => void }) {
-  const [added, setAdded] = useState(false);
-  const quickAdd = () => { onAdd(); setAdded(true); window.setTimeout(() => setAdded(false), 1300); };
-  return <article className="popular-card"><button className="popular-card__image" onClick={onOpen}><ScooterVisual product={product} compact /></button><span>{product.kicker}</span><h3>{product.name}</h3><strong>{formatPrice(product.price)}</strong><button className={`quick-buy ${added ? 'is-added' : ''}`} onClick={quickAdd}>{added ? <><Check size={16} /> Добавлено</> : 'В корзину'}</button></article>;
-}
-
 function ContactLead() {
   const [sent, setSent] = useState(false);
   const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); hapticTap(); setSent(true); };
@@ -133,7 +126,70 @@ function ContactLead() {
   return <form className="contact-form" id="contact-lead" onSubmit={submit}><label htmlFor="consultation-phone"><span>Телефон для связи</span><input id="consultation-phone" name="phone" required inputMode="tel" autoComplete="tel" placeholder="+7 900 000-00-00" /></label><button className="primary-button" type="submit">Получить консультацию <ChevronRight size={19} /></button></form>;
 }
 
-function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; onQuickAdd: (product: Product) => void }) {
+const infoContent: Record<Exclude<InfoTopic, 'selection' | 'contact'>, { eyebrow: string; title: string; body: string; facts: string[] }> = {
+  about: {
+    eyebrow: 'О магазине',
+    title: 'G-Partner — электротранспорт под реальную задачу.',
+    body: 'Помогаем сравнить электроскутеры для личных поездок, работы и бизнеса. Сейчас интерфейс работает как демонстрационная витрина: финальные цены, наличие и комплектацию подтверждает менеджер.',
+    facts: ['Подбор по маршруту', 'Сравнение без перегруза', 'Заявка без оплаты'],
+  },
+  city: {
+    eyebrow: 'Регион работы',
+    title: 'Работаем по Большому Сочи.',
+    body: 'Учитываем рельеф, протяжённость маршрута, нагрузку и условия хранения. Получение техники, тест-драйв и доставка согласовываются индивидуально после заявки.',
+    facts: ['Сочи и районы', 'Маршрут важнее рекламы', 'Условия подтвердит менеджер'],
+  },
+  delivery: {
+    eyebrow: 'Получение техники',
+    title: 'Доставка и оплата — после подтверждения деталей.',
+    body: 'Менеджер уточнит адрес, доступную комплектацию, способ получения и итоговую стоимость. На сайте нет онлайн-оплаты: сначала вы получаете понятное предложение.',
+    facts: ['Без списаний на сайте', 'Доставка по согласованию', 'Можно запросить рассрочку'],
+  },
+};
+
+function InfoSheet({ topic, onClose, onChoose }: { topic: InfoTopic; onClose: () => void; onChoose: (category: Category) => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    window.requestAnimationFrame(() => closeRef.current?.focus());
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', closeOnEscape); };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="info-backdrop" role="presentation" onClick={onClose}>
+      <section className="info-sheet" role="dialog" aria-modal="true" aria-labelledby="info-sheet-title" onClick={(event) => event.stopPropagation()}>
+        <div className="info-sheet__head">
+          <span>{topic === 'selection' ? 'Быстрый подбор' : topic === 'contact' ? 'Консультация' : infoContent[topic].eyebrow}</span>
+          <button ref={closeRef} onClick={onClose} aria-label="Закрыть"><X size={21} /></button>
+        </div>
+        {topic === 'selection' ? <>
+          <h2 id="info-sheet-title">Для чего нужен скутер?</h2>
+          <p>Выберите главный сценарий — каталог сразу покажет подходящие модели.</p>
+          <div className="info-choice-grid">
+            <button onClick={() => onChoose('city')}><MapPin size={21} /><span><strong>Для города</strong><small>Ежедневные поездки</small></span><ChevronRight size={18} /></button>
+            <button onClick={() => onChoose('cargo')}><PackageCheck size={21} /><span><strong>Для работы</strong><small>Груз и длинные смены</small></span><ChevronRight size={18} /></button>
+            <button onClick={() => onChoose('compact')}><Grid2X2 size={21} /><span><strong>Компактный</strong><small>Хранение и манёвренность</small></span><ChevronRight size={18} /></button>
+          </div>
+        </> : topic === 'contact' ? <>
+          <h2 id="info-sheet-title">Расскажите о своём маршруте.</h2>
+          <p>Форма пока работает локально. После подключения API запрос сможет получать менеджер магазина.</p>
+          <ContactLead />
+        </> : <>
+          <h2 id="info-sheet-title">{infoContent[topic].title}</h2>
+          <p>{infoContent[topic].body}</p>
+          <ul>{infoContent[topic].facts.map((fact) => <li key={fact}><Check size={17} />{fact}</li>)}</ul>
+          <button className="primary-button" onClick={() => onChoose('all')}>Перейти к моделям <ChevronRight size={18} /></button>
+        </>}
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
+function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, onQuickAdd }: { screen: 'home' | 'catalog'; infoTopic: InfoTopic | null; onCloseInfo: () => void; onInfo: (topic: InfoTopic) => void; onCatalog: () => void; onOpen: (product: Product) => void; onQuickAdd: (product: Product) => void }) {
   const [category, setCategory] = useState<Category>(() => (safeStorageGet('sessionStorage', 'gshop-category') as Category | null) ?? 'all');
   const [query, setQuery] = useState(() => safeStorageGet('sessionStorage', 'gshop-query') ?? '');
   const [sort, setSort] = useState<'popular' | 'price'>(() => safeStorageGet('sessionStorage', 'gshop-sort') === 'price' ? 'price' : 'popular');
@@ -151,7 +207,7 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
     const result = products.filter((product) => (category === 'all' || product.category === category) && product.name.toLowerCase().includes(query.toLowerCase()) && product.range >= minRange);
     return sort === 'price' ? [...result].sort((a, b) => a.price - b.price) : result;
   }, [category, query, minRange, sort]);
-  const chooseRoute = (next: Category) => { setCategory(next); document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' }); };
+  const chooseRoute = (next: Category) => { setCategory(next); onCloseInfo(); onCatalog(); };
   const moveCategoryTab = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
@@ -181,7 +237,7 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
     }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
-  }, [category, query, minRange]);
+  }, [category, query, minRange, screen]);
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -221,44 +277,50 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
   };
 
   return (
-    <main className="catalog">
-      <section className="hero" onPointerMove={moveHero} onPointerLeave={(event) => { event.currentTarget.style.setProperty('--hero-x', '0'); event.currentTarget.style.setProperty('--hero-y', '0'); }}>
+    <main className={`catalog catalog--${screen}`}>
+      {screen === 'home' && <section className="hero home-hero" onPointerMove={moveHero} onPointerLeave={(event) => { event.currentTarget.style.setProperty('--hero-x', '0'); event.currentTarget.style.setProperty('--hero-y', '0'); }}>
         <div className="hero__intro">
-          <p className="section-number">G-PARTNER / ЭЛЕКТРОМОБИЛЬНОСТЬ</p>
-          <h1><span>ЭНЕРГИЯ ТЕХНОЛОГИЙ</span><br /><em>НА ВАШЕЙ СТОРОНЕ</em></h1>
-          <p className="hero__lead">Электроскутеры для личной мобильности, бизнеса и ежедневных маршрутов по Большому Сочи.</p>
+          <p className="section-number">G-PARTNER · МАГАЗИН В БОЛЬШОМ СОЧИ</p>
+          <h1><span>ЭЛЕКТРОСКУТЕРЫ</span><br /><em>ПОД ВАШ МАРШРУТ</em></h1>
+          <p className="hero__lead">Для города, работы и бизнеса. Сравните модели, а менеджер подтвердит цену, наличие и способ получения.</p>
           <div className="hero__actions">
-            <button className="primary-button" onClick={() => chooseRoute('all')}>СМОТРЕТЬ КАТАЛОГ <ChevronRight size={19} /></button>
-            <button className="hero-secondary" onClick={() => document.getElementById('contacts')?.scrollIntoView({ behavior: 'smooth' })}>Получить консультацию</button>
+            <button className="primary-button" onClick={() => chooseRoute('all')}>ОТКРЫТЬ КАТАЛОГ <ChevronRight size={19} /></button>
+            <button className="hero-secondary" onClick={() => onInfo('selection')}>Подобрать модель</button>
           </div>
-          <ul className="hero-benefits"><li><ShieldCheck size={22} /><span><b>Подбор модели</b><small>под ваш маршрут</small></span></li><li><Truck size={22} /><span><b>Доставка</b><small>по согласованию</small></span></li><li><Wrench size={22} /><span><b>Сервис</b><small>и поддержка</small></span></li></ul>
+          <ul className="store-facts">
+            <li><strong>04</strong><span>модели<br />в демо-каталоге</span></li>
+            <li><strong>03</strong><span>сценария<br />подбора</span></li>
+            <li><strong>СОЧИ</strong><span>регион<br />работы</span></li>
+          </ul>
         </div>
-        <button className="hero-product" onClick={() => onOpen(featured)} aria-label="Открыть флагманскую модель Volt Cargo X">
-          <div className="hero-product__head"><span>Флагман / Cargo X</span><span>{formatPrice(featured.price)}</span></div>
-          <img className="hero-cutout" src="/products/hero-cargo-orange.webp" alt="Графитовый трёхколёсный электроскутер с оранжевой контурной подсветкой" width="1400" height="933" fetchPriority="high" />
+        <button className="hero-product campaign-product" onClick={() => onOpen(featured)} aria-label="Открыть флагманскую модель Volt Cargo X">
+          <div className="hero-product__head"><span>Выбор G-Partner · Cargo X</span><span>{formatPrice(featured.price)}*</span></div>
+          <img className="hero-cutout" src="/products/hero-campaign-v2.jpg" alt="Флагманский трёхколёсный электроскутер G-Partner в студийном освещении" width="1672" height="936" fetchPriority="high" />
           <div className="hero-product__facts">
             <div><strong>{featured.range}</strong><span>км<br />запас хода</span></div>
             <div><strong>{featured.payload}</strong><span>кг<br />нагрузка</span></div>
             <div><strong>{featured.speed}</strong><span>км/ч<br />скорость</span></div>
           </div>
         </button>
-        <p className="hero-footnote">Цены и характеристики в прототипе демонстрационные. Финальные данные подтвердит менеджер.</p>
-      </section>
-
-      <section className="route-section" aria-labelledby="route-title" data-reveal>
-        <div className="section-heading-inline"><div><p>Под ваш сценарий</p><h2 id="route-title">КАТЕГОРИИ</h2></div><button onClick={() => chooseRoute('all')}>Смотреть все <ChevronRight size={17} /></button></div>
-        <div className="route-list">
-          <button onClick={() => chooseRoute('city')}><span className="category-photo"><ScooterVisual product={products[0]} compact /></span><span><strong>Электроскутеры</strong><small>Для города и ежедневных поездок</small><ChevronRight size={19} /></span></button>
-          <button onClick={() => chooseRoute('cargo')}><span className="category-photo"><ScooterVisual product={products[1]} compact /></span><span><strong>Грузовые модели</strong><small>Для бизнеса и большой нагрузки</small><ChevronRight size={19} /></span></button>
-          <button onClick={() => chooseRoute('compact')}><span className="category-photo"><ScooterVisual product={products[2]} compact /></span><span><strong>Компактные модели</strong><small>Для плотного города и хранения</small><ChevronRight size={19} /></span></button>
+        <div className="quick-launcher" aria-label="Быстрые действия">
+          <button onClick={() => onInfo('about')}><Handshake size={22} /><span><strong>О магазине</strong><small>Кто мы и как помогаем</small></span><ChevronRight size={18} /></button>
+          <button onClick={() => onInfo('city')}><MapPin size={22} /><span><strong>Большой Сочи</strong><small>Где мы работаем</small></span><ChevronRight size={18} /></button>
+          <button onClick={() => onInfo('delivery')}><Truck size={22} /><span><strong>Доставка и оплата</strong><small>Как получить технику</small></span><ChevronRight size={18} /></button>
+          <button onClick={() => onInfo('contact')}><Wrench size={22} /><span><strong>Консультация</strong><small>Задать вопрос</small></span><ChevronRight size={18} /></button>
         </div>
-      </section>
+        <button className="store-summary" onClick={() => onInfo('city')}>
+          <MapPin size={20} />
+          <span><strong>G-Partner · магазин в Большом Сочи</strong><small>Подбираем технику с учётом рельефа, маршрута и нагрузки.</small></span>
+          <ChevronRight size={18} />
+        </button>
+        <p className="hero-footnote">* Демонстрационные данные. Итоговые характеристики, цена и наличие требуют подтверждения менеджера.</p>
+      </section>}
 
-      <section className="popular-section" data-reveal>
-        <div className="section-heading-inline"><div><p>Выбор G-Partner</p><h2>ХИТЫ ПРОДАЖ</h2></div><button onClick={() => chooseRoute('all')}>Смотреть все <ChevronRight size={17} /></button></div>
-        <div className="popular-rail">{products.map((product) => <PopularCard key={product.id} product={product} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
+      {screen === 'catalog' && <>
+      <section className="catalog-intro">
+        <div><p className="section-number">G-PARTNER · КАТАЛОГ</p><h1>МОДЕЛИ ДЛЯ ГОРОДА,<br /><em>РАБОТЫ И БИЗНЕСА</em></h1></div>
+        <p>Сравнивайте основные параметры. Цена, наличие и характеристики пока демонстрационные — перед покупкой их подтвердит менеджер.</p>
       </section>
-
       <section className="catalog-section" id="catalog" data-reveal>
         <div className="section-heading-inline"><div><p>Модельный ряд</p><h2>КАТАЛОГ G-PARTNER</h2></div><span>{modelCountLabel(filtered.length)}</span></div>
         <div className="catalog-tools">
@@ -273,46 +335,9 @@ function Catalog({ onOpen, onQuickAdd }: { onOpen: (product: Product) => void; o
 
       {filtersOpen && createPortal(<div className="filter-backdrop" role="presentation" onClick={() => setFiltersOpen(false)}><section ref={filterSheetRef} id="catalog-filters" className="filter-sheet" role="dialog" aria-modal="true" aria-labelledby="filter-title" onClick={(event) => event.stopPropagation()}><div className="filter-sheet__head"><div><small>Каталог</small><h3 id="filter-title">Фильтры</h3></div><button ref={filterCloseRef} onClick={() => setFiltersOpen(false)} aria-label="Закрыть фильтры"><X /></button></div><fieldset><legend>Минимальный запас хода</legend><div className="filter-options">{[0, 50, 70].map((value) => <button type="button" key={value} className={minRange === value ? 'is-active' : ''} aria-pressed={minRange === value} onClick={() => setMinRange(value)}>{value === 0 ? 'Любой' : `от ${value} км`}</button>)}</div></fieldset><fieldset><legend>Назначение</legend><div className="filter-options">{categories.map((item) => <button type="button" key={item.id} className={category === item.id ? 'is-active' : ''} aria-pressed={category === item.id} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div></fieldset><div className="filter-sheet__actions"><button className="secondary-button" onClick={() => { setMinRange(0); setCategory('all'); }}>Сбросить</button><button className="primary-button" onClick={() => setFiltersOpen(false)}>Показать: {filtered.length}</button></div></section></div>, document.body)}
 
-      <section className="compare-section" id="about" data-reveal>
-        <div className="section-title"><span>03</span><div><p>О компании</p><h2>G-Partner помогает выбрать технику под задачу.</h2></div></div>
-        <p className="section-lead">Мы сравниваем модели по маршруту, нагрузке и бюджету — без перегруженных характеристик. Ниже короткий список для быстрого выбора.</p>
-        <div className="compare-table" role="table" aria-label="Сравнение электроскутеров">
-          <div className="compare-row compare-row--head" role="row"><span role="columnheader">Модель</span><span role="columnheader">Ход</span><span role="columnheader">Нагрузка</span><span role="columnheader">Цена</span></div>
-          {products.slice(0, 3).map((product) => <button className="compare-row" role="row" key={product.id} onClick={() => onOpen(product)}><strong role="cell">{product.name}<small>{product.kicker}</small></strong><span role="cell">до {product.range} км</span><span role="cell">{product.payload} кг</span><b role="cell">{formatPrice(product.price)}</b></button>)}
-        </div>
-      </section>
-
-      <section className="service-section" id="service" data-reveal>
-        <div className="section-title section-title--light"><span>04</span><div><p>Доставка и оплата</p><h2>Понятный путь до первого маршрута.</h2></div></div>
-        <div className="service-list">
-          <div><b>01</b><span><strong>Подбор</strong><small>Сопоставим пробег, рельеф и нагрузку.</small></span></div>
-          <div><b>02</b><span><strong>Доставка</strong><small>Способ, стоимость и срок получения подтвердит менеджер.</small></span></div>
-          <div><b>03</b><span><strong>Оплата</strong><small>Можно выбрать полную оплату или запросить расчёт рассрочки в заявке.</small></span></div>
-        </div>
-        <div className="service-cta" id="partners"><p>Нужна техника для команды или партнёрская поставка?</p><button className="primary-button" onClick={() => document.getElementById('contacts')?.scrollIntoView({ behavior: 'smooth' })}>Стать партнёром <ChevronRight size={19} /></button></div>
-      </section>
-
-      <section className="faq-section" data-reveal>
-        <div className="section-title"><span>05</span><div><p>Перед выбором</p><h2>Коротко о важном.</h2></div></div>
-        <div className="faq-list">
-          <details><summary>Какие цены указаны на сайте?<Plus size={18} /></summary><p>Сейчас это демонстрационные цены для прототипа. Менеджер подтвердит актуальную стоимость после подключения каталога поставщика.</p></details>
-          <details><summary>Можно ли заказать тест-драйв?<Plus size={18} /></summary><p>Форма заявки уже подготовлена. Доступные модели, место и время тест-драйва будут подтверждаться менеджером.</p></details>
-          <details><summary>Как рассчитывается запас хода?<Plus size={18} /></summary><p>Фактический пробег зависит от веса, скорости, рельефа, температуры и режима езды. В рабочей версии рядом с каждой цифрой появятся условия измерения.</p></details>
-          <details><summary>Есть ли доставка по Сочи?<Plus size={18} /></summary><p>Способ получения и стоимость доставки будут рассчитываться после подключения адресного API. Сейчас можно оставить заявку без обязательств.</p></details>
-        </div>
-      </section>
-
-      <section className="contact-section" id="contacts" data-reveal>
-        <div className="contact-panel">
-          <p className="section-number">G-PARTNER / ELECTRIC / SOCHI</p>
-          <h2>Начните с маршрута,<br />а не с характеристик.</h2>
-          <p>Расскажите, сколько вы ездите, какой груз перевозите и где храните скутер. Мы подготовим подходящую конфигурацию.</p>
-          <ContactLead />
-        </div>
-        <div className="contact-aside"><span>Регион работы</span><strong>Большой Сочи</strong><span>Статус проекта</span><strong>Каталог готов к API</strong></div>
-      </section>
-
-      <footer className="site-footer"><div><strong><b>G-</b>PARTNER</strong><Handshake size={24} /></div><p>Электротранспорт для города, работы и бизнеса в Сочи.</p><small>Цены и характеристики в прототипе не являются публичной офертой.</small></footer>
+      <footer className="site-footer catalog-footer"><div><strong><b>G-</b>PARTNER</strong><Handshake size={24} /></div><p>Магазин электротранспорта в Большом Сочи.</p><small>Цены и характеристики в прототипе не являются публичной офертой.</small></footer>
+      </>}
+      {infoTopic && <InfoSheet topic={infoTopic} onClose={onCloseInfo} onChoose={chooseRoute} />}
     </main>
   );
 }
@@ -401,10 +426,10 @@ function PlaceholderPage({ kind, onBack }: { kind: 'orders' | 'profile'; onBack:
   return <main className="plain-page placeholder-page"><BackBar title={orders ? 'Заказы' : 'Профиль'} onBack={onBack} /><div className="page-body"><div className="placeholder-visual">{orders ? <ReceiptText size={34} /> : <UserRound size={34} />}</div><p className="section-number">РАЗДЕЛ ГОТОВ К API</p><h1>{orders ? 'Заказов пока нет' : 'Профиль G-Partner'}</h1><p>{orders ? 'После подключения API здесь появятся статусы заявок, комплектации и история обращений.' : 'После подключения Telegram API здесь появятся ваши контакты, избранное и настройки.'}</p><button className="primary-button" onClick={onBack}>{orders ? 'Перейти в каталог' : 'Вернуться в магазин'} <ChevronRight size={18} /></button></div></main>;
 }
 
-function BottomNav({ view, count, catalogTab, onHome, onCatalog, onCart, onOrders, onProfile }: { view: View; count: number; catalogTab: 'home' | 'catalog'; onHome: () => void; onCatalog: () => void; onCart: () => void; onOrders: () => void; onProfile: () => void }) {
+function BottomNav({ view, count, onHome, onCatalog, onCart, onOrders, onProfile }: { view: View; count: number; onHome: () => void; onCatalog: () => void; onCart: () => void; onOrders: () => void; onProfile: () => void }) {
   if (view === 'product' || view === 'cart' || view === 'checkout') return null;
-  const homeActive = view === 'catalog' && catalogTab === 'home';
-  const catalogActive = view === 'catalog' && catalogTab === 'catalog';
+  const homeActive = view === 'home';
+  const catalogActive = view === 'catalog';
   return (
     <nav className="bottom-nav" aria-label="Основная навигация">
       <button className={homeActive ? 'is-active' : ''} aria-current={homeActive ? 'page' : undefined} onClick={onHome}><Home size={20} /><span>Главная</span></button>
@@ -417,13 +442,14 @@ function BottomNav({ view, count, catalogTab, onHome, onCatalog, onCart, onOrder
 }
 
 export function App() {
-  const [view, setView] = useState<View>('catalog');
+  const [view, setView] = useState<View>('home');
   const [theme, setTheme] = useState<Theme>(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   const [isTelegram, setIsTelegram] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product>(products[0]);
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [catalogTab, setCatalogTab] = useState<'home' | 'catalog'>('home');
-  const catalogScroll = useRef(0);
+  const [infoTopic, setInfoTopic] = useState<InfoTopic | null>(null);
+  const lastStoreView = useRef<'home' | 'catalog'>('home');
+  const storeScroll = useRef({ home: 0, catalog: 0 });
   useEffect(() => {
     const app = prepareTelegram();
     const telegramContext = Boolean(app?.initData);
@@ -441,23 +467,28 @@ export function App() {
     return () => media.removeEventListener?.('change', syncSystemTheme);
   }, []);
   useEffect(() => { document.documentElement.dataset.theme = 'dark'; document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#121214'); }, [theme]);
-  useEffect(() => {
-    if (view !== 'catalog') return;
-    const updateTab = () => {
-      const catalogTop = document.getElementById('catalog')?.offsetTop ?? Number.POSITIVE_INFINITY;
-      setCatalogTab(window.scrollY >= catalogTop - 180 ? 'catalog' : 'home');
-    };
-    updateTab();
-    window.addEventListener('scroll', updateTab, { passive: true });
-    return () => window.removeEventListener('scroll', updateTab);
-  }, [view]);
-  const navigate = (next: View) => { if (view === 'catalog' && next !== 'catalog') catalogScroll.current = window.scrollY; hapticTap(); setView(next); window.scrollTo(0, 0); };
+  const navigate = (next: View) => {
+    if (view === 'home' || view === 'catalog') {
+      storeScroll.current[view] = window.scrollY;
+      lastStoreView.current = view;
+    }
+    hapticTap();
+    setInfoTopic(null);
+    setView(next);
+    window.scrollTo(0, 0);
+  };
   const openProduct = (product: Product) => { setSelectedProduct(product); navigate('product'); };
-  const returnToCatalog = () => { hapticTap(); setView('catalog'); window.setTimeout(() => window.scrollTo({ top: catalogScroll.current, behavior: 'auto' }), 0); };
+  const returnToStore = () => {
+    const target = lastStoreView.current;
+    hapticTap();
+    setView(target);
+    window.setTimeout(() => window.scrollTo({ top: storeScroll.current[target], behavior: 'auto' }), 0);
+  };
   const addToCart = (product: Product, selectedAddons: Addon[] = [], openCart = true) => { hapticTap(); setCart((current) => addCartLine(current, product, selectedAddons)); if (openCart) navigate('cart'); };
   const changeQuantity = (lineKey: string, delta: number) => setCart((current) => changeCartLineQuantity(current, lineKey, delta));
   const count = cart.reduce((sum, line) => sum + line.quantity, 0);
-  const showHome = () => { if (view !== 'catalog') navigate('catalog'); setCatalogTab('home'); window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0); };
-  const showCatalog = () => { if (view !== 'catalog') navigate('catalog'); setCatalogTab('catalog'); window.setTimeout(() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' }), 0); };
-  return <div className="app-shell">{view === 'catalog' && <><Header count={count} onCart={() => navigate('cart')} onProfile={() => navigate('profile')} /><Catalog onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} /></>}{view === 'product' && <ProductPage product={selectedProduct} onBack={returnToCatalog} onAdd={(selected) => addToCart(selectedProduct, selected)} />}{view === 'cart' && <CartPage lines={cart} onBack={returnToCatalog} onChange={changeQuantity} onCheckout={() => navigate('checkout')} />}{view === 'checkout' && <Checkout total={cartTotal(cart)} onBack={() => navigate('cart')} />}{view === 'orders' && <PlaceholderPage kind="orders" onBack={showCatalog} />}{view === 'profile' && <PlaceholderPage kind="profile" onBack={showHome} />}<BottomNav view={view} count={count} catalogTab={catalogTab} onHome={showHome} onCatalog={showCatalog} onCart={() => navigate('cart')} onOrders={() => navigate('orders')} onProfile={() => navigate('profile')} /></div>;
+  const showHome = () => { hapticTap(); setInfoTopic(null); setView('home'); lastStoreView.current = 'home'; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const showCatalog = () => { hapticTap(); setInfoTopic(null); setView('catalog'); lastStoreView.current = 'catalog'; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const storeVisible = view === 'home' || view === 'catalog';
+  return <div className="app-shell">{storeVisible && <><Header count={count} active={view} onHome={showHome} onCatalog={showCatalog} onInfo={setInfoTopic} onCart={() => navigate('cart')} onProfile={() => navigate('profile')} /><Catalog screen={view} infoTopic={infoTopic} onCloseInfo={() => setInfoTopic(null)} onInfo={setInfoTopic} onCatalog={showCatalog} onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} /></>}{view === 'product' && <ProductPage product={selectedProduct} onBack={returnToStore} onAdd={(selected) => addToCart(selectedProduct, selected)} />}{view === 'cart' && <CartPage lines={cart} onBack={returnToStore} onChange={changeQuantity} onCheckout={() => navigate('checkout')} />}{view === 'checkout' && <Checkout total={cartTotal(cart)} onBack={() => navigate('cart')} />}{view === 'orders' && <PlaceholderPage kind="orders" onBack={showCatalog} />}{view === 'profile' && <PlaceholderPage kind="profile" onBack={showHome} />}<BottomNav view={view} count={count} onHome={showHome} onCatalog={showCatalog} onCart={() => navigate('cart')} onOrders={() => navigate('orders')} onProfile={() => navigate('profile')} /></div>;
 }
