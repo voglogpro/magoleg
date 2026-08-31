@@ -3,7 +3,7 @@ FROM node:20-bookworm-slim AS frontend
 WORKDIR /build
 
 COPY apps/mini-app/package.json apps/mini-app/package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts --no-audit --no-fund
 
 COPY apps/mini-app/ ./
 RUN npm run build
