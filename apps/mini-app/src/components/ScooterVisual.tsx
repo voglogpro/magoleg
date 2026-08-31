@@ -5,7 +5,7 @@ export function ScooterVisual({ product, compact = false }: { product: Product; 
   const style = { '--vehicle': product.color, '--vehicle-soft': product.colorSoft } as CSSProperties;
 
   return (
-    <div className={`scooter-visual scooter-visual--photo ${compact ? 'scooter-visual--compact' : ''}`} style={style}>
+    <div className={`scooter-visual scooter-visual--photo ${compact ? 'scooter-visual--compact' : ''}`} data-product={product.id} style={style}>
       <img
         src={product.image}
         alt={product.imageAlt}

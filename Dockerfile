@@ -2,8 +2,8 @@ FROM node:20-bookworm-slim AS frontend
 
 WORKDIR /build
 
-COPY apps/mini-app/package.json ./
-RUN npm install --ignore-scripts
+COPY apps/mini-app/package.json apps/mini-app/package-lock.json ./
+RUN npm ci --ignore-scripts
 
 COPY apps/mini-app/ ./
 RUN npm run build

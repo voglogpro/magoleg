@@ -21,7 +21,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { FormEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ScooterVisual } from './components/ScooterVisual';
 import { addons, products } from './data';
@@ -48,6 +48,16 @@ const modelCountLabel = (count: number) => {
   if (mod10 === 1) return `${count} модель`;
   if (mod10 >= 2 && mod10 <= 4) return `${count} модели`;
   return `${count} моделей`;
+};
+
+const scrollImmediately = (top = 0) => {
+  const root = document.documentElement;
+  const previous = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';
+  root.scrollTop = top;
+  document.body.scrollTop = top;
+  window.scrollTo({ top, left: 0, behavior: 'instant' as ScrollBehavior });
+  window.requestAnimationFrame(() => { root.style.scrollBehavior = previous; });
 };
 
 const categories: { id: Category; label: string }[] = [
@@ -92,11 +102,7 @@ function ProductCard({ product, index, favorite, onFavorite, onOpen, onAdd }: { 
     window.setTimeout(() => setAdded(false), 1300);
   };
   return (
-    <article className="product-card" data-reveal onPointerMove={(event) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      event.currentTarget.style.setProperty('--pointer-x', `${((event.clientX - rect.left) / rect.width - .5) * 2}`);
-      event.currentTarget.style.setProperty('--pointer-y', `${((event.clientY - rect.top) / rect.height - .5) * 2}`);
-    }} onPointerLeave={(event) => { event.currentTarget.style.setProperty('--pointer-x', '0'); event.currentTarget.style.setProperty('--pointer-y', '0'); }}>
+    <article className="product-card" data-reveal>
       <button className="product-card__visual" onClick={onOpen} aria-label={`Открыть ${product.name}`}>
         <span className="model-index">{String(index + 1).padStart(2, '0')}</span>
         {index < 2 && <span className="product-hit">Хит</span>}
@@ -122,7 +128,7 @@ function ProductCard({ product, index, favorite, onFavorite, onOpen, onAdd }: { 
 function ContactLead() {
   const [sent, setSent] = useState(false);
   const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); hapticTap(); setSent(true); };
-  if (sent) return <div className="contact-success" role="status"><Check size={22} /><div><strong>Запрос сохранён</strong><span>Это локальная демо-форма. После подключения API менеджер сможет получать такие заявки.</span></div></div>;
+  if (sent) return <div className="contact-success" role="status"><Check size={22} /><div><strong>Запрос сохранён</strong><span>В режиме предпросмотра данные остаются в этом браузере и не отправляются менеджеру.</span></div></div>;
   return <form className="contact-form" id="contact-lead" onSubmit={submit}><label htmlFor="consultation-phone"><span>Телефон для связи</span><input id="consultation-phone" name="phone" required inputMode="tel" autoComplete="tel" placeholder="+7 900 000-00-00" /></label><button className="primary-button" type="submit">Получить консультацию <ChevronRight size={19} /></button></form>;
 }
 
@@ -130,7 +136,7 @@ const infoContent: Record<Exclude<InfoTopic, 'selection' | 'contact'>, { eyebrow
   about: {
     eyebrow: 'О магазине',
     title: 'G-Partner — электротранспорт под реальную задачу.',
-    body: 'Помогаем сравнить электроскутеры для личных поездок, работы и бизнеса. Сейчас интерфейс работает как демонстрационная витрина: финальные цены, наличие и комплектацию подтверждает менеджер.',
+    body: 'Помогаем сравнить электроскутеры для личных поездок, работы и бизнеса. Финальные цены, наличие и комплектацию подтверждает менеджер.',
     facts: ['Подбор по маршруту', 'Сравнение без перегруза', 'Заявка без оплаты'],
   },
   city: {
@@ -149,18 +155,29 @@ const infoContent: Record<Exclude<InfoTopic, 'selection' | 'contact'>, { eyebrow
 
 function InfoSheet({ topic, onClose, onChoose }: { topic: InfoTopic; onClose: () => void; onChoose: (category: Category) => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const handleKeys = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { onClose(); return; }
+      if (event.key !== 'Tab') return;
+      const focusable = [...(sheetRef.current?.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])') ?? [])];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
     document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('keydown', handleKeys);
     window.requestAnimationFrame(() => closeRef.current?.focus());
-    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', closeOnEscape); };
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', handleKeys); opener?.focus(); };
   }, [onClose]);
 
   return createPortal(
     <div className="info-backdrop" role="presentation" onClick={onClose}>
-      <section className="info-sheet" role="dialog" aria-modal="true" aria-labelledby="info-sheet-title" onClick={(event) => event.stopPropagation()}>
+      <section ref={sheetRef} className="info-sheet" role="dialog" aria-modal="true" aria-labelledby="info-sheet-title" onClick={(event) => event.stopPropagation()}>
         <div className="info-sheet__head">
           <span>{topic === 'selection' ? 'Быстрый подбор' : topic === 'contact' ? 'Консультация' : infoContent[topic].eyebrow}</span>
           <button ref={closeRef} onClick={onClose} aria-label="Закрыть"><X size={21} /></button>
@@ -175,7 +192,7 @@ function InfoSheet({ topic, onClose, onChoose }: { topic: InfoTopic; onClose: ()
           </div>
         </> : topic === 'contact' ? <>
           <h2 id="info-sheet-title">Расскажите о своём маршруте.</h2>
-          <p>Форма пока работает локально. После подключения API запрос сможет получать менеджер магазина.</p>
+          <p>Сейчас форма работает в режиме предпросмотра: сообщение не отправляется менеджеру.</p>
           <ContactLead />
         </> : <>
           <h2 id="info-sheet-title">{infoContent[topic].title}</h2>
@@ -215,12 +232,6 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
     setCategory(categories[nextIndex].id);
     (event.currentTarget.parentElement?.children[nextIndex] as HTMLElement | undefined)?.focus();
   };
-  const moveHero = (event: ReactPointerEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.style.setProperty('--hero-x', `${((event.clientX - rect.left) / rect.width - .5) * 2}`);
-    event.currentTarget.style.setProperty('--hero-y', `${((event.clientY - rect.top) / rect.height - .5) * 2}`);
-  };
-
   useEffect(() => {
     const elements = document.querySelectorAll<HTMLElement>('[data-reveal]');
     if (!('IntersectionObserver' in window)) {
@@ -278,23 +289,18 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
 
   return (
     <main className={`catalog catalog--${screen}`}>
-      {screen === 'home' && <section className="hero home-hero" onPointerMove={moveHero} onPointerLeave={(event) => { event.currentTarget.style.setProperty('--hero-x', '0'); event.currentTarget.style.setProperty('--hero-y', '0'); }}>
+      {screen === 'home' && <section className="hero home-hero">
         <div className="hero__intro">
           <p className="section-number">G-PARTNER · МАГАЗИН В БОЛЬШОМ СОЧИ</p>
-          <h1><span>ЭЛЕКТРОСКУТЕРЫ</span><br /><em>ПОД ВАШ МАРШРУТ</em></h1>
-          <p className="hero__lead">Для города, работы и бизнеса. Сравните модели, а менеджер подтвердит цену, наличие и способ получения.</p>
+          <h1><span>ЭЛЕКТРОСКУТЕРЫ</span><br /><em>ДЛЯ СОЧИ</em></h1>
+          <p className="hero__lead">Подберём модель под ваш маршрут — для города, работы и бизнеса. Менеджер подтвердит цену, наличие и способ получения.</p>
           <div className="hero__actions">
-            <button className="primary-button" onClick={() => chooseRoute('all')}>ОТКРЫТЬ КАТАЛОГ <ChevronRight size={19} /></button>
-            <button className="hero-secondary" onClick={() => onInfo('selection')}>Подобрать модель</button>
+            <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
+            <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Подобрать модель</span><span className="button-label--compact">Подбор</span></button>
           </div>
-          <ul className="store-facts">
-            <li><strong>04</strong><span>модели<br />в демо-каталоге</span></li>
-            <li><strong>03</strong><span>сценария<br />подбора</span></li>
-            <li><strong>СОЧИ</strong><span>регион<br />работы</span></li>
-          </ul>
         </div>
         <button className="hero-product campaign-product" onClick={() => onOpen(featured)} aria-label="Открыть флагманскую модель Volt Cargo X">
-          <div className="hero-product__head"><span>Выбор G-Partner · Cargo X</span><span>{formatPrice(featured.price)}*</span></div>
+          <div className="hero-product__head"><span>Хит · Cargo X</span><span>{formatPrice(featured.price)}* →</span></div>
           <img className="hero-cutout" src="/products/hero-campaign-v2.jpg" alt="Флагманский трёхколёсный электроскутер G-Partner в студийном освещении" width="1672" height="936" fetchPriority="high" />
           <div className="hero-product__facts">
             <div><strong>{featured.range}</strong><span>км<br />запас хода</span></div>
@@ -308,34 +314,28 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
           <button onClick={() => onInfo('delivery')}><Truck size={22} /><span><strong>Доставка и оплата</strong><small>Как получить технику</small></span><ChevronRight size={18} /></button>
           <button onClick={() => onInfo('contact')}><Wrench size={22} /><span><strong>Консультация</strong><small>Задать вопрос</small></span><ChevronRight size={18} /></button>
         </div>
-        <button className="store-summary" onClick={() => onInfo('city')}>
-          <MapPin size={20} />
-          <span><strong>G-Partner · магазин в Большом Сочи</strong><small>Подбираем технику с учётом рельефа, маршрута и нагрузки.</small></span>
-          <ChevronRight size={18} />
-        </button>
-        <p className="hero-footnote">* Демонстрационные данные. Итоговые характеристики, цена и наличие требуют подтверждения менеджера.</p>
       </section>}
 
       {screen === 'catalog' && <>
       <section className="catalog-intro">
-        <div><p className="section-number">G-PARTNER · КАТАЛОГ</p><h1>МОДЕЛИ ДЛЯ ГОРОДА,<br /><em>РАБОТЫ И БИЗНЕСА</em></h1></div>
-        <p>Сравнивайте основные параметры. Цена, наличие и характеристики пока демонстрационные — перед покупкой их подтвердит менеджер.</p>
+        <div><p className="section-number">G-PARTNER · КАТАЛОГ</p><h1>ЭЛЕКТРОСКУТЕРЫ<br /><em>ДЛЯ СОЧИ</em></h1></div>
+        <p>Сравнивайте основные параметры и выбирайте технику под маршрут. Финальную цену и наличие подтвердит менеджер.</p>
       </section>
       <section className="catalog-section" id="catalog" data-reveal>
-        <div className="section-heading-inline"><div><p>Модельный ряд</p><h2>КАТАЛОГ G-PARTNER</h2></div><span>{modelCountLabel(filtered.length)}</span></div>
+        <div className="catalog-result-line"><strong>Модельный ряд</strong><span>{modelCountLabel(filtered.length)}</span></div>
         <div className="catalog-tools">
           <label className="search-field" htmlFor="catalog-search"><Search size={19} aria-hidden="true" /><input id="catalog-search" name="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти модель" aria-label="Поиск по моделям" />{query && <button onClick={() => setQuery('')} aria-label="Очистить поиск"><X size={18} /></button>}</label>
           <div className="catalog-filter-row"><button ref={filterTriggerRef} className={minRange > 0 ? 'has-active' : ''} aria-expanded={filtersOpen} aria-controls="catalog-filters" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={18} />{minRange > 0 ? 'Фильтры · 1' : 'Фильтры'}{minRange > 0 && <i />}</button><button onClick={() => setSort((value) => value === 'popular' ? 'price' : 'popular')}>{sort === 'popular' ? 'По популярности' : 'Сначала дешевле'} <ChevronRight size={17} /></button><button className={layout === 'grid' ? 'is-active' : ''} onClick={() => setLayout((value) => value === 'list' ? 'grid' : 'list')} aria-label={layout === 'grid' ? 'Списочный вид' : 'Плиточный вид'} aria-pressed={layout === 'grid'}><Grid2X2 size={18} /></button></div>
           <div className="category-tabs" role="tablist" aria-label="Категории">{categories.map((item, index) => <button key={item.id} role="tab" tabIndex={category === item.id ? 0 : -1} aria-selected={category === item.id} className={category === item.id ? 'is-active' : ''} onKeyDown={(event) => moveCategoryTab(event, index)} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div>
         </div>
-        <div className="catalog-note"><i /><span>Прототип каталога</span><span>цены и наличие уточняются</span></div>
+        <div className="catalog-note"><i /><span>Важно</span><span>цены и наличие уточняются</span></div>
         <div className={`product-grid ${layout === 'grid' ? 'is-compact' : ''}`}>{filtered.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
         {!filtered.length && <div className="empty-state"><h3>Модель не найдена</h3><p>Измените запрос или выберите другую категорию.</p></div>}
       </section>
 
       {filtersOpen && createPortal(<div className="filter-backdrop" role="presentation" onClick={() => setFiltersOpen(false)}><section ref={filterSheetRef} id="catalog-filters" className="filter-sheet" role="dialog" aria-modal="true" aria-labelledby="filter-title" onClick={(event) => event.stopPropagation()}><div className="filter-sheet__head"><div><small>Каталог</small><h3 id="filter-title">Фильтры</h3></div><button ref={filterCloseRef} onClick={() => setFiltersOpen(false)} aria-label="Закрыть фильтры"><X /></button></div><fieldset><legend>Минимальный запас хода</legend><div className="filter-options">{[0, 50, 70].map((value) => <button type="button" key={value} className={minRange === value ? 'is-active' : ''} aria-pressed={minRange === value} onClick={() => setMinRange(value)}>{value === 0 ? 'Любой' : `от ${value} км`}</button>)}</div></fieldset><fieldset><legend>Назначение</legend><div className="filter-options">{categories.map((item) => <button type="button" key={item.id} className={category === item.id ? 'is-active' : ''} aria-pressed={category === item.id} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div></fieldset><div className="filter-sheet__actions"><button className="secondary-button" onClick={() => { setMinRange(0); setCategory('all'); }}>Сбросить</button><button className="primary-button" onClick={() => setFiltersOpen(false)}>Показать: {filtered.length}</button></div></section></div>, document.body)}
 
-      <footer className="site-footer catalog-footer"><div><strong><b>G-</b>PARTNER</strong><Handshake size={24} /></div><p>Магазин электротранспорта в Большом Сочи.</p><small>Цены и характеристики в прототипе не являются публичной офертой.</small></footer>
+      <footer className="site-footer catalog-footer"><div><strong><b>G-</b>PARTNER</strong><Handshake size={24} /></div><p>Магазин электротранспорта в Большом Сочи.</p><small>Цены и характеристики уточняются и не являются публичной офертой.</small></footer>
       </>}
       {infoTopic && <InfoSheet topic={infoTopic} onClose={onCloseInfo} onChoose={chooseRoute} />}
     </main>
@@ -404,7 +404,7 @@ function Checkout({ total, onBack }: { total: number; onBack: () => void }) {
     <main className="plain-page checkout-page">
       <BackBar title="Предложение" onBack={onBack} />
       <div className="page-body">
-        {sent ? <section className="success-state"><span><Check size={26} /></span><p>Локальный прототип</p><h1>Форма готова к подключению API.</h1><p>Сейчас данные никуда не отправлены. После подключения менеджер сможет подтвердить наличие и итоговую цену.</p><button className="secondary-button" onClick={onBack}>Вернуться к выбору</button></section> : <form className="lead-form" onSubmit={submit}>
+        {sent ? <section className="success-state"><span><Check size={26} /></span><p>Режим предпросмотра</p><h1>Форма заполнена.</h1><p>Сейчас данные остаются в браузере и не отправляются менеджеру. Приём заявок будет подключён перед запуском.</p><button className="secondary-button" onClick={onBack}>Вернуться к выбору</button></section> : <form className="lead-form" onSubmit={submit}>
           <div className="section-title"><span>04</span><div><p>Без обязательств</p><h1>Получить подтверждение цены</h1></div></div>
           <p className="form-intro">Оставьте контакт. Менеджер уточнит наличие, комплектацию и итоговую стоимость.</p>
           <div className="summary-line"><span>Выбранная комплектация</span><strong>{formatPrice(total)}</strong></div>
@@ -414,7 +414,7 @@ function Checkout({ total, onBack }: { total: number; onBack: () => void }) {
           {delivery === 'delivery' && <label htmlFor="lead-address"><span>Адрес</span><input id="lead-address" name="address" required autoComplete="street-address" placeholder="Район, улица, дом" /></label>}
           <fieldset><legend>Вариант оплаты</legend><div className="choice-row"><button type="button" aria-pressed={payment === 'full'} className={payment === 'full' ? 'is-active' : ''} onClick={() => setPayment('full')}>Полностью</button><button type="button" aria-pressed={payment === 'finance'} className={payment === 'finance' ? 'is-active' : ''} onClick={() => setPayment('finance')}>Рассрочка</button></div></fieldset>
           <button className="primary-button form-submit" type="submit">Получить подтверждение <ChevronRight size={19} /></button>
-          <p className="legal-copy">Заявка не обязывает к покупке. В прототипе форма работает локально и не передаёт персональные данные.</p>
+          <p className="legal-copy">Заявка не обязывает к покупке. Сейчас данные остаются в вашем браузере и не передаются.</p>
         </form>}
       </div>
     </main>
@@ -423,7 +423,7 @@ function Checkout({ total, onBack }: { total: number; onBack: () => void }) {
 
 function PlaceholderPage({ kind, onBack }: { kind: 'orders' | 'profile'; onBack: () => void }) {
   const orders = kind === 'orders';
-  return <main className="plain-page placeholder-page"><BackBar title={orders ? 'Заказы' : 'Профиль'} onBack={onBack} /><div className="page-body"><div className="placeholder-visual">{orders ? <ReceiptText size={34} /> : <UserRound size={34} />}</div><p className="section-number">РАЗДЕЛ ГОТОВ К API</p><h1>{orders ? 'Заказов пока нет' : 'Профиль G-Partner'}</h1><p>{orders ? 'После подключения API здесь появятся статусы заявок, комплектации и история обращений.' : 'После подключения Telegram API здесь появятся ваши контакты, избранное и настройки.'}</p><button className="primary-button" onClick={onBack}>{orders ? 'Перейти в каталог' : 'Вернуться в магазин'} <ChevronRight size={18} /></button></div></main>;
+  return <main className="plain-page placeholder-page"><BackBar title={orders ? 'Заказы' : 'Профиль'} onBack={onBack} /><div className="page-body"><div className="placeholder-visual">{orders ? <ReceiptText size={34} /> : <UserRound size={34} />}</div><p className="section-number">РАЗДЕЛ В РАЗРАБОТКЕ</p><h1>{orders ? 'Заказов пока нет' : 'Профиль G-Partner'}</h1><p>{orders ? 'Здесь появятся статусы заявок, комплектации и история обращений.' : 'Здесь появятся ваши контакты, избранное и настройки.'}</p><button className="primary-button" onClick={onBack}>{orders ? 'Перейти в каталог' : 'Вернуться в магазин'} <ChevronRight size={18} /></button></div></main>;
 }
 
 function BottomNav({ view, count, onHome, onCatalog, onCart, onOrders, onProfile }: { view: View; count: number; onHome: () => void; onCatalog: () => void; onCart: () => void; onOrders: () => void; onProfile: () => void }) {
@@ -475,14 +475,14 @@ export function App() {
     hapticTap();
     setInfoTopic(null);
     setView(next);
-    window.scrollTo(0, 0);
+    scrollImmediately();
   };
   const openProduct = (product: Product) => { setSelectedProduct(product); navigate('product'); };
   const returnToStore = () => {
     const target = lastStoreView.current;
     hapticTap();
     setView(target);
-    window.setTimeout(() => window.scrollTo({ top: storeScroll.current[target], behavior: 'auto' }), 0);
+    window.setTimeout(() => scrollImmediately(storeScroll.current[target]), 0);
   };
   const addToCart = (product: Product, selectedAddons: Addon[] = [], openCart = true) => { hapticTap(); setCart((current) => addCartLine(current, product, selectedAddons)); if (openCart) navigate('cart'); };
   const changeQuantity = (lineKey: string, delta: number) => setCart((current) => changeCartLineQuantity(current, lineKey, delta));
