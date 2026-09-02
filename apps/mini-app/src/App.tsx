@@ -15,7 +15,9 @@ import {
   ReceiptText,
   Search,
   ShoppingBag,
+  ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   Truck,
   UserRound,
   Wrench,
@@ -30,7 +32,7 @@ import { cartTotal, formatPrice } from './lib/pricing';
 import { hapticTap, prepareTelegram } from './lib/telegram';
 import type { Addon, CartLine, Category, Product } from './types';
 
-type View = 'home' | 'catalog' | 'product' | 'cart' | 'checkout' | 'orders' | 'profile';
+type View = 'home' | 'catalog' | 'info' | 'product' | 'cart' | 'checkout' | 'orders' | 'profile';
 type Theme = 'light' | 'dark';
 type InfoTopic = 'about' | 'city' | 'delivery' | 'selection' | 'contact';
 
@@ -67,7 +69,7 @@ const categories: { id: Category; label: string }[] = [
   { id: 'compact', label: 'Компактные' },
 ];
 
-function Header({ count, active, onHome, onCatalog, onInfo, onCart, onProfile }: { count: number; active: 'home' | 'catalog'; onHome: () => void; onCatalog: () => void; onInfo: (topic: InfoTopic) => void; onCart: () => void; onProfile: () => void }) {
+function Header({ count, active, onHome, onCatalog, onInfo, onCart, onProfile }: { count: number; active: 'home' | 'catalog' | InfoTopic; onHome: () => void; onCatalog: () => void; onInfo: (topic: InfoTopic) => void; onCart: () => void; onProfile: () => void }) {
   const focusSearch = () => {
     onCatalog();
     window.requestAnimationFrame(() => window.setTimeout(() => document.getElementById('catalog-search')?.focus(), 50));
@@ -80,10 +82,10 @@ function Header({ count, active, onHome, onCatalog, onInfo, onCart, onProfile }:
       </button>
       <nav className="desktop-nav" aria-label="Навигация по сайту">
         <button className={active === 'catalog' ? 'is-active' : ''} onClick={onCatalog}>Каталог</button>
-        <button onClick={() => onInfo('about')}>О магазине</button>
-        <button onClick={() => onInfo('city')}>Большой Сочи</button>
-        <button onClick={() => onInfo('delivery')}>Доставка и оплата</button>
-        <button onClick={() => onInfo('contact')}>Контакты</button>
+        <button className={active === 'about' ? 'is-active' : ''} onClick={() => onInfo('about')}>О магазине</button>
+        <button className={active === 'city' ? 'is-active' : ''} onClick={() => onInfo('city')}>Большой Сочи</button>
+        <button className={active === 'delivery' ? 'is-active' : ''} onClick={() => onInfo('delivery')}>Доставка и оплата</button>
+        <button className={active === 'contact' ? 'is-active' : ''} onClick={() => onInfo('contact')}>Контакты</button>
       </nav>
       <div className="header-actions">
         <button className="icon-button" onClick={focusSearch} aria-label="Открыть поиск"><Search size={21} /></button>
@@ -192,62 +194,39 @@ const infoContent: Record<Exclude<InfoTopic, 'selection' | 'contact'>, StoreInfo
   },
 };
 
-function InfoSheet({ topic, onClose, onChoose }: { topic: InfoTopic; onClose: () => void; onChoose: (category: Category) => void }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const sheetRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const handleKeys = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { onClose(); return; }
-      if (event.key !== 'Tab') return;
-      const focusable = [...(sheetRef.current?.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])') ?? [])];
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeys);
-    window.requestAnimationFrame(() => closeRef.current?.focus());
-    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', handleKeys); opener?.focus(); };
-  }, [onClose]);
+function StoreInfoPage({ topic, onHome, onChoose }: { topic: InfoTopic; onHome: () => void; onChoose: (category: Category) => void }) {
+  if (topic === 'selection') return <main className="store-info-page">
+    <section className="info-page-hero info-page-hero--compact"><button className="info-breadcrumb" onClick={onHome}>Главная <ChevronRight size={14} /> Подбор модели</button><p>Быстрый подбор</p><h1>Для чего нужен электроскутер?</h1><span>Выберите основной сценарий — каталог откроется с подходящей категорией.</span></section>
+    <section className="info-page-content"><div className="info-choice-grid info-choice-grid--page">
+      <button onClick={() => onChoose('city')}><MapPin size={24} /><span><strong>Для города</strong><small>Ежедневные поездки и личные маршруты</small></span><ChevronRight size={19} /></button>
+      <button onClick={() => onChoose('cargo')}><PackageCheck size={24} /><span><strong>Для работы</strong><small>Груз, доставка и продолжительные смены</small></span><ChevronRight size={19} /></button>
+      <button onClick={() => onChoose('compact')}><Grid2X2 size={24} /><span><strong>Компактный</strong><small>Манёвренность и удобное хранение</small></span><ChevronRight size={19} /></button>
+    </div></section>
+  </main>;
 
-  return createPortal(
-    <div className="info-backdrop" role="presentation" onClick={onClose}>
-      <section ref={sheetRef} className="info-sheet" role="dialog" aria-modal="true" aria-labelledby="info-sheet-title" onClick={(event) => event.stopPropagation()}>
-        <div className="info-sheet__head">
-          <span>{topic === 'selection' ? 'Быстрый подбор' : topic === 'contact' ? 'Консультация' : infoContent[topic].eyebrow}</span>
-          <button ref={closeRef} onClick={onClose} aria-label="Закрыть"><X size={21} /></button>
-        </div>
-        {topic === 'selection' ? <>
-          <h2 id="info-sheet-title">Для чего нужен скутер?</h2>
-          <p>Выберите главный сценарий — каталог сразу покажет подходящие модели.</p>
-          <div className="info-choice-grid">
-            <button onClick={() => onChoose('city')}><MapPin size={21} /><span><strong>Для города</strong><small>Ежедневные поездки</small></span><ChevronRight size={18} /></button>
-            <button onClick={() => onChoose('cargo')}><PackageCheck size={21} /><span><strong>Для работы</strong><small>Груз и длинные смены</small></span><ChevronRight size={18} /></button>
-            <button onClick={() => onChoose('compact')}><Grid2X2 size={21} /><span><strong>Компактный</strong><small>Хранение и манёвренность</small></span><ChevronRight size={18} /></button>
-          </div>
-        </> : topic === 'contact' ? <>
-          <h2 id="info-sheet-title">Расскажите о своём маршруте.</h2>
-          <p>Сейчас форма работает в режиме предпросмотра: сообщение не отправляется менеджеру.</p>
-          <ContactLead />
-        </> : <>
-          <h2 id="info-sheet-title">{infoContent[topic].title}</h2>
-          <p>{infoContent[topic].body}</p>
-          <div className="info-metrics">{infoContent[topic].metrics.map((metric) => <div key={metric.label}><strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div>
-          <div className="info-feature-grid">{infoContent[topic].facts.map((fact, index) => <article key={fact.title}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{fact.title}</strong><p>{fact.text}</p></div></article>)}</div>
-          <p className="info-note"><Check size={18} />{infoContent[topic].note}</p>
-          <button className="primary-button" onClick={() => onChoose('all')}>Открыть каталог <ChevronRight size={18} /></button>
-        </>}
-      </section>
-    </div>,
-    document.body,
-  );
+  if (topic === 'contact') return <main className="store-info-page">
+    <section className="info-page-hero"><button className="info-breadcrumb" onClick={onHome}>Главная <ChevronRight size={14} /> Контакты</button><p>Связаться с магазином</p><h1>Расскажите, какая техника вам нужна.</h1><span>Укажите телефон — после подключения API запрос будет передан менеджеру G-Partner.</span></section>
+    <section className="info-page-content info-page-content--contact"><div><p className="section-number">КОНСУЛЬТАЦИЯ</p><h2>Обсудим маршрут, нагрузку и бюджет</h2><p>Можно начать с вопроса без оформления заказа. Сейчас форма работает как демонстрация и не отправляет данные.</p></div><ContactLead /></section>
+  </main>;
+
+  const content = infoContent[topic];
+  return <main className="store-info-page">
+    <section className="info-page-hero">
+      <button className="info-breadcrumb" onClick={onHome}>Главная <ChevronRight size={14} /> {content.eyebrow}</button>
+      <div><p>{content.eyebrow}</p><h1>{content.title}</h1><span>{content.body}</span></div>
+      <img src="/brand/gpartner-mark-v2-512.png" alt="" width="220" height="220" />
+    </section>
+    <section className="info-page-content">
+      <div className="info-metrics">{content.metrics.map((metric) => <div key={metric.label}><strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div>
+      <div className="info-document-layout">
+        <div><p className="section-number">КАК РАБОТАЕТ G-PARTNER</p><h2>Информация о магазине</h2><div className="info-feature-grid">{content.facts.map((fact, index) => <article key={fact.title}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{fact.title}</strong><p>{fact.text}</p></div></article>)}</div></div>
+        <aside><p className="section-number">ВАЖНО ДО ЗАКАЗА</p><h3>Условия и статус информации</h3><p>{content.note}</p><ul><li><Check size={16} />Цена подтверждается менеджером</li><li><Check size={16} />Онлайн-оплата пока отключена</li><li><Check size={16} />Заявка не обязывает к покупке</li></ul><button className="primary-button" onClick={() => onChoose('all')}>Открыть каталог <ChevronRight size={18} /></button></aside>
+      </div>
+    </section>
+  </main>;
 }
 
-function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, onQuickAdd }: { screen: 'home' | 'catalog'; infoTopic: InfoTopic | null; onCloseInfo: () => void; onInfo: (topic: InfoTopic) => void; onCatalog: () => void; onOpen: (product: Product) => void; onQuickAdd: (product: Product) => void }) {
+function Catalog({ screen, onInfo, onCatalog, onOpen, onQuickAdd }: { screen: 'home' | 'catalog'; onInfo: (topic: InfoTopic) => void; onCatalog: () => void; onOpen: (product: Product) => void; onQuickAdd: (product: Product) => void }) {
   const [category, setCategory] = useState<Category>(() => (safeStorageGet('sessionStorage', 'gshop-category') as Category | null) ?? 'all');
   const [query, setQuery] = useState(() => safeStorageGet('sessionStorage', 'gshop-query') ?? '');
   const [sort, setSort] = useState<'popular' | 'price'>(() => safeStorageGet('sessionStorage', 'gshop-sort') === 'price' ? 'price' : 'popular');
@@ -264,7 +243,7 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
     const result = products.filter((product) => (category === 'all' || product.category === category) && product.name.toLowerCase().includes(query.toLowerCase()) && product.range >= minRange);
     return sort === 'price' ? [...result].sort((a, b) => a.price - b.price) : result;
   }, [category, query, minRange, sort]);
-  const chooseRoute = (next: Category) => { setCategory(next); onCloseInfo(); onCatalog(); };
+  const chooseRoute = (next: Category) => { setCategory(next); onCatalog(); };
   const moveCategoryTab = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
@@ -328,11 +307,12 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
 
   return (
     <main className={`catalog catalog--${screen}`}>
-      {screen === 'home' && <section className="hero home-hero">
+      {screen === 'home' && <>
+      <section className="hero home-hero">
         <div className="hero__intro">
           <div className="hero-brand-chip"><img src="/brand/gpartner-mark-v2-512.png" alt="" width="46" height="46" /><span><b>G-PARTNER</b><small>ЭЛЕКТРОТРАНСПОРТ · БОЛЬШОЙ СОЧИ</small></span></div>
-          <h1><span>ЭНЕРГИЯ</span><br /><em>В ДВИЖЕНИИ.</em></h1>
-          <p className="hero__lead">Электроскутеры для города, работы и перевозки грузов. Выберите маршрут — мы поможем определить подходящую модель.</p>
+          <h1><span>МАГАЗИН</span><br /><em>ЭЛЕКТРОТРАНСПОРТА</em></h1>
+          <p className="hero__lead">Продажа электроскутеров для города, работы и перевозки грузов в Большом Сочи. Поможем сравнить модели и уточним наличие.</p>
           <div className="hero__actions">
             <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
             <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Подобрать модель</span><span className="button-label--compact">Подбор</span></button>
@@ -353,12 +333,27 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
           </div>
         </button>
         <div className="quick-launcher" aria-label="Быстрые действия">
-          <button onClick={() => onInfo('about')}><Handshake size={22} /><span><strong>О магазине</strong><small>Кто мы и как помогаем</small></span><ChevronRight size={18} /></button>
-          <button onClick={() => onInfo('city')}><MapPin size={22} /><span><strong>Большой Сочи</strong><small>Где мы работаем</small></span><ChevronRight size={18} /></button>
-          <button onClick={() => onInfo('delivery')}><Truck size={22} /><span><strong>Доставка и оплата</strong><small>Как получить технику</small></span><ChevronRight size={18} /></button>
-          <button onClick={() => onInfo('contact')}><Wrench size={22} /><span><strong>Консультация</strong><small>Задать вопрос</small></span><ChevronRight size={18} /></button>
+          <button onClick={() => chooseRoute('city')}><MapPin size={22} /><span><strong>Для города</strong><small>Ежедневные маршруты</small></span><ChevronRight size={18} /></button>
+          <button onClick={() => chooseRoute('cargo')}><PackageCheck size={22} /><span><strong>Для работы</strong><small>Груз и доставка</small></span><ChevronRight size={18} /></button>
+          <button onClick={() => chooseRoute('compact')}><Grid2X2 size={22} /><span><strong>Компактные</strong><small>Манёвренные модели</small></span><ChevronRight size={18} /></button>
+          <button onClick={() => onInfo('about')}><Handshake size={22} /><span><strong>О магазине</strong><small>Документы и условия</small></span><ChevronRight size={18} /></button>
         </div>
-      </section>}
+      </section>
+      <section className="home-commerce" data-reveal>
+        <div className="home-section-head">
+          <div><p className="section-number">ПОПУЛЯРНЫЕ МОДЕЛИ</p><h2>Электроскутеры в каталоге</h2><span>Сравните запас хода, скорость и допустимую нагрузку.</span></div>
+          <button onClick={() => chooseRoute('all')}>Все модели <ChevronRight size={18} /></button>
+        </div>
+        <div className="product-grid product-grid--market home-product-grid">{products.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
+      </section>
+      <section className="home-service-band" data-reveal>
+        <button onClick={() => onInfo('about')}><Handshake size={23} /><span><strong>О G-Partner</strong><small>Информация о магазине</small></span><ChevronRight size={18} /></button>
+        <button onClick={() => onInfo('city')}><MapPin size={23} /><span><strong>Большой Сочи</strong><small>География работы</small></span><ChevronRight size={18} /></button>
+        <button onClick={() => onInfo('delivery')}><Truck size={23} /><span><strong>Получение и оплата</strong><small>Порядок оформления</small></span><ChevronRight size={18} /></button>
+        <button onClick={() => onInfo('contact')}><Wrench size={23} /><span><strong>Нужна помощь?</strong><small>Задать вопрос менеджеру</small></span><ChevronRight size={18} /></button>
+      </section>
+      <footer className="site-footer home-footer"><div className="footer-brand"><img src="/brand/gpartner-mark-v2-512.png" alt="" width="44" height="44" /><strong><b>G-</b>PARTNER</strong></div><p>Магазин электротранспорта в Большом Сочи.</p><small>Цены и характеристики уточняются и не являются публичной офертой.</small></footer>
+      </>}
 
       {screen === 'catalog' && <>
       <section className="catalog-intro">
@@ -381,7 +376,6 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
 
       <footer className="site-footer catalog-footer"><div className="footer-brand"><img src="/brand/gpartner-mark-v2-512.png" alt="" width="44" height="44" /><strong><b>G-</b>PARTNER</strong></div><p>Магазин электротранспорта в Большом Сочи.</p><small>Цены и характеристики уточняются и не являются публичной офертой.</small></footer>
       </>}
-      {infoTopic && <InfoSheet topic={infoTopic} onClose={onCloseInfo} onChoose={chooseRoute} />}
     </main>
   );
 }
@@ -424,17 +418,34 @@ function ProductPage({ product, onBack, onAdd }: { product: Product; onBack: () 
   );
 }
 
-function CartPage({ lines, onBack, onChange, onCheckout }: { lines: CartLine[]; onBack: () => void; onChange: (lineKey: string, delta: number) => void; onCheckout: () => void }) {
+function CartPage({ lines, onBack, onChange, onCheckout, onCatalog, onOpen }: { lines: CartLine[]; onBack: () => void; onChange: (lineKey: string, delta: number) => void; onCheckout: () => void; onCatalog: () => void; onOpen: (product: Product) => void }) {
   const total = cartTotal(lines);
+  const count = lines.reduce((sum, line) => sum + line.quantity, 0);
   return (
-    <main className="plain-page">
-      <BackBar title="Ваш выбор" onBack={onBack} />
-      <div className="page-body">
-        <div className="section-title"><span>03</span><div><p>Заявка</p><h1>Выбранные модели</h1></div></div>
-        {lines.length ? <div className="cart-list">{lines.map((line) => { const key = cartLineKey(line.product, line.addons); const configuration = line.addons.length ? line.addons.map((addon) => addon.name).join(', ') : 'базовая комплектация'; return <article className="cart-line" key={key}><ScooterVisual product={line.product} compact /><div className="cart-line__copy"><span>{line.product.kicker}</span><strong>{line.product.name}</strong>{line.addons.length ? <ul className="cart-options">{line.addons.map((addon) => <li key={addon.id}><span>{addon.name}</span><b>+ {formatPrice(addon.price)} / шт.</b></li>)}</ul> : <small>Базовая комплектация</small>}<b>{formatPrice((line.product.price + line.addons.reduce((sum, addon) => sum + addon.price, 0)) * line.quantity)}</b></div><div className="quantity"><button onClick={() => onChange(key, -1)} aria-label={`Уменьшить количество ${line.product.name}, ${configuration}`}><Minus size={16} /></button><span>{line.quantity}</span><button onClick={() => onChange(key, 1)} aria-label={`Увеличить количество ${line.product.name}, ${configuration}`}><Plus size={16} /></button></div></article>; })}</div> : <div className="empty-state"><ShoppingBag size={34} /><h3>Пока ничего не выбрано</h3><p>Вернитесь в каталог и откройте подходящую модель.</p><button className="secondary-button" onClick={onBack}>В каталог</button></div>}
-        {lines.length > 0 && <div className="summary-card"><p><span>Модели и опции</span><b>{formatPrice(total)}</b></p><p><span>Доставка</span><b className="muted">уточнит менеджер</b></p><div><span>Предварительно</span><strong>{formatPrice(total)}</strong></div></div>}
+    <main className="plain-page cart-page">
+      <BackBar title="Корзина" onBack={onBack} />
+      <div className="cart-page__body">
+        <header className="cart-page__heading"><div><p className="section-number">ВАШ ЗАКАЗ</p><h1>Корзина</h1></div><span>{count ? `${count} ${count === 1 ? 'товар' : count < 5 ? 'товара' : 'товаров'}` : 'Товаров пока нет'}</span></header>
+        {lines.length ? <div className="cart-commerce-layout">
+          <section className="cart-items-panel" aria-label="Товары в корзине">
+            <div className="cart-items-panel__head"><h2>Товары</h2><span>{count} шт.</span></div>
+            <div className="cart-list">{lines.map((line) => {
+              const key = cartLineKey(line.product, line.addons);
+              const unitPrice = line.product.price + line.addons.reduce((sum, addon) => sum + addon.price, 0);
+              const configuration = line.addons.length ? line.addons.map((addon) => addon.name).join(', ') : 'базовая комплектация';
+              return <article className="cart-line cart-line--shop" key={key}>
+                <button className="cart-line__visual" onClick={() => onOpen(line.product)} aria-label={`Открыть ${line.product.name}`}><ScooterVisual product={line.product} compact /></button>
+                <div className="cart-line__copy"><span className={`stock stock--${line.product.stockTone}`}><i />{line.product.stockLabel}</span><button className="cart-line__name" onClick={() => onOpen(line.product)}>{line.product.name}</button><small>до {line.product.range} км · {line.product.speed} км/ч · до {line.product.payload} кг</small>{line.addons.length ? <ul className="cart-options">{line.addons.map((addon) => <li key={addon.id}><span>{addon.name}</span><b>+ {formatPrice(addon.price)}</b></li>)}</ul> : <small>Базовая комплектация</small>}<b className="cart-line__unit">{formatPrice(unitPrice)} / шт.</b></div>
+                <div className="cart-line__aside"><strong>{formatPrice(unitPrice * line.quantity)}</strong><div className="cart-line__controls"><div className="quantity"><button onClick={() => onChange(key, -1)} aria-label={`Уменьшить количество ${line.product.name}, ${configuration}`}><Minus size={16} /></button><span>{line.quantity}</span><button onClick={() => onChange(key, 1)} aria-label={`Увеличить количество ${line.product.name}, ${configuration}`}><Plus size={16} /></button></div><button className="cart-remove" onClick={() => onChange(key, -line.quantity)} aria-label={`Удалить ${line.product.name} из корзины`}><Trash2 size={18} /></button></div></div>
+              </article>;
+            })}</div>
+          </section>
+          <aside className="cart-order-summary"><p className="section-number">ИТОГО</p><h2>Ваш заказ</h2><div className="cart-summary-rows"><p><span>Товары, {count} шт.</span><b>{formatPrice(total)}</b></p><p><span>Получение</span><b>уточнит менеджер</b></p></div><div className="cart-summary-total"><span>Предварительная сумма</span><strong>{formatPrice(total)}</strong></div><p className="cart-payment-note"><ShieldCheck size={20} /><span><strong>Оплата после подтверждения</strong><small>Менеджер уточнит наличие, комплектацию и итоговую стоимость.</small></span></p><button className="primary-button" onClick={onCheckout}>Оформить заявку <ChevronRight size={20} /></button><button className="cart-continue" onClick={onCatalog}>Продолжить покупки</button><small className="cart-legal">Оформление заявки не обязывает к покупке.</small></aside>
+        </div> : <section className="empty-cart">
+          <div className="empty-cart__main"><span><ShoppingBag size={36} /></span><p className="section-number">КОРЗИНА ПУСТА</p><h2>Добавьте электроскутер</h2><p>Сравните модели по запасу хода, скорости и нагрузке. Выбранный товар появится здесь вместе с итоговой стоимостью.</p><button className="primary-button" onClick={onCatalog}>Перейти в каталог <ChevronRight size={19} /></button></div>
+          <div className="cart-recommendations"><div><p className="section-number">ПОПУЛЯРНЫЕ МОДЕЛИ</p><h2>С чего начать</h2></div>{products.slice(0, 3).map((product) => <button key={product.id} onClick={() => onOpen(product)}><ScooterVisual product={product} compact /><span><small>{product.kicker}</small><strong>{product.name}</strong><b>{formatPrice(product.price)}*</b></span><ChevronRight size={18} /></button>)}</div>
+        </section>}
       </div>
-      {lines.length > 0 && <div className="sticky-action sticky-action--single"><button className="primary-button" onClick={onCheckout}>Получить предложение <ChevronRight size={20} /></button></div>}
     </main>
   );
 }
@@ -491,7 +502,7 @@ export function App() {
   const [isTelegram, setIsTelegram] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product>(products[0]);
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [infoTopic, setInfoTopic] = useState<InfoTopic | null>(null);
+  const [infoTopic, setInfoTopic] = useState<InfoTopic>('about');
   const lastStoreView = useRef<'home' | 'catalog'>('home');
   const storeScroll = useRef({ home: 0, catalog: 0 });
   useEffect(() => {
@@ -517,7 +528,6 @@ export function App() {
       lastStoreView.current = view;
     }
     hapticTap();
-    setInfoTopic(null);
     setView(next);
     scrollImmediately();
   };
@@ -531,8 +541,29 @@ export function App() {
   const addToCart = (product: Product, selectedAddons: Addon[] = [], openCart = true) => { hapticTap(); setCart((current) => addCartLine(current, product, selectedAddons)); if (openCart) navigate('cart'); };
   const changeQuantity = (lineKey: string, delta: number) => setCart((current) => changeCartLineQuantity(current, lineKey, delta));
   const count = cart.reduce((sum, line) => sum + line.quantity, 0);
-  const showHome = () => { hapticTap(); setInfoTopic(null); setView('home'); lastStoreView.current = 'home'; window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const showCatalog = () => { hapticTap(); setInfoTopic(null); setView('catalog'); lastStoreView.current = 'catalog'; window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const storeVisible = view === 'home' || view === 'catalog';
-  return <div className="app-shell">{storeVisible && <><Header count={count} active={view} onHome={showHome} onCatalog={showCatalog} onInfo={setInfoTopic} onCart={() => navigate('cart')} onProfile={() => navigate('profile')} /><Catalog screen={view} infoTopic={infoTopic} onCloseInfo={() => setInfoTopic(null)} onInfo={setInfoTopic} onCatalog={showCatalog} onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} /></>}{view === 'product' && <ProductPage product={selectedProduct} onBack={returnToStore} onAdd={(selected) => addToCart(selectedProduct, selected)} />}{view === 'cart' && <CartPage lines={cart} onBack={returnToStore} onChange={changeQuantity} onCheckout={() => navigate('checkout')} />}{view === 'checkout' && <Checkout total={cartTotal(cart)} onBack={() => navigate('cart')} />}{view === 'orders' && <PlaceholderPage kind="orders" onBack={showCatalog} />}{view === 'profile' && <PlaceholderPage kind="profile" onBack={showHome} />}<BottomNav view={view} count={count} onHome={showHome} onCatalog={showCatalog} onCart={() => navigate('cart')} onOrders={() => navigate('orders')} onProfile={() => navigate('profile')} /></div>;
+  const showHome = () => { hapticTap(); setView('home'); lastStoreView.current = 'home'; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const showCatalog = () => { hapticTap(); setView('catalog'); lastStoreView.current = 'catalog'; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const showInfo = (topic: InfoTopic) => {
+    if (view === 'home' || view === 'catalog') {
+      storeScroll.current[view] = window.scrollY;
+      lastStoreView.current = view;
+    }
+    hapticTap();
+    setInfoTopic(topic);
+    setView('info');
+    scrollImmediately();
+  };
+  const openCategory = (category: Category) => { safeStorageSet('sessionStorage', 'gshop-category', category); showCatalog(); };
+  const storeVisible = view === 'home' || view === 'catalog' || view === 'info';
+  return <div className="app-shell">
+    {storeVisible && <Header count={count} active={view === 'info' ? infoTopic : view} onHome={showHome} onCatalog={showCatalog} onInfo={showInfo} onCart={() => navigate('cart')} onProfile={() => navigate('profile')} />}
+    {(view === 'home' || view === 'catalog') && <Catalog screen={view} onInfo={showInfo} onCatalog={showCatalog} onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} />}
+    {view === 'info' && <StoreInfoPage topic={infoTopic} onHome={showHome} onChoose={openCategory} />}
+    {view === 'product' && <ProductPage product={selectedProduct} onBack={returnToStore} onAdd={(selected) => addToCart(selectedProduct, selected)} />}
+    {view === 'cart' && <CartPage lines={cart} onBack={returnToStore} onChange={changeQuantity} onCheckout={() => navigate('checkout')} onCatalog={showCatalog} onOpen={openProduct} />}
+    {view === 'checkout' && <Checkout total={cartTotal(cart)} onBack={() => navigate('cart')} />}
+    {view === 'orders' && <PlaceholderPage kind="orders" onBack={showCatalog} />}
+    {view === 'profile' && <PlaceholderPage kind="profile" onBack={showHome} />}
+    <BottomNav view={view} count={count} onHome={showHome} onCatalog={showCatalog} onCart={() => navigate('cart')} onOrders={() => navigate('orders')} onProfile={() => navigate('profile')} />
+  </div>;
 }
