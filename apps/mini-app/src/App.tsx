@@ -320,7 +320,6 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
       <section className="hero home-hero">
         <div className="hero-campaign-media" aria-hidden="true"><img src="/products/hero-campaign-v2.jpg" alt="" width="1672" height="936" fetchPriority="high" /></div>
         <div className="hero__intro">
-          <div className="hero-brand-chip"><img src="/brand/gpartner-mark-v2-512.png" alt="" width="46" height="46" /><span><b>G-PARTNER</b><small>ЭЛЕКТРОТРАНСПОРТ · БОЛЬШОЙ СОЧИ</small></span></div>
           <h1><span>МАГАЗИН</span><br /><em>ЭЛЕКТРОТРАНСПОРТА</em></h1>
           <p className="hero__lead">Продажа электроскутеров для города, работы и перевозки грузов в Большом Сочи. Поможем сравнить модели и уточним наличие.</p>
           <button className="hero-featured" onClick={() => onOpen(featured)}><span>ХИТ КАТАЛОГА</span><strong>{featured.name}</strong><small>{featured.range} км запас хода · до {featured.payload} кг · {formatPrice(featured.price)}*</small><ChevronRight size={18} /></button>
