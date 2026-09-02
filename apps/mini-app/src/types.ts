@@ -21,6 +21,11 @@ export type Product = {
   visualVariant: 'step' | 'cargo' | 'compact';
   description: string;
   features: string[];
+  useCase: string;
+  weight: number;
+  chargeTime: string;
+  dimensions: string;
+  wheelLayout: string;
 };
 
 export type Addon = {

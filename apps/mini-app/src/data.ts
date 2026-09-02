@@ -22,6 +22,11 @@ export const products: Product[] = [
     visualVariant: 'step',
     description: 'Манёвренная городская модель для длинной смены и ежедневных маршрутов по побережью.',
     features: ['Съёмный аккумулятор', 'Гидравлические тормоза', 'Защита от брызг'],
+    useCase: 'Ежедневные поездки по городу',
+    weight: 58,
+    chargeTime: '6–8 часов',
+    dimensions: '176 × 70 × 112 см',
+    wheelLayout: '2 колеса',
   },
   {
     id: 'gs-cargo-01',
@@ -43,6 +48,11 @@ export const products: Product[] = [
     visualVariant: 'cargo',
     description: 'Усиленная конструкция для двух термокоробов и маршрутов с высокой загрузкой.',
     features: ['Задняя грузовая платформа', 'Двойная подножка', 'Усиленная подвеска'],
+    useCase: 'Работа, доставка и перевозка груза',
+    weight: 104,
+    chargeTime: '7–9 часов',
+    dimensions: '196 × 82 × 118 см',
+    wheelLayout: '3 колеса',
   },
   {
     id: 'gs-compact-01',
@@ -64,6 +74,11 @@ export const products: Product[] = [
     visualVariant: 'compact',
     description: 'Лёгкая модель для коротких заказов, плотных дворов и хранения в небольшой квартире.',
     features: ['Вес 31 кг', 'Складные подножки', 'Компактная база'],
+    useCase: 'Короткие маршруты и компактное хранение',
+    weight: 31,
+    chargeTime: '5–7 часов',
+    dimensions: '154 × 66 × 106 см',
+    wheelLayout: '2 колеса',
   },
   {
     id: 'gs-city-02',
@@ -85,6 +100,11 @@ export const products: Product[] = [
     visualVariant: 'step',
     description: 'Мягкая посадка, увеличенный запас хода и широкие шины для улиц Большого Сочи.',
     features: ['Круиз-контроль', 'USB-C', 'Сигнализация'],
+    useCase: 'Комфортные поездки по побережью',
+    weight: 64,
+    chargeTime: '6–8 часов',
+    dimensions: '184 × 72 × 114 см',
+    wheelLayout: '2 колеса',
   },
 ];
 
