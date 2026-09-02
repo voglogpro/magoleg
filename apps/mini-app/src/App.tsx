@@ -132,24 +132,63 @@ function ContactLead() {
   return <form className="contact-form" id="contact-lead" onSubmit={submit}><label htmlFor="consultation-phone"><span>Телефон для связи</span><input id="consultation-phone" name="phone" required inputMode="tel" autoComplete="tel" placeholder="+7 900 000-00-00" /></label><button className="primary-button" type="submit">Получить консультацию <ChevronRight size={19} /></button></form>;
 }
 
-const infoContent: Record<Exclude<InfoTopic, 'selection' | 'contact'>, { eyebrow: string; title: string; body: string; facts: string[] }> = {
+type StoreInfo = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  metrics: { value: string; label: string }[];
+  facts: { title: string; text: string }[];
+  note: string;
+};
+
+const infoContent: Record<Exclude<InfoTopic, 'selection' | 'contact'>, StoreInfo> = {
   about: {
     eyebrow: 'О магазине',
-    title: 'G-Partner — электротранспорт под реальную задачу.',
-    body: 'Помогаем сравнить электроскутеры для личных поездок, работы и бизнеса. Финальные цены, наличие и комплектацию подтверждает менеджер.',
-    facts: ['Подбор по маршруту', 'Сравнение без перегруза', 'Заявка без оплаты'],
+    title: 'Не просто продаём — подбираем технику под ваш маршрут.',
+    body: 'G-Partner — магазин электроскутеров в Большом Сочи. Мы собрали компактную линейку для города, ежедневной работы и перевозки груза, чтобы выбор не превращался в бесконечное сравнение.',
+    metrics: [
+      { value: '04', label: 'модели в стартовой линейке' },
+      { value: '03', label: 'сценария использования' },
+      { value: 'СОЧИ', label: 'регион работы магазина' },
+    ],
+    facts: [
+      { title: 'Разбираем задачу', text: 'Уточняем маршрут, рельеф, запас хода, нагрузку и место хранения.' },
+      { title: 'Сравниваем по делу', text: 'Показываем различия в характеристиках и не перегружаем лишними параметрами.' },
+      { title: 'Согласовываем получение', text: 'Менеджер подтверждает наличие, комплектацию, итоговую цену и способ получения.' },
+    ],
+    note: 'На сайте можно спокойно выбрать модель и оставить заявку. Онлайн-оплаты нет — сначала вы получаете подтверждённое предложение.',
   },
   city: {
-    eyebrow: 'Регион работы',
-    title: 'Работаем по Большому Сочи.',
-    body: 'Учитываем рельеф, протяжённость маршрута, нагрузку и условия хранения. Получение техники, тест-драйв и доставка согласовываются индивидуально после заявки.',
-    facts: ['Сочи и районы', 'Маршрут важнее рекламы', 'Условия подтвердит менеджер'],
+    eyebrow: 'Большой Сочи',
+    title: 'Подбираем электроскутеры с учётом города, а не только цифр.',
+    body: 'Большой Сочи — это подъёмы, протяжённые маршруты и разные условия в каждом районе. Поэтому при подборе мы смотрим не только на заявленный запас хода, но и на реальную задачу владельца.',
+    metrics: [
+      { value: '04', label: 'района Большого Сочи' },
+      { value: '70+', label: 'км хода у старших моделей' },
+      { value: '220', label: 'кг максимальной нагрузки' },
+    ],
+    facts: [
+      { title: 'География', text: 'Центральный, Хостинский, Адлерский и Лазаревский районы.' },
+      { title: 'Рельеф и расстояние', text: 'Учитываем подъёмы, длину регулярного маршрута и требуемый запас батареи.' },
+      { title: 'Получение техники', text: 'Доступность доставки или другого способа получения уточняется по вашему адресу.' },
+    ],
+    note: 'Назовите район и примерный ежедневный маршрут — менеджер предложит подходящие модели и предупредит о важных ограничениях.',
   },
   delivery: {
     eyebrow: 'Получение техники',
-    title: 'Доставка и оплата — после подтверждения деталей.',
-    body: 'Менеджер уточнит адрес, доступную комплектацию, способ получения и итоговую стоимость. На сайте нет онлайн-оплаты: сначала вы получаете понятное предложение.',
-    facts: ['Без списаний на сайте', 'Доставка по согласованию', 'Можно запросить рассрочку'],
+    title: 'Понятные условия до оплаты.',
+    body: 'После выбора модели менеджер проверяет наличие и комплектацию, уточняет адрес и согласовывает удобный способ получения. Предварительная цена на витрине помогает сравнить модели.',
+    metrics: [
+      { value: '01', label: 'заявка на выбранную модель' },
+      { value: '00 ₽', label: 'списаний на сайте' },
+      { value: '100%', label: 'деталей до согласования' },
+    ],
+    facts: [
+      { title: 'Выбор', text: 'Добавьте модель в корзину или оставьте запрос на консультацию.' },
+      { title: 'Подтверждение', text: 'Менеджер уточнит наличие, итоговую стоимость и доступную комплектацию.' },
+      { title: 'Получение', text: 'Способ, адрес и время согласовываются индивидуально после подтверждения заказа.' },
+    ],
+    note: 'Цены и характеристики на витрине пока являются демонстрационными и не считаются публичной офертой.',
   },
 };
 
@@ -197,8 +236,10 @@ function InfoSheet({ topic, onClose, onChoose }: { topic: InfoTopic; onClose: ()
         </> : <>
           <h2 id="info-sheet-title">{infoContent[topic].title}</h2>
           <p>{infoContent[topic].body}</p>
-          <ul>{infoContent[topic].facts.map((fact) => <li key={fact}><Check size={17} />{fact}</li>)}</ul>
-          <button className="primary-button" onClick={() => onChoose('all')}>Перейти к моделям <ChevronRight size={18} /></button>
+          <div className="info-metrics">{infoContent[topic].metrics.map((metric) => <div key={metric.label}><strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div>
+          <div className="info-feature-grid">{infoContent[topic].facts.map((fact, index) => <article key={fact.title}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{fact.title}</strong><p>{fact.text}</p></div></article>)}</div>
+          <p className="info-note"><Check size={18} />{infoContent[topic].note}</p>
+          <button className="primary-button" onClick={() => onChoose('all')}>Открыть каталог <ChevronRight size={18} /></button>
         </>}
       </section>
     </div>,
@@ -210,7 +251,6 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
   const [category, setCategory] = useState<Category>(() => (safeStorageGet('sessionStorage', 'gshop-category') as Category | null) ?? 'all');
   const [query, setQuery] = useState(() => safeStorageGet('sessionStorage', 'gshop-query') ?? '');
   const [sort, setSort] = useState<'popular' | 'price'>(() => safeStorageGet('sessionStorage', 'gshop-sort') === 'price' ? 'price' : 'popular');
-  const [layout, setLayout] = useState<'list' | 'grid'>(() => safeStorageGet('sessionStorage', 'gshop-layout') === 'grid' ? 'grid' : 'list');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [minRange, setMinRange] = useState(() => Number(safeStorageGet('sessionStorage', 'gshop-range') ?? 0));
   const [favorites, setFavorites] = useState<Set<string>>(() => {
@@ -273,9 +313,8 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
     safeStorageSet('sessionStorage', 'gshop-category', category);
     safeStorageSet('sessionStorage', 'gshop-query', query);
     safeStorageSet('sessionStorage', 'gshop-sort', sort);
-    safeStorageSet('sessionStorage', 'gshop-layout', layout);
     safeStorageSet('sessionStorage', 'gshop-range', String(minRange));
-  }, [category, query, sort, layout, minRange]);
+  }, [category, query, sort, minRange]);
 
   useEffect(() => { safeStorageSet('localStorage', 'gshop-favorites', JSON.stringify([...favorites])); }, [favorites]);
   const toggleFavorite = (id: string) => {
@@ -291,13 +330,18 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
     <main className={`catalog catalog--${screen}`}>
       {screen === 'home' && <section className="hero home-hero">
         <div className="hero__intro">
-          <p className="section-number">G-PARTNER · МАГАЗИН В БОЛЬШОМ СОЧИ</p>
-          <h1><span>ЭЛЕКТРОСКУТЕРЫ</span><br /><em>ДЛЯ СОЧИ</em></h1>
-          <p className="hero__lead">Подберём модель под ваш маршрут — для города, работы и бизнеса. Менеджер подтвердит цену, наличие и способ получения.</p>
+          <p className="section-number">G-PARTNER · ЭЛЕКТРОТРАНСПОРТ В БОЛЬШОМ СОЧИ</p>
+          <h1><span>ВАШ МАРШРУТ.</span><br /><em>ВАШ СКУТЕР.</em></h1>
+          <p className="hero__lead">Город, работа или перевозка груза — сравните четыре модели и выберите подходящую без лишних параметров.</p>
           <div className="hero__actions">
             <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
             <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Подобрать модель</span><span className="button-label--compact">Подбор</span></button>
           </div>
+          <ul className="home-trust" aria-label="Преимущества магазина">
+            <li><Check size={16} /><span><strong>Подбор по маршруту</strong><small>учтём рельеф и нагрузку</small></span></li>
+            <li><MapPin size={16} /><span><strong>Работаем в Сочи</strong><small>условия уточнит менеджер</small></span></li>
+            <li><PackageCheck size={16} /><span><strong>Без онлайн-оплаты</strong><small>сначала подтверждение</small></span></li>
+          </ul>
         </div>
         <button className="hero-product campaign-product" onClick={() => onOpen(featured)} aria-label="Открыть флагманскую модель Volt Cargo X">
           <div className="hero-product__head"><span>Хит · Cargo X</span><span>{formatPrice(featured.price)}* →</span></div>
@@ -325,11 +369,11 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
         <div className="catalog-result-line"><strong>Модельный ряд</strong><span>{modelCountLabel(filtered.length)}</span></div>
         <div className="catalog-tools">
           <label className="search-field" htmlFor="catalog-search"><Search size={19} aria-hidden="true" /><input id="catalog-search" name="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти модель" aria-label="Поиск по моделям" />{query && <button onClick={() => setQuery('')} aria-label="Очистить поиск"><X size={18} /></button>}</label>
-          <div className="catalog-filter-row"><button ref={filterTriggerRef} className={minRange > 0 ? 'has-active' : ''} aria-expanded={filtersOpen} aria-controls="catalog-filters" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={18} />{minRange > 0 ? 'Фильтры · 1' : 'Фильтры'}{minRange > 0 && <i />}</button><button onClick={() => setSort((value) => value === 'popular' ? 'price' : 'popular')}>{sort === 'popular' ? 'По популярности' : 'Сначала дешевле'} <ChevronRight size={17} /></button><button className={layout === 'grid' ? 'is-active' : ''} onClick={() => setLayout((value) => value === 'list' ? 'grid' : 'list')} aria-label={layout === 'grid' ? 'Списочный вид' : 'Плиточный вид'} aria-pressed={layout === 'grid'}><Grid2X2 size={18} /></button></div>
+          <div className="catalog-filter-row"><button ref={filterTriggerRef} className={minRange > 0 ? 'has-active' : ''} aria-expanded={filtersOpen} aria-controls="catalog-filters" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={18} />{minRange > 0 ? 'Фильтры · 1' : 'Фильтры'}{minRange > 0 && <i />}</button><button onClick={() => setSort((value) => value === 'popular' ? 'price' : 'popular')}>{sort === 'popular' ? 'По популярности' : 'Сначала дешевле'} <ChevronRight size={17} /></button></div>
           <div className="category-tabs" role="tablist" aria-label="Категории">{categories.map((item, index) => <button key={item.id} role="tab" tabIndex={category === item.id ? 0 : -1} aria-selected={category === item.id} className={category === item.id ? 'is-active' : ''} onKeyDown={(event) => moveCategoryTab(event, index)} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div>
         </div>
         <div className="catalog-note"><i /><span>Важно</span><span>цены и наличие уточняются</span></div>
-        <div className={`product-grid ${layout === 'grid' ? 'is-compact' : ''}`}>{filtered.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
+        <div className="product-grid product-grid--market">{filtered.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
         {!filtered.length && <div className="empty-state"><h3>Модель не найдена</h3><p>Измените запрос или выберите другую категорию.</p></div>}
       </section>
 
