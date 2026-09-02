@@ -75,8 +75,8 @@ function Header({ count, active, onHome, onCatalog, onInfo, onCart, onProfile }:
   return (
     <header className="app-header">
       <button className="brand" onClick={onHome} aria-label="G-Partner, главная">
-        <span className="brand-name"><b>G-</b>PARTNER</span>
-        <Handshake className="brand-mark" size={24} aria-hidden="true" />
+        <img className="brand-emblem" src="/brand/gpartner-mark-v2-512.png" alt="" width="48" height="48" />
+        <span className="brand-lockup"><span className="brand-name"><b>G-</b>PARTNER</span><small>магазин электротехники</small></span>
       </button>
       <nav className="desktop-nav" aria-label="Навигация по сайту">
         <button className={active === 'catalog' ? 'is-active' : ''} onClick={onCatalog}>Каталог</button>
@@ -330,9 +330,9 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
     <main className={`catalog catalog--${screen}`}>
       {screen === 'home' && <section className="hero home-hero">
         <div className="hero__intro">
-          <p className="section-number">G-PARTNER · ЭЛЕКТРОТРАНСПОРТ В БОЛЬШОМ СОЧИ</p>
-          <h1><span>ВАШ МАРШРУТ.</span><br /><em>ВАШ СКУТЕР.</em></h1>
-          <p className="hero__lead">Город, работа или перевозка груза — сравните четыре модели и выберите подходящую без лишних параметров.</p>
+          <div className="hero-brand-chip"><img src="/brand/gpartner-mark-v2-512.png" alt="" width="46" height="46" /><span><b>G-PARTNER</b><small>ЭЛЕКТРОТРАНСПОРТ · БОЛЬШОЙ СОЧИ</small></span></div>
+          <h1><span>ЭНЕРГИЯ</span><br /><em>В ДВИЖЕНИИ.</em></h1>
+          <p className="hero__lead">Электроскутеры для города, работы и перевозки грузов. Выберите маршрут — мы поможем определить подходящую модель.</p>
           <div className="hero__actions">
             <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
             <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Подобрать модель</span><span className="button-label--compact">Подбор</span></button>
@@ -344,7 +344,7 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
           </ul>
         </div>
         <button className="hero-product campaign-product" onClick={() => onOpen(featured)} aria-label="Открыть флагманскую модель Volt Cargo X">
-          <div className="hero-product__head"><span>Хит · Cargo X</span><span>{formatPrice(featured.price)}* →</span></div>
+          <div className="hero-product__head"><span>G-PARTNER PERFORMANCE · CARGO X</span><span>{formatPrice(featured.price)}* →</span></div>
           <img className="hero-cutout" src="/products/hero-campaign-v2.jpg" alt="Флагманский трёхколёсный электроскутер G-Partner в студийном освещении" width="1672" height="936" fetchPriority="high" />
           <div className="hero-product__facts">
             <div><strong>{featured.range}</strong><span>км<br />запас хода</span></div>
@@ -379,7 +379,7 @@ function Catalog({ screen, infoTopic, onCloseInfo, onInfo, onCatalog, onOpen, on
 
       {filtersOpen && createPortal(<div className="filter-backdrop" role="presentation" onClick={() => setFiltersOpen(false)}><section ref={filterSheetRef} id="catalog-filters" className="filter-sheet" role="dialog" aria-modal="true" aria-labelledby="filter-title" onClick={(event) => event.stopPropagation()}><div className="filter-sheet__head"><div><small>Каталог</small><h3 id="filter-title">Фильтры</h3></div><button ref={filterCloseRef} onClick={() => setFiltersOpen(false)} aria-label="Закрыть фильтры"><X /></button></div><fieldset><legend>Минимальный запас хода</legend><div className="filter-options">{[0, 50, 70].map((value) => <button type="button" key={value} className={minRange === value ? 'is-active' : ''} aria-pressed={minRange === value} onClick={() => setMinRange(value)}>{value === 0 ? 'Любой' : `от ${value} км`}</button>)}</div></fieldset><fieldset><legend>Назначение</legend><div className="filter-options">{categories.map((item) => <button type="button" key={item.id} className={category === item.id ? 'is-active' : ''} aria-pressed={category === item.id} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div></fieldset><div className="filter-sheet__actions"><button className="secondary-button" onClick={() => { setMinRange(0); setCategory('all'); }}>Сбросить</button><button className="primary-button" onClick={() => setFiltersOpen(false)}>Показать: {filtered.length}</button></div></section></div>, document.body)}
 
-      <footer className="site-footer catalog-footer"><div><strong><b>G-</b>PARTNER</strong><Handshake size={24} /></div><p>Магазин электротранспорта в Большом Сочи.</p><small>Цены и характеристики уточняются и не являются публичной офертой.</small></footer>
+      <footer className="site-footer catalog-footer"><div className="footer-brand"><img src="/brand/gpartner-mark-v2-512.png" alt="" width="44" height="44" /><strong><b>G-</b>PARTNER</strong></div><p>Магазин электротранспорта в Большом Сочи.</p><small>Цены и характеристики уточняются и не являются публичной офертой.</small></footer>
       </>}
       {infoTopic && <InfoSheet topic={infoTopic} onClose={onCloseInfo} onChoose={chooseRoute} />}
     </main>

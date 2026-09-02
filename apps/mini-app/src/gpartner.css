@@ -1159,7 +1159,7 @@ button,
 .home-trust strong { overflow: hidden; color: #e4e6eb; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .home-trust small { overflow: hidden; color: #9699a2; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 
-.info-sheet { width: min(820px, 100%); max-height: min(840px, calc(100dvh - 24px)); }
+.info-sheet { width: min(820px, 100%); max-height: min(860px, calc(100dvh - 24px)); }
 .info-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1367,4 +1367,314 @@ button,
   .home-trust { display: none; }
   .campaign-product .hero-product__facts div { min-height: 38px; }
   .quick-launcher > button { min-height: 48px; }
+}
+
+/* G-PARTNER V2 brand language: forward motion, graphite metal, electric orange. */
+:root,
+:root[data-theme='dark'],
+:root[data-theme='light'] {
+  --canvas: #090a0c;
+  --surface: #17191d;
+  --surface-soft: #101216;
+  --line: #34373d;
+  --brand: #ff4b00;
+  --violet: #ff4b00;
+  --metal: #aeb2b9;
+  background: #090a0c;
+}
+html,
+body,
+.app-shell,
+.catalog,
+.detail-page,
+.plain-page,
+.catalog--catalog { background: #090a0c; }
+body { background-image: radial-gradient(circle at 82% 10%, rgba(255,75,0,.055), transparent 30%); }
+
+.app-header {
+  border-bottom-color: #292c31;
+  background: rgba(9,10,12,.96);
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+.app-header::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  width: min(33vw, 430px);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ff4b00);
+  content: '';
+}
+.brand { min-width: 0; gap: 8px; text-align: left; }
+.brand-emblem {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 9px rgba(255,75,0,.22));
+}
+.brand-lockup { display: grid; min-width: 0; gap: 1px; }
+.brand-name {
+  display: block;
+  color: #f4f5f7;
+  font-family: Montserrat, Inter, sans-serif;
+  font-size: clamp(17px,1.55vw,21px);
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: .025em;
+  line-height: 1;
+  text-shadow: none;
+  transform: skewX(-6deg);
+}
+.brand-name b { color: #ff4b00; }
+.brand-lockup small {
+  color: #ff6a2b;
+  font-family: Orbitron, Montserrat, sans-serif;
+  font-size: 6px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+.brand-mark { display: none; }
+.desktop-nav button { font-size: 12px; letter-spacing: .02em; text-transform: uppercase; }
+.desktop-nav button::after { transform: skewX(-28deg); }
+
+.home-hero {
+  isolation: isolate;
+  border-bottom-color: #292c31;
+  background:
+    linear-gradient(118deg, #0a0b0d 0 46%, rgba(13,14,17,.9) 46% 100%),
+    #090a0c;
+}
+.home-hero::before {
+  top: -12%;
+  right: -4%;
+  width: 62%;
+  height: 118%;
+  background: radial-gradient(circle at 62% 48%, rgba(255,75,0,.24), rgba(255,75,0,.055) 36%, transparent 69%);
+}
+.home-hero::after {
+  background:
+    linear-gradient(113deg, transparent 0 58%, rgba(255,75,0,.18) 58.1% 58.35%, transparent 58.45%),
+    repeating-linear-gradient(113deg, transparent 0 52px, rgba(255,255,255,.018) 53px, transparent 54px);
+  mask-image: linear-gradient(90deg, transparent 12%, #000 58%, #000);
+}
+.home-hero .hero__intro::before {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 44%;
+  width: min(32vw, 360px);
+  aspect-ratio: 1;
+  background: url('/brand/gpartner-mark-v2-512.png') center / contain no-repeat;
+  content: '';
+  opacity: .035;
+  transform: translate(-50%,-50%) rotate(-6deg);
+  filter: grayscale(1);
+  pointer-events: none;
+}
+.hero-brand-chip {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 5px 12px 5px 5px;
+  border: 1px solid #34373d;
+  color: #f1f2f4;
+  background: linear-gradient(100deg, rgba(255,75,0,.1), rgba(23,25,29,.72));
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+.hero-brand-chip img { width: 35px; height: 35px; object-fit: contain; }
+.hero-brand-chip > span { display: grid; gap: 2px; }
+.hero-brand-chip b { font-family: Montserrat, Inter, sans-serif; font-size: 12px; font-style: italic; font-weight: 900; letter-spacing: .06em; }
+.hero-brand-chip small { color: #ff6a2b; font-family: Orbitron, Montserrat, sans-serif; font-size: 7px; letter-spacing: .12em; }
+.home-hero h1,
+.catalog-intro h1 {
+  font-style: italic;
+  letter-spacing: -.055em;
+  text-transform: uppercase;
+}
+.home-hero h1 span,
+.home-hero h1 em,
+.catalog-intro h1 em { display: inline-block; transform: skewX(-5deg); }
+.home-hero h1 em,
+.catalog-intro h1 em { color: #ff4b00; text-shadow: 0 0 30px rgba(255,75,0,.13); }
+.home-hero .hero__lead { color: #c1c4ca; }
+
+.primary-button,
+.quick-buy {
+  border-color: #ff4b00;
+  border-radius: 0;
+  color: #08090b;
+  background: linear-gradient(100deg, #ff4b00, #ff681f);
+  clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 0 100%);
+}
+.primary-button:hover,
+.quick-buy:hover { border-color: #df3f00; background: linear-gradient(100deg, #df3f00, #f35512); box-shadow: 0 0 24px rgba(255,75,0,.2); }
+.hero-secondary,
+.secondary-button,
+.details-button {
+  border-radius: 0;
+  background: linear-gradient(115deg, rgba(255,255,255,.035), transparent);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+.home-trust { border-color: #35383e; }
+.home-trust li { border-color: #35383e; }
+.home-trust svg { color: #ff4b00; }
+
+.campaign-product {
+  border-color: #3a3d43;
+  border-radius: 0;
+  background: #0c0d10;
+  box-shadow: 0 28px 80px rgba(0,0,0,.46), 0 0 0 1px rgba(255,75,0,.025) inset;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+}
+.campaign-product .hero-product__head {
+  border-top: 2px solid #ff4b00;
+  border-bottom-color: #34373d;
+  color: #d7d9de;
+  background: linear-gradient(90deg, #181a1f, #0f1013);
+  letter-spacing: .05em;
+}
+.campaign-product .hero-product__head span:first-child::before { color: #ff4b00; content: '◆ '; }
+.campaign-product .hero-product__facts { border-color: #35383e; background: linear-gradient(115deg, #1a1c21, #111216); }
+.campaign-product .hero-product__facts div { border-color: #35383e; }
+.campaign-product .hero-product__facts strong { color: #ff4b00; font-style: italic; }
+
+.quick-launcher > button {
+  position: relative;
+  overflow: hidden;
+  border-color: #35383e;
+  border-radius: 0;
+  background: linear-gradient(120deg, #1a1c20, #111317);
+  clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 0 100%);
+}
+.quick-launcher > button::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 34%;
+  height: 2px;
+  background: #ff4b00;
+  content: '';
+  transform: skewX(-35deg);
+  transform-origin: left;
+}
+.quick-launcher > button:hover { border-color: #ff4b00; background: linear-gradient(120deg, #202228, #15171b); }
+.quick-launcher > button > svg:first-child { color: #ff4b00; }
+
+.catalog-intro {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-bottom-color: #292c31;
+  background: linear-gradient(112deg, #0b0c0e 0 63%, #15171b 63%);
+}
+.catalog-intro::after {
+  position: absolute;
+  z-index: -1;
+  top: -80%;
+  right: 4%;
+  width: 330px;
+  aspect-ratio: 1;
+  background: url('/brand/gpartner-mark-v2-512.png') center / contain no-repeat;
+  content: '';
+  opacity: .045;
+  filter: grayscale(1);
+  transform: rotate(-8deg);
+}
+.catalog-section { background: #090a0c; }
+.search-field,
+.catalog-filter-row button,
+:root[data-theme='dark'] .search-field,
+:root[data-theme='dark'] .catalog-filter-row button {
+  border-radius: 0;
+  background: linear-gradient(120deg, #191b1f, #111216);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+.category-tabs button.is-active { color: #ff5b19; }
+.category-tabs button.is-active::after,
+.catalog-note i { background: #ff4b00; }
+
+.product-grid--market .product-card,
+:root[data-theme='dark'] .product-grid--market .product-card {
+  position: relative;
+  overflow: hidden;
+  border-color: #34373d;
+  border-radius: 0;
+  background: linear-gradient(145deg, #1a1c21, #111216);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+.product-grid--market .product-card::before {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  width: 42%;
+  height: 2px;
+  background: linear-gradient(90deg, #ff4b00, transparent);
+  content: '';
+  pointer-events: none;
+}
+.product-grid--market .product-card__visual,
+:root[data-theme='dark'] .product-grid--market .product-card__visual { border-radius: 0; background: linear-gradient(150deg, #202329, #15171b); }
+.product-grid--market .product-card h3 { color: #f0f1f3; font-style: italic; letter-spacing: -.025em; }
+.model-index,
+.product-hit,
+.price-block strong { color: #ff5b19; }
+.product-hit { border: 1px solid rgba(255,75,0,.42); border-radius: 0; background: #15171b; }
+
+.info-sheet,
+.filter-sheet {
+  border-color: #3a3d43;
+  border-radius: 0;
+  background: linear-gradient(145deg, #1c1e23, #111216);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+.info-sheet h2 { font-size: clamp(27px,3.5vw,40px); font-style: italic; text-transform: none; }
+.info-metrics { border-color: #3a3d43; background: #101216; }
+.info-metrics > div,
+.info-feature-grid,
+.info-feature-grid article { border-color: #3a3d43; }
+.info-metrics strong,
+.info-feature-grid article > span,
+.info-note svg { color: #ff4b00; }
+.info-note { border-left-color: #ff4b00; background: #101216; }
+
+.site-footer { border-top: 1px solid #2d3035; background: #07080a; }
+.footer-brand { gap: 8px !important; }
+.footer-brand img { width: 38px; height: 38px; object-fit: contain; }
+.site-footer > .footer-brand strong { color: #f1f2f4; font-family: Montserrat, Inter, sans-serif; font-style: italic; font-weight: 900; transform: skewX(-6deg); }
+.site-footer > .footer-brand strong b { color: #ff4b00; }
+.bottom-nav button.is-active::before,
+.bottom-nav button i { background: #ff4b00; }
+
+@media (max-width: 899px) {
+  .catalog--home { height: calc(100dvh - 65px); }
+  .brand-emblem { width: 34px; height: 34px; }
+  .brand-name { font-size: 16px; }
+  .brand-lockup small { display: none; }
+  .hero-brand-chip { gap: 6px; margin-bottom: 6px; padding: 3px 9px 3px 3px; }
+  .hero-brand-chip img { width: 27px; height: 27px; }
+  .hero-brand-chip b { font-size: 9px; }
+  .hero-brand-chip small { font-size: 5px; }
+  .home-hero h1 { font-size: clamp(28px, 8.2vw, 36px); }
+  .home-hero::after { opacity: .6; }
+  .campaign-product { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%); }
+  .quick-launcher > button { clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%); }
+}
+
+@media (max-width: 560px) {
+  .info-sheet h2 { font-size: clamp(24px,7vw,32px); }
+}
+
+@media (max-width: 370px) {
+  .brand-emblem { width: 31px; height: 31px; }
+  .brand-name { font-size: 14px; }
+  .hero-brand-chip small { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-emblem,
+  .hero-brand-chip img { filter: none; }
 }
