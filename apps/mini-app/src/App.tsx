@@ -309,13 +309,15 @@ function Catalog({ screen, onInfo, onCatalog, onOpen, onQuickAdd }: { screen: 'h
     <main className={`catalog catalog--${screen}`}>
       {screen === 'home' && <>
       <section className="hero home-hero">
+        <div className="hero-campaign-media" aria-hidden="true"><img src="/products/hero-campaign-v2.jpg" alt="" width="1672" height="936" fetchPriority="high" /></div>
         <div className="hero__intro">
           <div className="hero-brand-chip"><img src="/brand/gpartner-mark-v2-512.png" alt="" width="46" height="46" /><span><b>G-PARTNER</b><small>ЭЛЕКТРОТРАНСПОРТ · БОЛЬШОЙ СОЧИ</small></span></div>
           <h1><span>МАГАЗИН</span><br /><em>ЭЛЕКТРОТРАНСПОРТА</em></h1>
           <p className="hero__lead">Продажа электроскутеров для города, работы и перевозки грузов в Большом Сочи. Поможем сравнить модели и уточним наличие.</p>
+          <button className="hero-featured" onClick={() => onOpen(featured)}><span>ХИТ КАТАЛОГА</span><strong>{featured.name}</strong><small>{featured.range} км запас хода · до {featured.payload} кг · {formatPrice(featured.price)}*</small><ChevronRight size={18} /></button>
           <div className="hero__actions">
             <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
-            <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Подобрать модель</span><span className="button-label--compact">Подбор</span></button>
+            <button className="hero-secondary" onClick={() => onOpen(featured)}><span className="button-label--full">Смотреть хит</span><span className="button-label--compact">Хит</span></button>
           </div>
           <ul className="home-trust" aria-label="Преимущества магазина">
             <li><Check size={16} /><span><strong>Подбор по маршруту</strong><small>учтём рельеф и нагрузку</small></span></li>
@@ -323,15 +325,6 @@ function Catalog({ screen, onInfo, onCatalog, onOpen, onQuickAdd }: { screen: 'h
             <li><PackageCheck size={16} /><span><strong>Без онлайн-оплаты</strong><small>сначала подтверждение</small></span></li>
           </ul>
         </div>
-        <button className="hero-product campaign-product" onClick={() => onOpen(featured)} aria-label="Открыть флагманскую модель Volt Cargo X">
-          <div className="hero-product__head"><span>G-PARTNER PERFORMANCE · CARGO X</span><span>{formatPrice(featured.price)}* →</span></div>
-          <img className="hero-cutout" src="/products/hero-campaign-v2.jpg" alt="Флагманский трёхколёсный электроскутер G-Partner в студийном освещении" width="1672" height="936" fetchPriority="high" />
-          <div className="hero-product__facts">
-            <div><strong>{featured.range}</strong><span>км<br />запас хода</span></div>
-            <div><strong>{featured.payload}</strong><span>кг<br />нагрузка</span></div>
-            <div><strong>{featured.speed}</strong><span>км/ч<br />скорость</span></div>
-          </div>
-        </button>
         <div className="quick-launcher" aria-label="Быстрые действия">
           <button onClick={() => chooseRoute('city')}><MapPin size={22} /><span><strong>Для города</strong><small>Ежедневные маршруты</small></span><ChevronRight size={18} /></button>
           <button onClick={() => chooseRoute('cargo')}><PackageCheck size={22} /><span><strong>Для работы</strong><small>Груз и доставка</small></span><ChevronRight size={18} /></button>
