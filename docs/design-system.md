@@ -37,8 +37,8 @@ Lockup: светлые буквы `G-`, оранжевое слово `PARTNER` 
 
 ## Визуальные токены
 
-- Canvas: `#121214`.
-- Surface: `#1E1E22`.
+- Canvas: `#1A1A1A` (матовый темно-серый).
+- Surface: `#242428`.
 - Text: `#E4E6EB`.
 - Electric Orange: `#FF6B00` — основные действия.
 - Hover Orange: `#E04E00`.

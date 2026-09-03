@@ -554,7 +554,7 @@ export function App() {
     media.addEventListener?.('change', syncSystemTheme);
     return () => media.removeEventListener?.('change', syncSystemTheme);
   }, []);
-  useEffect(() => { document.documentElement.dataset.theme = 'dark'; document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#121214'); }, [theme]);
+  useEffect(() => { document.documentElement.dataset.theme = 'dark'; document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#1a1a1a'); }, [theme]);
   useEffect(() => { safeStorageSet('localStorage', 'gshop-cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => { safeStorageSet('localStorage', 'gshop-compare', JSON.stringify([...compared])); }, [compared]);
   const navigate = (next: View) => {
