@@ -2335,3 +2335,49 @@ body { background-image: radial-gradient(circle at 82% 10%, rgba(255,75,0,.055),
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* Mobile-native home hero: on phones the photo becomes its own card and the
+   page reads top-to-bottom like an app screen, instead of a shrunk desktop
+   hero with text pinned over a background image. Desktop is untouched —
+   everything here is scoped to the same ≤899px hero rules edited above. */
+.hero-featured__visual { display: none; }
+@media (max-width: 899px) {
+  .home-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .hero-campaign-media {
+    position: relative;
+    order: -1;
+    inset: auto;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 1px solid #2c2f34;
+    border-radius: 14px;
+  }
+  .hero-campaign-media img { object-fit: cover; object-position: 68% 32%; }
+  .hero-campaign-media::after { background: linear-gradient(0deg, rgba(7,8,10,.5) 0%, transparent 40%); }
+  .home-hero .hero__intro { padding-top: 0; }
+  .home-hero .hero__lead { text-shadow: none; }
+  .hero-featured { grid-template-columns: 52px minmax(0,1fr) 18px; }
+  .hero-featured__visual { display: block; grid-column: 1; grid-row: 1 / 4; width: 52px; height: 52px; overflow: hidden; border-radius: 8px; background: #101012; }
+  .hero-featured__visual .scooter-visual { min-height: 0; height: 100%; background: transparent; }
+  .hero-featured__visual .scooter-visual img { padding: 4px; }
+  .hero-featured > span:not(.hero-featured__visual),
+  .hero-featured > strong,
+  .hero-featured > small { grid-column: 2; }
+  .hero-featured > svg { grid-column: 3; }
+  .home-hero .hero__actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .home-hero .hero__actions > button { width: 100%; }
+  .home-trust { display: flex; flex-direction: column; gap: 0; border-top: 1px solid #2c2f34; }
+  .home-trust li { padding: 14px 2px; border-right: 0; border-bottom: 1px solid #2c2f34; }
+  .home-trust li:last-child { border-bottom: 0; }
+  .home-trust strong { white-space: normal; }
+  .home-trust small { display: block; overflow: visible; white-space: normal; }
+  .quick-launcher { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .quick-launcher > button { grid-template-columns: 34px 1fr 18px; justify-items: start; padding: 13px; text-align: left; }
+  .quick-launcher > button > svg:last-child { display: block; }
+  .quick-launcher strong { overflow: visible; font-size: 13px; white-space: normal; }
+  .quick-launcher small { display: block; overflow: visible; white-space: normal; }
+}

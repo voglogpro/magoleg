@@ -323,7 +323,7 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
           <p className="section-number">Электротранспорт · Большой Сочи</p>
           <h1><span>МАГАЗИН</span><br /><em>ЭЛЕКТРОТРАНСПОРТА</em></h1>
           <p className="hero__lead">Продажа электроскутеров для города, работы и перевозки грузов в Большом Сочи. Поможем сравнить модели и уточним наличие.</p>
-          <button className="hero-featured" onClick={() => onOpen(featured)}><span>ХИТ КАТАЛОГА</span><strong>{featured.name}</strong><small>{featured.range} км запас хода · до {featured.payload} кг · {formatPrice(featured.price)}*</small><ChevronRight size={18} /></button>
+          <button className="hero-featured" onClick={() => onOpen(featured)}><span className="hero-featured__visual" aria-hidden="true"><ScooterVisual product={featured} compact /></span><span>ХИТ КАТАЛОГА</span><strong>{featured.name}</strong><small>{featured.range} км запас хода · до {featured.payload} кг · {formatPrice(featured.price)}*</small><ChevronRight size={18} /></button>
           <div className="hero__actions">
             <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
             <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Помочь с выбором</span><span className="button-label--compact">Подбор</span></button>
