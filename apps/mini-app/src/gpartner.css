@@ -2603,3 +2603,121 @@ body { background-image: radial-gradient(circle at 82% 10%, rgba(255,75,0,.055),
   .product-grid--market .quick-buy svg,
   .home-product-grid .quick-buy svg { width: 16px; height: 16px; }
 }
+
+/* Header hamburger + mobile nav drawer. */
+.header-start { display: flex; align-items: center; gap: 4px; }
+.menu-button { display: none; }
+@media (max-width: 899px) {
+  .menu-button { display: grid; }
+}
+.nav-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  background: rgba(10,10,11,.6);
+  backdrop-filter: blur(2px);
+  animation: navDrawerFade .18s ease;
+}
+@keyframes navDrawerFade { from { opacity: 0; } to { opacity: 1; } }
+.nav-drawer {
+  display: flex;
+  width: min(84vw, 340px);
+  height: 100%;
+  flex-direction: column;
+  padding: calc(16px + var(--safe-top)) 18px 18px;
+  border-right: 1px solid #2c2f34;
+  background: #1a1a1a;
+  box-shadow: 20px 0 60px rgba(0,0,0,.4);
+}
+.nav-drawer__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #2c2f34; }
+.nav-drawer ul { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.nav-drawer li button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px;
+  border: 0;
+  border-radius: 8px;
+  color: #d7d9de;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-drawer li button:hover,
+.nav-drawer li button.is-active { color: #ff8a3d; background: rgba(255,107,0,.08); }
+.nav-drawer li button svg { color: #6f7178; }
+.nav-drawer li button.is-active svg { color: #ff6b00; }
+
+/* Mobile hero: pill CTA + 3 equal category cards (matches the reference
+   quick-select row) instead of the horizontal-scroll pill list. */
+.hero-cta-pill { border-radius: 999px !important; }
+@media (max-width: 899px) {
+  .hero-pill-row { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-top: 16px; overflow: visible; }
+  .hero-pill-row > button {
+    display: flex;
+    min-height: 76px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 4px;
+    border: 1px solid #2c2f34;
+    border-radius: 14px;
+    color: #d7d9de;
+    background: #1f1f22;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    white-space: normal;
+    cursor: pointer;
+  }
+  .hero-pill-row > button:first-child { border-color: #2c2f34; color: #d7d9de; background: #1f1f22; }
+  .hero-pill-row > button svg { color: #ff6b00; }
+  .hero-pill-row > button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* Smart-picks: 4-tile persona grid under "Популярные категории". */
+.home-picks { padding: 8px 16px 34px; }
+.home-picks-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.home-picks-grid > button {
+  display: flex;
+  min-height: 84px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #2c2f34;
+  border-radius: 12px;
+  color: #e4e6eb;
+  background: #1f1f22;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .2s ease, transform .2s ease;
+}
+.home-picks-grid > button:hover { border-color: #ff6b00; transform: translateY(-2px); }
+.home-picks-grid > button svg { color: #ff6b00; }
+.home-picks-grid > button strong { font-size: 13px; font-weight: 800; line-height: 1.2; }
+.home-picks-grid > button small { color: #9699a2; font-size: 11px; line-height: 1.3; }
+@media (min-width: 700px) {
+  .home-picks-grid { grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+  .home-picks-grid > button { min-height: 128px; padding: 20px; }
+  .home-picks-grid > button strong { font-size: 15px; }
+  .home-picks-grid > button small { font-size: 12px; }
+}
+
+/* Category photo card label: icon-prefixed range subtitle. */
+.category-photo-card__label small { display: inline-flex; align-items: center; gap: 3px; }
+.category-photo-card__label small svg { flex: 0 0 auto; color: #ff8a3d; }
+
+/* Catalog toolbar: grid/list layout toggle. */
+.layout-toggle { display: flex; flex: 0 0 auto; gap: 4px; padding: 3px; border: 1px solid #303037; border-radius: 10px; background: #1f1f22; }
+.layout-toggle button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 7px; color: #9699a2; background: transparent; cursor: pointer; }
+.layout-toggle button.is-active { color: #14120f; background: #ff6b00; }
+@media (max-width: 899px) { .layout-toggle { display: none; } }
+
+.product-grid--list.product-grid--market.product-grid { grid-template-columns: 1fr !important; }
