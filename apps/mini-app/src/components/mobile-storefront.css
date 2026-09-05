@@ -44,14 +44,8 @@
 .mobile-storefront .ms-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; margin-bottom: 6px; }
 .mobile-storefront .ms-section-heading h2 { font-size: 18px; line-height: 1.35; font-weight: 700; letter-spacing: -.5px; }
 .mobile-storefront .ms-section-heading button { color: #ff8a49; display: flex; align-items: center; justify-content: flex-end; gap: 2px; font-size: 12px; min-height: 44px; min-width: 44px; }
-.mobile-storefront .ms-category-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.mobile-storefront .ms-category-card { min-height: 147px; min-width: 0; display: flex; flex-direction: column; padding: 12px 9px 10px; border: 1px solid #2b2c2e; border-radius: 12px; background: #1b1c1e; overflow: hidden; }
-.mobile-storefront .ms-category-card strong { font-size: 12px; font-family: Inter, sans-serif; font-weight: 600; }
-.mobile-storefront .ms-category-art { display: grid; place-items: center; position: relative; flex: 1; min-height: 84px; }
-.mobile-storefront .ms-category-art::before { content: ''; position: absolute; width: 64px; height: 64px; border: 1px solid #71381d; border-radius: 50%; background: radial-gradient(circle, #6330184f, transparent 70%); }
-.mobile-storefront .ms-category-art svg { color: #ff8644; height: 37px; width: 37px; position: relative; }
-.mobile-storefront .ms-category-caption { font-size: 12px; color: #b8b8bd; line-height: 1.3; display: flex; align-items: center; justify-content: space-between; gap: 3px; }
-.mobile-storefront .ms-category-caption svg { color: #f38040; }
+.mobile-storefront .ms-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mobile-storefront .ms-category-card { min-height: 56px; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 12px 8px; border: 1px solid #38393d; border-radius: 6px; background: #191a1c; color: #eeeeF1; font-size: 14px; font-weight: 600; text-align: center; }
 .mobile-storefront .ms-collection-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
 .mobile-storefront .ms-collection-grid button { display: flex; flex-direction: column; gap: 9px; min-height: 100px; background: #191a1c; border: 1px solid #252628; border-radius: 11px; padding: 11px 8px; }
 .mobile-storefront .ms-collection-grid button > svg:first-child { color: var(--ms-orange); width: 22px; height: 22px; }
@@ -90,6 +84,16 @@
 .mobile-storefront .ms-filter-panel button, .mobile-storefront .ms-filter-chips button, .mobile-storefront .ms-catalog-toolbar select { min-height: 44px; }
 .mobile-storefront .ms-catalog-notice strong { font-size: 13px; }
 .mobile-storefront .ms-catalog-notice p, .mobile-storefront .ms-placeholder-photo span { font-size: 12px; }
+.mobile-storefront .ms-license-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mobile-storefront .ms-license-grid button { display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 12px 8px; border: 1px solid #38393d; border-radius: 6px; background: #191a1c; font-size: 14px; font-weight: 600; text-align: center; }
+.mobile-storefront .ms-category-card:hover, .mobile-storefront .ms-license-grid button:hover { border-color: #77797f; background: #222326; }
+.mobile-storefront .ms-category-card:active, .mobile-storefront .ms-license-grid button:active { border-color: var(--ms-orange); }
+.mobile-storefront .ms-license-note { margin-top: 10px; font-size: 12px; line-height: 1.5; color: #b6b6bb; }
+.mobile-storefront .ms-active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 12px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #292a2c; }
+.mobile-storefront .ms-active-filters > span { font-size: 13px; color: #dedee3; }
+.mobile-storefront .ms-active-filters button { display: flex; align-items: center; gap: 6px; min-height: 44px; color: #ff934f; font-size: 12px; }
+.mobile-storefront .ms-catalog-count { color: #b6b6bb; font-size: 14px; }
+.mobile-storefront .ms-catalog-notice strong { overflow-wrap: anywhere; }
 @media (min-width: 540px) {
   .mobile-storefront .ms-hero { min-height: 350px; }
   .mobile-storefront .ms-hero-content { padding: 32px 28px; }
@@ -97,7 +101,6 @@
   .mobile-storefront .ms-hero-description { font-size: 15px; }
   .mobile-storefront .ms-home-content { padding: 0 23px; }
   .mobile-storefront .ms-vehicle-nav span, .mobile-storefront .ms-trust strong { font-size: 13px; }
-  .mobile-storefront .ms-category-card strong { font-size: 14px; }
 }
 @media (max-width: 359px) {
   .mobile-storefront .ms-header { padding-left: 8px; padding-right: 8px; gap: 2px; }
@@ -112,5 +115,6 @@
   .mobile-storefront .ms-collection-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mobile-storefront .ms-collection-grid button { min-height: 76px; }
   .mobile-storefront .ms-section-heading h2 { font-size: 17px; }
+  .mobile-storefront .ms-category-card { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { .mobile-storefront *, .mobile-storefront *::before, .mobile-storefront *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

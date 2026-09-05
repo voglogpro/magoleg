@@ -629,6 +629,7 @@ export function App() {
     const viewport = window.matchMedia('(max-width: 899px)');
     const syncLayout = () => setMobileLayout(viewport.matches);
     viewport.addEventListener('change', syncLayout);
+    syncLayout();
     return () => viewport.removeEventListener('change', syncLayout);
   }, []);
   const [view, setView] = useState<View>('home');
