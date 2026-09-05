@@ -3,13 +3,19 @@ import {
   ArrowLeftRight,
   BatteryCharging,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleGauge,
+  Clock,
+  Droplets,
+  Feather,
   Grid2X2,
   Handshake,
   Heart,
   Home,
+  List,
   MapPin,
+  Menu,
   MessageCircle,
   Minus,
   PackageCheck,
@@ -22,6 +28,7 @@ import {
   Trash2,
   Truck,
   UserRound,
+  Weight,
   Wrench,
   X,
 } from 'lucide-react';
@@ -77,17 +84,58 @@ const categories: { id: Category; label: string }[] = [
   { id: 'compact', label: 'Компактные' },
 ];
 
+const shopCardTag: Record<Product['category'], string> = {
+  city: 'Городские',
+  cargo: 'Грузовые',
+  compact: 'Компактные',
+};
+
+const shopCardStats = (product: Product): [{ label: string; value: string }, { label: string; value: string }] => {
+  if (product.category === 'cargo') return [
+    { label: 'Колёсная база', value: product.wheelLayout },
+    { label: 'Запас хода', value: `${product.range} км` },
+  ];
+  if (product.category === 'compact') return [
+    { label: 'Запас хода', value: `${product.range} км` },
+    { label: 'Вес', value: `${product.weight} кг` },
+  ];
+  return [
+    { label: 'Запас хода', value: `${product.range} км` },
+    { label: 'Скорость', value: `${product.speed} км/ч` },
+  ];
+};
+
 function Header({ count, active, onHome, onCatalog, onInfo, onCart, onProfile }: { count: number; active: 'home' | 'catalog' | InfoTopic; onHome: () => void; onCatalog: () => void; onInfo: (topic: InfoTopic) => void; onCart: () => void; onProfile: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const focusSearch = () => {
     onCatalog();
     window.requestAnimationFrame(() => window.setTimeout(() => document.getElementById('catalog-search')?.focus(), 50));
   };
+  const navLinks: { id: 'catalog' | InfoTopic; label: string; go: () => void }[] = [
+    { id: 'catalog', label: 'Каталог', go: onCatalog },
+    { id: 'about', label: 'О магазине', go: () => onInfo('about') },
+    { id: 'city', label: 'Большой Сочи', go: () => onInfo('city') },
+    { id: 'delivery', label: 'Доставка и оплата', go: () => onInfo('delivery') },
+    { id: 'contact', label: 'Контакты', go: () => onInfo('contact') },
+  ];
+  const openLink = (go: () => void) => { setMenuOpen(false); go(); };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', onKey); };
+  }, [menuOpen]);
   return (
     <header className="app-header">
-      <button className="brand" onClick={onHome} aria-label="G-Partner, главная">
-        <img className="brand-emblem" src="/brand/gpartner-mark-v2-512.png" alt="" width="48" height="48" />
-        <span className="brand-lockup"><span className="brand-name"><b>G-</b>PARTNER</span><small>магазин электротехники</small></span>
-      </button>
+      <div className="header-start">
+        <button className="icon-button menu-button" onClick={() => setMenuOpen(true)} aria-label="Открыть меню" aria-expanded={menuOpen}><Menu size={22} /></button>
+        <button className="brand" onClick={onHome} aria-label="G-Partner, главная">
+          <img className="brand-emblem" src="/brand/gpartner-mark-v2-512.png" alt="" width="48" height="48" />
+          <span className="brand-lockup"><span className="brand-name"><b>G-</b>PARTNER</span><small>магазин электротехники</small></span>
+        </button>
+      </div>
       <nav className="desktop-nav" aria-label="Навигация по сайту">
         <button className={active === 'catalog' ? 'is-active' : ''} onClick={onCatalog}>Каталог</button>
         <button className={active === 'about' ? 'is-active' : ''} onClick={() => onInfo('about')}>О магазине</button>
@@ -100,36 +148,52 @@ function Header({ count, active, onHome, onCatalog, onInfo, onCart, onProfile }:
         <button className="icon-button" onClick={onProfile} aria-label="Профиль"><UserRound size={21} /></button>
         <button className="icon-button header-cart" onClick={onCart} aria-label={`Корзина, товаров: ${count}`}><ShoppingBag size={21} />{count > 0 && <b>{count}</b>}</button>
       </div>
+      {menuOpen && createPortal(
+        <div className="nav-drawer-backdrop" role="presentation" onClick={() => setMenuOpen(false)}>
+          <nav className="nav-drawer" aria-label="Меню магазина" onClick={(event) => event.stopPropagation()}>
+            <div className="nav-drawer__head">
+              <span className="brand-lockup"><span className="brand-name"><b>G-</b>PARTNER</span><small>магазин электротехники</small></span>
+              <button className="icon-button" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню"><X size={20} /></button>
+            </div>
+            <ul>
+              {navLinks.map((link) => <li key={link.id}><button className={active === link.id ? 'is-active' : ''} onClick={() => openLink(link.go)}>{link.label}<ChevronRight size={17} /></button></li>)}
+            </ul>
+          </nav>
+        </div>,
+        document.body,
+      )}
     </header>
   );
 }
 
-function ProductCard({ product, index, favorite, compared, onFavorite, onCompare, onOpen, onAdd }: { product: Product; index: number; favorite: boolean; compared: boolean; onFavorite: () => void; onCompare: () => void; onOpen: () => void; onAdd: () => void }) {
+function ProductCard({ product, index, favorite, onFavorite, onOpen, onAdd }: { product: Product; index: number; favorite: boolean; onFavorite: () => void; onOpen: () => void; onAdd: () => void }) {
   const [added, setAdded] = useState(false);
   const quickAdd = () => {
     setAdded(true);
     onAdd();
     window.setTimeout(() => setAdded(false), 1300);
   };
+  const [statA, statB] = shopCardStats(product);
   return (
     <article className="product-card" data-reveal>
-      <button className="product-card__visual" onClick={onOpen} aria-label={`Открыть ${product.name}`}>
-        <span className="model-index">{String(index + 1).padStart(2, '0')}</span>
-        {index < 2 && <span className="product-hit">Хит</span>}
-        <ScooterVisual product={product} compact priority={index < 4} />
-      </button>
-      <div className="product-card__body">
-        <div className="product-card__topline"><span className={`stock stock--${product.stockTone}`}><i />{product.stockLabel}</span><div className="product-card__tools"><button className={`compare-button ${compared ? 'is-active' : ''}`} aria-label={compared ? 'Убрать из сравнения' : 'Добавить к сравнению'} aria-pressed={compared} onClick={onCompare}><ArrowLeftRight size={17} /></button><button className={`favorite-button ${favorite ? 'is-active' : ''}`} aria-label={favorite ? 'Удалить из избранного' : 'Добавить в избранное'} aria-pressed={favorite} onClick={onFavorite}><Heart size={18} fill={favorite ? 'currentColor' : 'none'} /></button></div></div>
-        <h3>{product.name}</h3>
-        <p className="product-use-case">{product.useCase}</p>
-        <dl className="product-facts">
-          <div><dt>Ход</dt><dd>до {product.range} км</dd></div>
-          <div><dt>Скорость</dt><dd>{product.speed} км/ч</dd></div>
-          <div><dt>Батарея</dt><dd>{product.battery}</dd></div>
-        </dl>
-        <div className="product-card__footer">
-          <div className="price-block"><small>Предварительная цена</small><strong>{formatPrice(product.price)}</strong><span>от {formatPrice(product.monthly)}/мес.*</span></div>
-          <div className="card-actions"><button className="details-button" onClick={onOpen}>Подробнее</button><button className={`quick-buy ${added ? 'is-added' : ''}`} onClick={quickAdd} aria-label={added ? 'Добавлено в корзину' : `Добавить ${product.name} в корзину`}>{added ? <Check size={18} /> : <ShoppingBag size={18} />}<span className="quick-buy__label">{added ? 'Добавлено' : 'В корзину'}</span></button></div>
+      <div className="shop-card__inner">
+        <button className="product-card__visual" onClick={onOpen} aria-label={`Открыть ${product.name}`}>
+          <ScooterVisual product={product} compact priority={index < 4} />
+        </button>
+        <div className="shop-card__body">
+          <div className="shop-card__top">
+            <span className="shop-tag">{shopCardTag[product.category]}</span>
+            <button className={`favorite-button ${favorite ? 'is-active' : ''}`} aria-label={favorite ? 'Удалить из избранного' : 'Добавить в избранное'} aria-pressed={favorite} onClick={onFavorite}><Heart size={18} fill={favorite ? 'currentColor' : 'none'} /></button>
+          </div>
+          <h3>{product.name}</h3>
+          <dl className="shop-card__facts">
+            <div><dt>{statA.label}</dt><dd>{statA.value}</dd></div>
+            <div><dt>{statB.label}</dt><dd>{statB.value}</dd></div>
+          </dl>
+          <div className="shop-card__footer">
+            <strong className="shop-card__price">{formatPrice(product.price)}</strong>
+            <button className={`quick-buy ${added ? 'is-added' : ''}`} onClick={quickAdd} aria-label={added ? 'Добавлено в корзину' : `Добавить ${product.name} в корзину`}>{added ? <Check size={20} /> : <ShoppingBag size={20} />}</button>
+          </div>
         </div>
       </div>
     </article>
@@ -235,11 +299,12 @@ function StoreInfoPage({ topic, onHome, onChoose }: { topic: InfoTopic; onHome: 
   </main>;
 }
 
-function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onToggleCompare, onCompare }: { screen: 'home' | 'catalog'; compared: Set<string>; onInfo: (topic: InfoTopic) => void; onCatalog: () => void; onOpen: (product: Product) => void; onQuickAdd: (product: Product) => void; onToggleCompare: (product: Product) => void; onCompare: () => void }) {
+function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onCompare }: { screen: 'home' | 'catalog'; compared: Set<string>; onInfo: (topic: InfoTopic) => void; onCatalog: () => void; onOpen: (product: Product) => void; onQuickAdd: (product: Product) => void; onCompare: () => void }) {
   const [category, setCategory] = useState<Category>(() => (safeStorageGet('sessionStorage', 'gshop-category') as Category | null) ?? 'all');
   const [query, setQuery] = useState(() => safeStorageGet('sessionStorage', 'gshop-query') ?? '');
   const [sort, setSort] = useState<'popular' | 'price'>(() => safeStorageGet('sessionStorage', 'gshop-sort') === 'price' ? 'price' : 'popular');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [minRange, setMinRange] = useState(() => Number(safeStorageGet('sessionStorage', 'gshop-range') ?? 0));
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(safeStorageGet('localStorage', 'gshop-favorites') ?? '[]') as string[]); } catch { return new Set(); }
@@ -331,20 +396,19 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
             <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
             <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Помочь с выбором</span><span className="button-label--compact">Подбор</span></button>
           </div>
-          <ul className="home-trust" aria-label="Преимущества магазина">
-            <li><Check size={16} /><span><strong>Подбор по маршруту</strong><small>учтём рельеф и нагрузку</small></span></li>
-            <li><MapPin size={16} /><span><strong>Работаем в Сочи</strong><small>условия уточнит менеджер</small></span></li>
-            <li><PackageCheck size={16} /><span><strong>Без онлайн-оплаты</strong><small>сначала подтверждение</small></span></li>
+          <ul className="home-trust" aria-label="Условия магазина">
+            <li><ShieldCheck size={16} /><span><strong>Гарантия 12 месяцев</strong><small>сервис по всей РФ</small></span></li>
+            <li><Truck size={16} /><span><strong>Доставка от 3 дней</strong><small>уточним при заказе</small></span></li>
           </ul>
           <div className="hero-mobile-actions">
             <div className="hero__actions hero__actions--single">
-              <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">СМОТРЕТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
+              <button className="primary-button hero-cta-pill" onClick={() => chooseRoute('all')}><span className="button-label--full">СМОТРЕТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
               <button className="hero-link" onClick={() => onInfo('selection')}>Помочь с выбором</button>
             </div>
-            <div className="hero-pill-row" aria-label="Быстрый выбор по сценарию">
-              <button onClick={() => chooseRoute('city')}><MapPin size={16} /><span>Город</span></button>
-              <button onClick={() => chooseRoute('cargo')}><PackageCheck size={16} /><span>Работа</span></button>
-              <button onClick={() => chooseRoute('compact')}><Grid2X2 size={16} /><span>Компактные</span></button>
+            <div className="hero-pill-row" aria-label="Быстрый выбор по типу техники">
+              <button onClick={() => chooseRoute('city')}><MapPin size={22} /><span>Городские</span></button>
+              <button onClick={() => chooseRoute('cargo')}><PackageCheck size={22} /><span>Грузовые</span></button>
+              <button onClick={() => chooseRoute('compact')}><Grid2X2 size={22} /><span>Компактные</span></button>
             </div>
           </div>
         </div>
@@ -361,10 +425,19 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
           {categoryShowcase.map((item) => (
             <button key={item.id} className="category-photo-card" onClick={() => chooseRoute(item.id)}>
               <img src={item.product.image} alt="" />
-              <span className="category-photo-card__badge">до {item.product.range} км</span>
-              <span className="category-photo-card__label"><strong>{item.label}</strong><small>{item.product.useCase}</small></span>
+              <span className="category-photo-card__badge">{item.product.category === 'cargo' ? `до ${item.product.payload} кг` : item.product.category === 'compact' ? `${item.product.weight} кг` : `до ${item.product.speed} км/ч`}</span>
+              <span className="category-photo-card__label"><strong>{item.label}</strong><small><Clock size={11} /> до {item.product.range} км</small></span>
             </button>
           ))}
+        </div>
+      </section>
+      <section className="home-picks" data-reveal>
+        <div className="home-section-head"><div><p className="section-number">УМНЫЕ ПОДБОРКИ</p><h2>Подберите модель по задаче</h2></div></div>
+        <div className="home-picks-grid">
+          <button onClick={() => chooseRoute('cargo')}><Weight size={22} /><strong>Для тяжёлых нагрузок</strong><small>до 220 кг</small></button>
+          <button onClick={() => chooseRoute('compact')}><Feather size={22} /><strong>Лёгкие и манёвренные</strong><small>от 31 кг, для города</small></button>
+          <button onClick={() => chooseRoute('city')}><Droplets size={22} /><strong>Защита от дождя</strong><small>брызгозащищённые модели</small></button>
+          <button onClick={() => chooseRoute('cargo')}><Truck size={22} /><strong>Для курьеров</strong><small>груз и доставка</small></button>
         </div>
       </section>
       <section className="home-commerce" data-reveal>
@@ -372,7 +445,7 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
           <div><p className="section-number">ПОПУЛЯРНЫЕ МОДЕЛИ</p><h2>Электроскутеры в каталоге</h2><span>Сравните запас хода, скорость и допустимую нагрузку.</span></div>
           <button onClick={() => chooseRoute('all')}>Все модели <ChevronRight size={18} /></button>
         </div>
-        <div className="product-grid product-grid--market home-product-grid">{products.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} compared={compared.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onCompare={() => onToggleCompare(product)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
+        <div className="product-grid product-grid--market home-product-grid">{products.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
       </section>
       <section className="home-service-band" data-reveal>
         <button onClick={() => onInfo('about')}><Handshake size={23} /><span><strong>О G-Partner</strong><small>Информация о магазине</small></span><ChevronRight size={18} /></button>
@@ -392,11 +465,11 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
         <div className="catalog-result-line"><strong>Модельный ряд</strong><span>{modelCountLabel(filtered.length)}</span></div>
         <div className="catalog-tools">
           <label className="search-field" htmlFor="catalog-search"><Search size={19} aria-hidden="true" /><input id="catalog-search" name="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти модель" aria-label="Поиск по моделям" />{query && <button onClick={() => setQuery('')} aria-label="Очистить поиск"><X size={18} /></button>}</label>
-          <div className="catalog-filter-row"><button ref={filterTriggerRef} className={minRange > 0 ? 'has-active' : ''} aria-expanded={filtersOpen} aria-controls="catalog-filters" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={18} />{minRange > 0 ? 'Фильтры · 1' : 'Фильтры'}{minRange > 0 && <i />}</button><button onClick={() => setSort((value) => value === 'popular' ? 'price' : 'popular')}>{sort === 'popular' ? 'По популярности' : 'Сначала дешевле'} <ChevronRight size={17} /></button></div>
+          <div className="catalog-filter-row"><button ref={filterTriggerRef} className={minRange > 0 ? 'has-active' : ''} aria-expanded={filtersOpen} aria-controls="catalog-filters" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={18} />{minRange > 0 ? 'Фильтры · 1' : 'Фильтры'}{minRange > 0 && <i />}</button><button onClick={() => setSort((value) => value === 'popular' ? 'price' : 'popular')}>{sort === 'popular' ? 'По популярности' : 'Сначала дешевле'} <ChevronDown size={17} /></button><div className="layout-toggle" role="group" aria-label="Вид каталога"><button aria-pressed={layout === 'grid'} aria-label="Сетка" className={layout === 'grid' ? 'is-active' : ''} onClick={() => setLayout('grid')}><Grid2X2 size={17} /></button><button aria-pressed={layout === 'list'} aria-label="Список" className={layout === 'list' ? 'is-active' : ''} onClick={() => setLayout('list')}><List size={17} /></button></div></div>
           <div className="category-tabs" role="tablist" aria-label="Категории">{categories.map((item, index) => <button key={item.id} role="tab" tabIndex={category === item.id ? 0 : -1} aria-selected={category === item.id} className={category === item.id ? 'is-active' : ''} onKeyDown={(event) => moveCategoryTab(event, index)} onClick={() => setCategory(item.id)}>{item.label}</button>)}</div>
         </div>
         <div className="catalog-note"><i /><span>Важно</span><span>цены и наличие уточняются</span></div>
-        <div className="product-grid product-grid--market">{filtered.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} compared={compared.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onCompare={() => onToggleCompare(product)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
+        <div className={`product-grid product-grid--market${layout === 'list' ? ' product-grid--list' : ''}`}>{filtered.map((product) => <ProductCard key={product.id} product={product} index={products.indexOf(product)} favorite={favorites.has(product.id)} onFavorite={() => toggleFavorite(product.id)} onOpen={() => onOpen(product)} onAdd={() => onQuickAdd(product)} />)}</div>
         {!filtered.length && <div className="empty-state"><h3>Модель не найдена</h3><p>Измените запрос или выберите другую категорию.</p></div>}
       </section>
 
@@ -630,7 +703,7 @@ export function App() {
   const storeVisible = view === 'home' || view === 'catalog' || view === 'info';
   return <div className="app-shell">
     {storeVisible && <Header count={count} active={view === 'info' ? infoTopic : view} onHome={showHome} onCatalog={showCatalog} onInfo={showInfo} onCart={() => navigate('cart')} onProfile={() => navigate('profile')} />}
-    {(view === 'home' || view === 'catalog') && <Catalog screen={view} compared={compared} onInfo={showInfo} onCatalog={showCatalog} onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} onToggleCompare={toggleCompare} onCompare={() => navigate('compare')} />}
+    {(view === 'home' || view === 'catalog') && <Catalog screen={view} compared={compared} onInfo={showInfo} onCatalog={showCatalog} onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} onCompare={() => navigate('compare')} />}
     {view === 'info' && <StoreInfoPage topic={infoTopic} onHome={showHome} onChoose={openCategory} />}
     {view === 'product' && <ProductPage product={selectedProduct} compared={compared.has(selectedProduct.id)} onBack={returnToStore} onAdd={(selected) => addToCart(selectedProduct, selected)} onConsult={(selected) => consultProduct(selectedProduct, selected)} onToggleCompare={() => toggleCompare(selectedProduct)} />}
     {view === 'compare' && <ComparePage selected={products.filter((product) => compared.has(product.id))} onBack={returnToStore} onOpen={openProduct} onRemove={toggleCompare} />}
