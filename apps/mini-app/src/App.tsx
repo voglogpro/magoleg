@@ -35,6 +35,8 @@ import {
 import { type CSSProperties, FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ScooterVisual } from './components/ScooterVisual';
+import { MobileStorefront } from './components/MobileStorefront';
+import { MobileStoreInfo } from './components/MobileStoreInfo';
 import { addons, products } from './data';
 import { addCartLine, cartLineKey, changeCartLineQuantity } from './lib/cart';
 import { cartTotal, formatPrice } from './lib/pricing';
@@ -622,6 +624,13 @@ function BottomNav({ view, count, onHome, onCatalog, onCart, onOrders, onProfile
 }
 
 export function App() {
+  const [mobileLayout, setMobileLayout] = useState(() => window.matchMedia('(max-width: 899px)').matches);
+  useEffect(() => {
+    const viewport = window.matchMedia('(max-width: 899px)');
+    const syncLayout = () => setMobileLayout(viewport.matches);
+    viewport.addEventListener('change', syncLayout);
+    return () => viewport.removeEventListener('change', syncLayout);
+  }, []);
   const [view, setView] = useState<View>('home');
   const [theme, setTheme] = useState<Theme>(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   const [isTelegram, setIsTelegram] = useState(false);
@@ -701,6 +710,7 @@ export function App() {
   };
   const openCategory = (category: Category) => { safeStorageSet('sessionStorage', 'gshop-category', category); showCatalog(); };
   const storeVisible = view === 'home' || view === 'catalog' || view === 'info';
+  if (mobileLayout) return <MobileStorefront renderInfo={(topic, _onHome, onCatalog) => <MobileStoreInfo topic={topic} onCatalog={onCatalog} />} />;
   return <div className="app-shell">
     {storeVisible && <Header count={count} active={view === 'info' ? infoTopic : view} onHome={showHome} onCatalog={showCatalog} onInfo={showInfo} onCart={() => navigate('cart')} onProfile={() => navigate('profile')} />}
     {(view === 'home' || view === 'catalog') && <Catalog screen={view} compared={compared} onInfo={showInfo} onCatalog={showCatalog} onOpen={openProduct} onQuickAdd={(product) => addToCart(product, [], false)} onCompare={() => navigate('compare')} />}
