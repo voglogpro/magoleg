@@ -129,7 +129,7 @@ function ProductCard({ product, index, favorite, compared, onFavorite, onCompare
         </dl>
         <div className="product-card__footer">
           <div className="price-block"><small>Предварительная цена</small><strong>{formatPrice(product.price)}</strong><span>от {formatPrice(product.monthly)}/мес.*</span></div>
-          <div className="card-actions"><button className="details-button" onClick={onOpen}>Подробнее</button><button className={`quick-buy ${added ? 'is-added' : ''}`} onClick={quickAdd}>{added ? <><Check size={17} /> Добавлено</> : 'В корзину'}</button></div>
+          <div className="card-actions"><button className="details-button" onClick={onOpen}>Подробнее</button><button className={`quick-buy ${added ? 'is-added' : ''}`} onClick={quickAdd} aria-label={added ? 'Добавлено в корзину' : `Добавить ${product.name} в корзину`}>{added ? <Check size={18} /> : <ShoppingBag size={18} />}<span className="quick-buy__label">{added ? 'Добавлено' : 'В корзину'}</span></button></div>
         </div>
       </div>
     </article>
@@ -247,7 +247,10 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
   const filterTriggerRef = useRef<HTMLButtonElement>(null);
   const filterCloseRef = useRef<HTMLButtonElement>(null);
   const filterSheetRef = useRef<HTMLElement>(null);
-  const featured = products[1];
+  const categoryShowcase = useMemo(
+    () => categories.filter((item) => item.id !== 'all').map((item) => ({ ...item, product: products.find((product) => product.category === item.id) ?? products[0] })),
+    [],
+  );
   const filtered = useMemo(() => {
     const result = products.filter((product) => (category === 'all' || product.category === category) && product.name.toLowerCase().includes(query.toLowerCase()) && product.range >= minRange);
     return sort === 'price' ? [...result].sort((a, b) => a.price - b.price) : result;
@@ -323,7 +326,7 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
           <p className="section-number">Электротранспорт · Большой Сочи</p>
           <h1><span>МАГАЗИН</span><br /><em>ЭЛЕКТРОТРАНСПОРТА</em></h1>
           <p className="hero__lead">Продажа электроскутеров для города, работы и перевозки грузов в Большом Сочи. Поможем сравнить модели и уточним наличие.</p>
-          <button className="hero-featured" onClick={() => onOpen(featured)}><span className="hero-featured__visual" aria-hidden="true"><ScooterVisual product={featured} compact /></span><span>ХИТ КАТАЛОГА</span><strong>{featured.name}</strong><small>{featured.range} км запас хода · до {featured.payload} кг · {formatPrice(featured.price)}*</small><ChevronRight size={18} /></button>
+          <button className="hero-featured" onClick={() => onOpen(categoryShowcase[1].product)}><span className="hero-featured__visual" aria-hidden="true"><ScooterVisual product={categoryShowcase[1].product} compact /></span><span>ХИТ КАТАЛОГА</span><strong>{categoryShowcase[1].product.name}</strong><small>{categoryShowcase[1].product.range} км запас хода · до {categoryShowcase[1].product.payload} кг · {formatPrice(categoryShowcase[1].product.price)}*</small><ChevronRight size={18} /></button>
           <div className="hero__actions">
             <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">ОТКРЫТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
             <button className="hero-secondary" onClick={() => onInfo('selection')}><span className="button-label--full">Помочь с выбором</span><span className="button-label--compact">Подбор</span></button>
@@ -333,12 +336,35 @@ function Catalog({ screen, compared, onInfo, onCatalog, onOpen, onQuickAdd, onTo
             <li><MapPin size={16} /><span><strong>Работаем в Сочи</strong><small>условия уточнит менеджер</small></span></li>
             <li><PackageCheck size={16} /><span><strong>Без онлайн-оплаты</strong><small>сначала подтверждение</small></span></li>
           </ul>
+          <div className="hero-mobile-actions">
+            <div className="hero__actions hero__actions--single">
+              <button className="primary-button" onClick={() => chooseRoute('all')}><span className="button-label--full">СМОТРЕТЬ КАТАЛОГ</span><span className="button-label--compact">КАТАЛОГ</span><ChevronRight size={19} /></button>
+              <button className="hero-link" onClick={() => onInfo('selection')}>Помочь с выбором</button>
+            </div>
+            <div className="hero-pill-row" aria-label="Быстрый выбор по сценарию">
+              <button onClick={() => chooseRoute('city')}><MapPin size={16} /><span>Город</span></button>
+              <button onClick={() => chooseRoute('cargo')}><PackageCheck size={16} /><span>Работа</span></button>
+              <button onClick={() => chooseRoute('compact')}><Grid2X2 size={16} /><span>Компактные</span></button>
+            </div>
+          </div>
         </div>
         <div className="quick-launcher" aria-label="Быстрые действия">
           <button onClick={() => chooseRoute('city')}><MapPin size={22} /><span><strong>Для города</strong><small>Ежедневные маршруты</small></span><ChevronRight size={18} /></button>
           <button onClick={() => chooseRoute('cargo')}><PackageCheck size={22} /><span><strong>Для работы</strong><small>Груз и доставка</small></span><ChevronRight size={18} /></button>
           <button onClick={() => chooseRoute('compact')}><Grid2X2 size={22} /><span><strong>Компактные</strong><small>Манёвренные модели</small></span><ChevronRight size={18} /></button>
           <button onClick={() => onInfo('about')}><Handshake size={22} /><span><strong>О магазине</strong><small>Документы и условия</small></span><ChevronRight size={18} /></button>
+        </div>
+      </section>
+      <section className="home-categories" data-reveal>
+        <div className="home-section-head"><div><p className="section-number">ПОПУЛЯРНЫЕ КАТЕГОРИИ</p><h2>Выберите сценарий</h2></div><button onClick={() => chooseRoute('all')}>Смотреть все <ChevronRight size={18} /></button></div>
+        <div className="category-photo-grid">
+          {categoryShowcase.map((item) => (
+            <button key={item.id} className="category-photo-card" onClick={() => chooseRoute(item.id)}>
+              <img src={item.product.image} alt="" />
+              <span className="category-photo-card__badge">до {item.product.range} км</span>
+              <span className="category-photo-card__label"><strong>{item.label}</strong><small>{item.product.useCase}</small></span>
+            </button>
+          ))}
         </div>
       </section>
       <section className="home-commerce" data-reveal>
