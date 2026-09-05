@@ -623,7 +623,8 @@ function BottomNav({ view, count, onHome, onCatalog, onCart, onOrders, onProfile
   );
 }
 
-export function App() {
+// Retained for the future CRM migration; the live entry point below uses the shared storefront.
+export function LegacyDesktopApp() {
   const [mobileLayout, setMobileLayout] = useState(() => window.matchMedia('(max-width: 899px)').matches);
   useEffect(() => {
     const viewport = window.matchMedia('(max-width: 899px)');
@@ -724,4 +725,13 @@ export function App() {
     {view === 'profile' && <PlaceholderPage kind="profile" onBack={showHome} />}
     <BottomNav view={view} count={count} onHome={showHome} onCatalog={showCatalog} onCart={() => navigate('cart')} onOrders={() => navigate('orders')} onProfile={() => navigate('profile')} />
   </div>;
+}
+
+export function App() {
+  useEffect(() => {
+    prepareTelegram();
+    document.documentElement.dataset.theme = 'dark';
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#121214');
+  }, []);
+  return <MobileStorefront renderInfo={(topic, _onHome, onCatalog) => <MobileStoreInfo topic={topic} onCatalog={onCatalog} />} />;
 }

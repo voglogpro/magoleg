@@ -118,3 +118,72 @@
   .mobile-storefront .ms-category-card { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { .mobile-storefront *, .mobile-storefront *::before, .mobile-storefront *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Shared, restrained storefront: useful controls, no illustrated category tiles. */
+.mobile-storefront { background: #121214; --ms-orange: #ff6b00; }
+.mobile-storefront .ms-desktop-header { display: none; }
+.mobile-storefront .ms-primary { border-radius: 6px; }
+.mobile-storefront .ms-primary:hover { background: #e04e00; color: #121214; }
+.mobile-storefront .ms-hero .ms-primary { box-shadow: none; }
+.mobile-storefront .ms-home-search { display: flex; align-items: center; gap: 10px; min-height: 50px; margin-top: 12px; padding: 0 5px 0 14px; border: 1px solid #444449; border-radius: 6px; background: #1e1e22; color: #b6b6be; }
+.mobile-storefront .ms-home-search input { min-width: 0; width: 100%; background: transparent; border: 0; padding: 12px 0; color: #e4e6eb; font-size: 16px; }
+.mobile-storefront .ms-home-search input::placeholder { color: #b6b6be; }
+.mobile-storefront .ms-home-search button { flex-shrink: 0; min-height: 44px; padding: 0 14px; font-weight: 600; color: #e4e6eb; border-left: 1px solid #444449; }
+.mobile-storefront .ms-store-links { display: flex; flex-wrap: wrap; gap: 0 22px; border-top: 1px solid #353539; margin-top: 20px; padding-top: 6px; }
+.mobile-storefront .ms-store-links button { min-height: 44px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c7c8cf; }
+.mobile-storefront .ms-store-links button:hover { color: #ff8a49; }
+.mobile-storefront .ms-product-placeholder, .mobile-storefront .ms-search-field, .mobile-storefront .ms-filter-panel, .mobile-storefront .ms-filter-chips button { border-radius: 6px; }
+.mobile-storefront .ms-placeholder-copy > i:first-child { background: #35353a; }
+.mobile-storefront .ms-catalog-notice strong { font-size: 14px; }
+.mobile-storefront .ms-catalog-notice p, .mobile-storefront .ms-license-note { font-size: 13px; }
+.mobile-storefront .ms-empty-state { min-height: 380px; justify-content: center; }
+.mobile-storefront .ms-empty-state h2 { max-width: 540px; }
+.mobile-storefront .ms-empty-state p { max-width: 480px; font-size: 16px; }
+.mobile-storefront .ms-section-heading { flex-wrap: wrap; }
+@media (min-width: 900px) {
+  .mobile-storefront { padding-bottom: 30px; font-size: 16px; }
+  .mobile-storefront .ms-desktop-header { display: flex; align-items: center; gap: 8px; min-height: 80px; padding: 10px max(24px, calc((100vw - 1280px) / 2)); background: #1e1e22; border-bottom: 1px solid #353539; }
+  .mobile-storefront .ms-desktop-header .ms-wordmark { flex: 0 0 auto; margin-right: auto; font-size: 23px; }
+  .mobile-storefront .ms-desktop-header nav { display: flex; align-items: center; gap: 18px; margin: 0 16px; }
+  .mobile-storefront .ms-desktop-header nav button { min-height: 44px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .mobile-storefront .ms-desktop-header button[aria-current], .mobile-storefront .ms-desktop-header nav button:hover { color: #ff8a49; }
+  .mobile-storefront .ms-header { max-width: 1280px; margin: 0 auto; height: 76px; padding: 12px 0; background: transparent; }
+  .mobile-storefront:has(.ms-view-home) > .ms-header { display: none; }
+  .mobile-storefront .ms-page-title { font-size: 25px; }
+  .mobile-storefront .ms-main { max-width: 1280px; margin: 0 auto; }
+  .mobile-storefront .ms-hero { min-height: 350px; margin-top: 24px; }
+  .mobile-storefront .ms-hero-image { left: auto; right: 0; width: auto; max-width: 65%; mask-image: linear-gradient(90deg, transparent, #000 28%); }
+  .mobile-storefront .ms-hero-content { padding: 40px; }
+  .mobile-storefront .ms-hero h1 { font-size: clamp(38px, 3.6vw, 48px); max-width: 610px; }
+  .mobile-storefront .ms-hero h1 span { font-size: .8em; }
+  .mobile-storefront .ms-hero-description { font-size: 18px; margin-top: 20px; }
+  .mobile-storefront .ms-hero .ms-primary { margin-top: 24px; font-size: 16px; min-height: 50px; }
+  .mobile-storefront .ms-home-content { padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .mobile-storefront .ms-home-search { grid-column: 1 / -1; margin-top: 20px; }
+  .mobile-storefront .ms-section { margin-top: 14px; }
+  .mobile-storefront .ms-section-heading h2 { font-size: 20px; }
+  .mobile-storefront .ms-category-card, .mobile-storefront .ms-license-grid button { font-size: 16px; }
+  .mobile-storefront .ms-store-links { grid-column: 1 / -1; margin-top: 16px; gap: 32px; }
+  .mobile-storefront .ms-store-links button { font-size: 14px; }
+  .mobile-storefront .ms-bottom-nav { display: none; }
+  .mobile-storefront .ms-catalog { padding: 24px 0; }
+  .mobile-storefront .ms-filter-chips button { font-size: 15px; padding: 12px 20px; }
+  .mobile-storefront .ms-filter-panel { max-width: 540px; }
+  .mobile-storefront .ms-filter-panel button { font-size: 15px; }
+  .mobile-storefront .ms-placeholder-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .mobile-storefront .ms-placeholder-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .mobile-storefront .ms-product-placeholder { min-height: 190px; }
+  .mobile-storefront .ms-placeholder-grid .ms-placeholder-photo { min-height: 190px; }
+  .mobile-storefront .ms-menu-page { max-width: 800px; margin: 0 auto; padding: 16px 0; }
+  .mobile-storefront .ms-empty-state { margin: 40px auto; min-height: 400px; max-width: 900px; border: 1px solid #353539; background: #1e1e22; }
+}
+@media (min-width: 900px) and (max-width: 1340px) {
+  .mobile-storefront .ms-main, .mobile-storefront .ms-header { margin-left: 24px; margin-right: 24px; }
+  .mobile-storefront .ms-desktop-header nav { gap: 12px; margin: 0 6px; }
+  .mobile-storefront .ms-desktop-header nav button { font-size: 13px; }
+  .mobile-storefront .ms-desktop-header .ms-wordmark { font-size: 20px; }
+}
+@media (min-width: 900px) and (max-width: 1099px) {
+  .mobile-storefront .ms-desktop-header nav button:nth-child(3) { display: none; }
+  .mobile-storefront .ms-hero-content { padding-left: 28px; }
+}

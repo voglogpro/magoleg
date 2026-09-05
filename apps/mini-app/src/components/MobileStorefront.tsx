@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, Check, ChevronRight, Grid2X2, Heart, Home, Image as ImageIcon, List, MapPin, Menu, Search, ShoppingBag, SlidersHorizontal, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, Check, ChevronRight, Grid2X2, Heart, Home, List, Menu, Search, ShoppingBag, SlidersHorizontal, UserRound, X } from 'lucide-react';
 import './mobile-storefront.css';
 
 export type MobileInfoTopic = 'about' | 'city' | 'delivery' | 'selection' | 'contact';
@@ -29,7 +29,7 @@ const infoLinks: { topic: MobileInfoTopic; title: string; detail: string }[] = [
 
 function PlaceholderCard({ index }: { index: number }) {
   return <article className="ms-product-placeholder" aria-label={`Место для товара ${index + 1}`}>
-    <div className="ms-placeholder-photo"><ImageIcon aria-hidden="true" /><span>Фото товара</span></div>
+    <div className="ms-placeholder-photo"><span>Фото товара</span></div>
     <div className="ms-placeholder-copy" aria-hidden="true"><i /><i /><div><i /><i /></div><i /></div>
   </article>;
 }
@@ -39,6 +39,7 @@ export function MobileStorefront({ renderInfo }: Props) {
   const [topic, setTopic] = useState<MobileInfoTopic>('about');
   const [selection, setSelection] = useState<CatalogSelection>(initialSelection);
   const [query, setQuery] = useState('');
+  const [homeQuery, setHomeQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
@@ -69,14 +70,21 @@ export function MobileStorefront({ renderInfo }: Props) {
   const title = view === 'catalog' ? selectedVehicle.title : view === 'info' ? infoLinks.find(item => item.topic === topic)?.title : ({ favorites: 'Избранное', compare: 'Сравнение', profile: 'Профиль', cart: 'Корзина', menu: 'Меню' } as Partial<Record<MobileView, string>>)[view];
   const search = () => { openCatalog(); setSearchOpen(true); };
   const emptyContent = {
-    favorites: { icon: Heart, title: 'Здесь будет ваш выбор', text: 'Понравившиеся модели будут собраны здесь, когда товары появятся в каталоге.' },
-    compare: { icon: ArrowLeftRight, title: 'Всё для сравнения', text: 'Здесь вы сможете сравнить характеристики моделей и выбрать подходящую.' },
+    favorites: { title: 'В избранном пока пусто', text: 'Понравившиеся модели будут собраны здесь, когда товары появятся в каталоге.' },
+    compare: { title: 'Нет моделей для сравнения', text: 'Здесь вы сможете сравнить характеристики моделей и выбрать подходящую.' },
     cart: { icon: ShoppingBag, title: 'В корзине пока пусто', text: 'Мы готовим каталог. Скоро здесь можно будет собрать выбранные товары.' },
     profile: { icon: UserRound, title: 'Рады видеть вас в G-Partner', text: 'Каталог и информация о магазине доступны без регистрации. Личный кабинет появится позже.' },
   };
   const empty = view === 'favorites' || view === 'compare' || view === 'cart' || view === 'profile' ? emptyContent[view] : null;
 
   return <div className="mobile-storefront">
+    <header className="ms-desktop-header">
+      <button className="ms-wordmark" onClick={() => switchTab('home')} aria-label="G-Partner — главная"><img src="/brand/gpartner-mark-v2-512.png" alt="" /><span><b>G</b>-PARTNER</span></button>
+      <nav aria-label="Разделы сайта"><button aria-current={view === 'catalog' ? 'page' : undefined} onClick={() => switchTab('catalog')}>Каталог</button>{infoLinks.filter(item => item.topic !== 'selection').map(item => <button key={item.topic} aria-current={view === 'info' && topic === item.topic ? 'page' : undefined} onClick={() => openInfo(item.topic)}>{item.title}</button>)}</nav>
+      <button className="ms-icon-button" onClick={search} aria-label="Поиск по каталогу"><Search /></button>
+      <button className="ms-icon-button" onClick={() => navigate('cart')} aria-label="Корзина"><ShoppingBag /></button>
+      <button className="ms-icon-button" onClick={() => navigate('menu')} aria-label="Открыть меню"><Menu /></button>
+    </header>
     <header className="ms-header">
       {view === 'home' ? <>
         <button className="ms-icon-button ms-menu-button" onClick={() => navigate('menu')} aria-label="Открыть меню"><Menu /></button>
@@ -99,12 +107,13 @@ export function MobileStorefront({ renderInfo }: Props) {
         </section>
 
         <div className="ms-home-content">
-          <div className="ms-trust"><button onClick={() => openInfo('selection')}><Check /><span><strong>Поможем выбрать</strong><small>Под ваш маршрут</small></span></button><button onClick={() => openInfo('city')}><MapPin /><span><strong>Большой Сочи</strong><small>Наш регион работы</small></span></button></div>
+          <form className="ms-home-search" role="search" onSubmit={event => { event.preventDefault(); openCatalog(); setQuery(homeQuery.trim()); }}><label className="ms-visually-hidden" htmlFor="ms-home-query">Поиск по каталогу</label><Search size={19} aria-hidden="true" /><input id="ms-home-query" value={homeQuery} onChange={event => setHomeQuery(event.target.value)} maxLength={120} placeholder="Поиск по каталогу" type="search" /><button type="submit">Найти</button></form>
 
-          <section className="ms-section"><div className="ms-section-heading"><h2>Категории транспорта</h2><button onClick={() => openCatalog()} aria-label="Смотреть все категории">Все<ChevronRight size={14} /></button></div><div className="ms-category-grid">{vehicles.filter(item => item.id !== 'all').map(item => <button className="ms-category-card" key={item.id} onClick={() => openCatalog({ vehicle: item.id })}>{item.title}</button>)}</div></section>
+          <section className="ms-section"><div className="ms-section-heading"><h2>Тип транспорта</h2><button onClick={() => openCatalog()} aria-label="Смотреть все категории">Все категории<ChevronRight size={14} /></button></div><div className="ms-category-grid">{vehicles.filter(item => item.id !== 'all').map(item => <button className="ms-category-card" key={item.id} onClick={() => openCatalog({ vehicle: item.id })}>{item.title}</button>)}</div></section>
 
           <section className="ms-section ms-collections"><div className="ms-section-heading"><h2>По водительским правам</h2></div><div className="ms-license-grid">{licenses.filter(item => item.id !== 'all').map(item => <button key={item.id} onClick={() => openCatalog({ license: item.id })}>{item.label}</button>)}</div><p className="ms-license-note">Требования укажем для каждой модели после проверки её документов.</p></section>
 
+          <nav className="ms-store-links" aria-label="Информация для покупателя"><button onClick={() => openInfo('selection')}>Как выбрать транспорт<ChevronRight size={16} /></button><button onClick={() => openInfo('about')}>О магазине<ChevronRight size={16} /></button><button onClick={() => openInfo('city')}>Большой Сочи<ChevronRight size={16} /></button></nav>
         </div>
       </>}
 
@@ -112,16 +121,16 @@ export function MobileStorefront({ renderInfo }: Props) {
         <div className="ms-filter-chips" role="group" aria-label="Категории транспорта">{vehicles.map(item => <button key={item.id} className={selection.vehicle === item.id ? 'is-active' : ''} onClick={() => setSelection(current => ({ ...current, vehicle: item.id }))} aria-pressed={selection.vehicle === item.id}>{item.label}</button>)}</div>
         <section id="ms-license-filters" className="ms-filter-panel" hidden={!filtersOpen} aria-label="Водительские права"><h2>Водительские права</h2>{licenses.map(item => <button className={selection.license === item.id ? 'is-active' : ''} key={item.id} aria-pressed={selection.license === item.id} onClick={() => setSelection(current => ({ ...current, license: item.id }))}>{item.label}{selection.license === item.id && <Check size={17} />}</button>)}<p className="ms-license-note">Требования к водителю будут проверены по документам каждой модели.</p><button className="ms-filter-done" onClick={() => setFiltersOpen(false)}>Готово<Check size={17} /></button></section>
         <div className="ms-search-field"><Search size={18} /><input ref={searchRef} value={query} onChange={event => setQuery(event.target.value)} maxLength={120} placeholder="Найти модель" aria-label="Поиск модели" />{query && <button aria-label="Очистить поиск" onClick={() => setQuery('')}><X size={16} /></button>}</div>
-        <div className="ms-catalog-toolbar"><span className="ms-catalog-count">Товары готовятся</span><div role="group" aria-label="Вид каталога"><button className={layout === 'grid' ? 'is-active' : ''} aria-label="Плитка" aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}><Grid2X2 size={19} /></button><button className={layout === 'list' ? 'is-active' : ''} aria-label="Список" aria-pressed={layout === 'list'} onClick={() => setLayout('list')}><List size={21} /></button></div></div>
+        <div className="ms-catalog-toolbar"><span className="ms-catalog-count">Модельный ряд</span><div role="group" aria-label="Вид каталога"><button className={layout === 'grid' ? 'is-active' : ''} aria-label="Плитка" aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}><Grid2X2 size={19} /></button><button className={layout === 'list' ? 'is-active' : ''} aria-label="Список" aria-pressed={layout === 'list'} onClick={() => setLayout('list')}><List size={21} /></button></div></div>
         <div className="ms-active-filters"><span>{selectionLabel}</span>{hasFilters && <button onClick={resetFilters}>Сбросить фильтры<X size={14} /></button>}</div>
         <div className="ms-catalog-notice" role="status"><span className="ms-status-dot" /><div><strong>{query.trim() ? `Поиск: «${query.trim()}»` : 'Каталог скоро пополнится'}</strong><p>{query.trim() ? 'Товары ещё не опубликованы. Поиск станет доступен после наполнения каталога.' : `Готовим фотографии и описания: ${selectionLabel.toLocaleLowerCase('ru-RU')}.`}</p></div></div>
         <div className={layout === 'grid' ? 'ms-placeholder-grid' : 'ms-placeholder-list'}>{[0, 1, 2, 3].map(index => <PlaceholderCard key={index} index={index} />)}</div>
         <button className="ms-catalog-help" onClick={() => openInfo('selection')}><span>Нужна помощь с выбором?</span><ArrowRight size={18} /></button>
       </div>}
 
-      {view === 'menu' && <nav className="ms-menu-page" aria-label="Разделы магазина"><button className="ms-menu-catalog" onClick={() => openCatalog()}><Grid2X2 /><span>Каталог транспорта</span><ChevronRight /></button>{infoLinks.map(item => <button key={item.topic} onClick={() => openInfo(item.topic)}><span><strong>{item.title}</strong><small>{item.detail}</small></span><ChevronRight size={19} /></button>)}</nav>}
+      {view === 'menu' && <nav className="ms-menu-page" aria-label="Разделы магазина"><button className="ms-menu-catalog" onClick={() => openCatalog()}><span>Каталог транспорта</span><ChevronRight /></button>{infoLinks.map(item => <button key={item.topic} onClick={() => openInfo(item.topic)}><span><strong>{item.title}</strong><small>{item.detail}</small></span><ChevronRight size={19} /></button>)}{([{ view: 'favorites', label: 'Избранное' }, { view: 'compare', label: 'Сравнение' }, { view: 'profile', label: 'Профиль' }] as const).map(item => <button key={item.view} onClick={() => navigate(item.view)}><span>{item.label}</span><ChevronRight size={19} /></button>)}</nav>}
       {view === 'info' && <div className="ms-info-page">{renderInfo ? renderInfo(topic, () => navigate('home'), () => openCatalog()) : <section><h2>{title}</h2><p>G-Partner — магазин электротранспорта в Большом Сочи. Помогаем подобрать технику для города, работы и перевозки грузов.</p><button className="ms-primary" onClick={() => openCatalog()}>Открыть каталог<ArrowRight size={17} /></button></section>}</div>}
-      {empty && <section className="ms-empty-state"><div className="ms-empty-icon"><empty.icon size={38} strokeWidth={1.3} /></div><h2>{empty.title}</h2><p>{empty.text}</p><button className="ms-primary" onClick={() => openCatalog()}>В каталог<ArrowRight size={17} /></button><button className="ms-text-button" onClick={() => openInfo(view === 'profile' ? 'about' : 'selection')}>{view === 'profile' ? 'О магазине' : 'Помочь с выбором'}</button></section>}
+      {empty && <section className="ms-empty-state"><h2>{empty.title}</h2><p>{empty.text}</p><button className="ms-primary" onClick={() => openCatalog()}>В каталог<ArrowRight size={17} /></button><button className="ms-text-button" onClick={() => openInfo(view === 'profile' ? 'about' : 'selection')}>{view === 'profile' ? 'О магазине' : 'Как выбрать транспорт'}</button></section>}
     </main>
 
     <nav className="ms-bottom-nav" aria-label="Основная навигация">{[

@@ -1,4 +1,4 @@
-import { ChevronRight, MapPin, MessageCircle, PackageCheck } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import './mobile-store-info.css';
 
 type Topic = 'about' | 'city' | 'delivery' | 'selection' | 'contact';
@@ -41,7 +41,7 @@ const information: Record<Topic, { title: string; intro: string; sections: { tit
     ],
   },
   contact: {
-    title: 'На связи с G-Partner',
+    title: 'Контакты магазина',
     intro: 'Большой Сочи · магазин электротранспорта.',
     sections: [
       { title: 'Контакты готовятся', text: 'Телефон, адрес магазина и ссылка для связи с менеджером появятся здесь перед началом продаж.' },
@@ -52,9 +52,7 @@ const information: Record<Topic, { title: string; intro: string; sections: { tit
 
 export function MobileStoreInfo({ topic, onCatalog }: { topic: Topic; onCatalog: () => void }) {
   const content = information[topic];
-  const Icon = topic === 'city' ? MapPin : topic === 'contact' ? MessageCircle : PackageCheck;
   return <article className="ms-store-info">
-    <span className="ms-store-info__icon"><Icon size={26} /></span>
     <h2 className="ms-store-info__title">{content.title}</h2>
     <p>{content.intro}</p>
     <div className="ms-store-info__sections">{content.sections.map(section => <section key={section.title}>
