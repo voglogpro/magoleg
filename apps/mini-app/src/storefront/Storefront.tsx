@@ -33,14 +33,36 @@ function TypeChips({ current, onPick, options }: {
 }
 
 /** A pick is a plain catalogue link, so the shopper can narrow it further with the usual filters. */
-function PickGrid({ picks }: { picks: SmartPick[] }) {
-  return <div className="sf-pick-grid">{picks.map(pick => <a href={catalogHref(pick.filters)} key={pick.id}>
-    <strong>{pick.label}</strong><span>{pick.hint}</span><em>{pick.count} {plural(pick.count, ['модель', 'модели', 'моделей'])}</em>
-  </a>)}</div>;
+function PickCards({ picks, layout }: { picks: SmartPick[]; layout: 'row' | 'grid' }) {
+  const rail = useRef<HTMLDivElement>(null);
+  const [pageable, setPageable] = useState(false);
+  // Arrows appear only while the row really overflows, so a desktop never shows a dead control.
+  useEffect(() => {
+    const track = rail.current;
+    if (!track || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setPageable(track.scrollWidth - track.clientWidth > 4);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [picks.length]);
+  const scrollBy = (direction: 1 | -1) => {
+    const card = rail.current?.firstElementChild as HTMLElement | undefined;
+    rail.current?.scrollBy({ left: direction * ((card?.offsetWidth ?? 220) + 12), behavior: 'smooth' });
+  };
+  return <div className={`sf-pick-rail sf-pick-rail--${layout}`}>
+    <div className="sf-pick-track" ref={rail}>{picks.map(pick => <a className="sf-pick-card" href={catalogHref(pick.filters)} key={pick.id}>
+      <span className="sf-pick-photo">{pick.image ? <img src={pick.image} alt="" loading="lazy" draggable={false} /> : <PackageOpen size={26} aria-hidden="true" />}</span>
+      <strong>{pick.label}</strong><span>{pick.hint}</span><em>{pick.count} {plural(pick.count, ['модель', 'модели', 'моделей'])}</em>
+    </a>)}</div>
+    {layout === 'row' && pageable && <div className="sf-pick-arrows sf-desktop-only">
+      <button aria-label="Предыдущие подборки" onClick={() => scrollBy(-1)}><ArrowLeft size={18} /></button>
+      <button aria-label="Следующие подборки" onClick={() => scrollBy(1)}><ArrowRight size={18} /></button>
+    </div>}
+  </div>;
 }
 
 const catalogTypes = [['all', 'Все модели'], ...Object.entries(categoryLabels)] as [Filters['category'], string][];
-const homeTypes = vehicleCategories.map(category => [category, categoryLabels[category]]) as [Filters['category'], string][];
 
 export function Storefront() {
   const { products, settings, loading, error, settingsError, retry } = useStoreData();
@@ -140,16 +162,9 @@ export function Storefront() {
       {path === 'home' && <>
         <StoreHero onCatalog={() => navigate('#catalog')} />
         <div className="sf-home-content">
-          <section className="sf-home-selection" aria-labelledby="sf-choose-title">
-            <div className="sf-section-heading"><h2 id="sf-choose-title">Каталог транспорта</h2><a href="#catalog">Все модели <ArrowRight size={16} /></a></div>
-            <div className="sf-type-row">
-              <TypeChips current="all" options={homeTypes} onPick={category => navigate(catalogHref({ category }))} />
-              <a className="sf-filter-icon" href="#catalog?filters=open" aria-label="Фильтры: цена, права, наличие"><SlidersHorizontal size={20} /></a>
-            </div>
-          </section>
           {picks.length > 0 && <section className="sf-home-picks" aria-labelledby="sf-picks-title">
             <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2><a href="#picks">Все подборки <ArrowRight size={16} /></a></div>
-            <PickGrid picks={picks.slice(0, 6)} />
+            <PickCards picks={picks} layout="row" />
           </section>}
           <section className="sf-home-products" aria-labelledby="sf-products-title"><div className="sf-section-heading"><h2 id="sf-products-title">{products.some(product => product.featured) ? 'Выбор магазина' : 'Модели в каталоге'}</h2>{products.length > 0 && <a href="#catalog">Все модели <ArrowRight size={16} /></a>}</div>
             {catalogState || (featured.length ? cards(featured) : <div className="sf-catalog-preparing"><h3>Готовим ассортимент</h3><p>Здесь появятся фотографии, характеристики и цены после публикации товаров магазином.</p><a href="#contact">Контакты и информация о магазине</a></div>)}
@@ -160,8 +175,8 @@ export function Storefront() {
 
       {path === 'picks' && <div className="sf-picks-page">
         {catalogState || (picks.length ? <>
-          <p className="sf-lead">Готовые наборы фильтров: нажмите подборку — каталог сразу покажет подходящие модели. Дальше их можно сузить обычными фильтрами.</p>
-          <PickGrid picks={picks} />
+          <p className="sf-lead">Готовые наборы фильтров: нажмите подборку — каталог сразу покажет подходящие модели, выгодные первыми. Дальше их можно сузить обычными фильтрами.</p>
+          <PickCards picks={picks} layout="grid" />
           <div className="sf-catalog-assistance"><p>Не нашли подходящую подборку?</p><a href="#catalog?filters=open">Собрать фильтр самому <ArrowRight size={16} /></a></div>
         </> : <Empty title="Подборки готовятся">Когда магазин опубликует товары, здесь появятся готовые наборы: без прав, для курьеров, для большого веса и другие.</Empty>)}
       </div>}
@@ -171,7 +186,7 @@ export function Storefront() {
           <TypeChips current={filters.category} options={catalogTypes} onPick={category => updateFilters({ category })} />
           <button className="sf-filter-toggle sf-filter-icon" aria-expanded={filtersOpen} aria-controls="sf-filter-panel" aria-label={`Фильтры: цена, права, наличие${activeFilterCount > 0 ? `. Выбрано: ${activeFilterCount}` : ''}`} onClick={() => setFiltersOpen(value => !value)}><SlidersHorizontal size={20} />{activeFilterCount > 0 && <span className="sf-count">{activeFilterCount}</span>}</button>
         </div>
-        <div className="sf-catalog-toolbar"><label className="sf-sort"><span className="sf-sr-only">Порядок товаров</span><select value={filters.sort} onChange={event => updateFilters({ sort: event.target.value as Filters['sort'] })}><option value="featured">Выбор магазина</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select></label><div className="sf-view-toggle" aria-label="Вид каталога"><button aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>Плитка</button><button aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>Список</button></div></div>
+        <div className="sf-catalog-toolbar"><label className="sf-sort"><span className="sf-sr-only">Порядок товаров</span><select value={filters.sort} onChange={event => updateFilters({ sort: event.target.value as Filters['sort'] })}><option value="featured">Выбор магазина</option><option value="value">Сначала выгодные</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select></label><div className="sf-view-toggle" aria-label="Вид каталога"><button aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>Плитка</button><button aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>Список</button></div></div>
         <section className="sf-filter-panel" id="sf-filter-panel" hidden={!filtersOpen} aria-label="Фильтры каталога">
           <div><h2>Умные подборки</h2><div className="sf-filter-options">{([['all', 'Любая'], ...Object.entries(tagLabels)] as [Filters['tag'], string][]).map(([tag, label]) => <button key={tag} aria-pressed={filters.tag === tag} onClick={() => updateFilters({ tag })}>{label}</button>)}</div><p>Подборки отмечает магазин в карточке товара.</p></div>
           <div><h2>Водительские права</h2><div className="sf-filter-options">{([['all', 'Все варианты'], ...Object.entries(licenseLabels)] as string[][]).map(([license, label]) => <button key={license} aria-pressed={filters.license === license} onClick={() => updateFilters({ license: license as Filters['license'] })}>{label}</button>)}</div><p>Категория «Без прав» отображается только для моделей с проверенными магазином документами. Уточняйте требования перед покупкой.</p></div>
@@ -192,7 +207,7 @@ export function Storefront() {
 
       {isProduct && (catalogState || (currentProduct ? <div className="sf-product-detail">
         <ProductPhoto key={currentProduct.image_url} product={currentProduct} large />
-        <div className="sf-product-detail__summary"><p className="sf-product-category">{categoryLabels[currentProduct.category]}</p><p className={`sf-stock sf-stock--${currentProduct.stock_status}`}>{stockLabels[currentProduct.stock_status]}</p><strong className="sf-detail-price">{money(currentProduct.price)}</strong><p className="sf-muted">Наличие, комплектацию и условия получения подтвердит магазин.</p><div className="sf-detail-actions">{cart.some(item => item.product_id === currentProduct.id) ? <a className="sf-button" href="#cart">Перейти в корзину</a> : <button className="sf-button" disabled={currentProduct.stock_status === 'out-of-stock'} onClick={() => addToCart(currentProduct.id)}>{currentProduct.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'Добавить в корзину'}</button>}<button className="sf-button sf-button--secondary" aria-pressed={favorites.includes(currentProduct.id)} onClick={() => toggleFavorite(currentProduct.id)}>{favorites.includes(currentProduct.id) ? 'В избранном' : 'В избранное'}</button><button className="sf-text-button" aria-pressed={compare.includes(currentProduct.id)} onClick={() => toggleCompare(currentProduct.id)}>{compare.includes(currentProduct.id) ? 'Убрать из сравнения' : 'Добавить в сравнение'}</button></div><dl className="sf-detail-specs">{([['Запас хода', currentProduct.range_km, 'км'], ['Максимальная скорость', currentProduct.speed_kmh, 'км/ч'], ['Мощность', currentProduct.power_w, 'Вт'], ['Вес', currentProduct.weight_kg, 'кг']] as const).map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{value === null ? 'Уточняется' : `${value} ${unit}`}</dd></div>)}{vehicleCategories.includes(currentProduct.category) && <div><dt>Водительские права</dt><dd>{licenseLabels[effectiveLicense(currentProduct)]}</dd></div>}</dl><p className="sf-muted">Требования к управлению проверяйте по документам конкретной модели. Запас хода зависит от нагрузки и условий поездки.</p></div>
+        <div className="sf-product-detail__summary"><p className="sf-product-category">{categoryLabels[currentProduct.category]}</p><p className={`sf-stock sf-stock--${currentProduct.stock_status}`}>{stockLabels[currentProduct.stock_status]}</p><strong className="sf-detail-price">{money(currentProduct.price)}</strong><p className="sf-muted">Наличие, комплектацию и условия получения подтвердит магазин.</p><div className="sf-detail-actions">{cart.some(item => item.product_id === currentProduct.id) ? <a className="sf-button" href="#cart">Перейти в корзину</a> : <button className="sf-button" disabled={currentProduct.stock_status === 'out-of-stock'} onClick={() => addToCart(currentProduct.id)}>{currentProduct.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'Добавить в корзину'}</button>}<button className="sf-button sf-button--secondary" aria-pressed={favorites.includes(currentProduct.id)} onClick={() => toggleFavorite(currentProduct.id)}>{favorites.includes(currentProduct.id) ? 'В избранном' : 'В избранное'}</button><button className="sf-text-button" aria-pressed={compare.includes(currentProduct.id)} onClick={() => toggleCompare(currentProduct.id)}>{compare.includes(currentProduct.id) ? 'Убрать из сравнения' : 'Добавить в сравнение'}</button></div><dl className="sf-detail-specs">{([['Запас хода', currentProduct.range_km, 'км'], ['Максимальная скорость', currentProduct.speed_kmh, 'км/ч'], ['Мощность', currentProduct.power_w, 'Вт'], ['Вес', currentProduct.weight_kg, 'кг'], ['Багажник', currentProduct.cargo_l, 'л']] as const).map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{value === null ? 'Уточняется' : `${value} ${unit}`}</dd></div>)}{vehicleCategories.includes(currentProduct.category) && <div><dt>Водительские права</dt><dd>{licenseLabels[effectiveLicense(currentProduct)]}</dd></div>}</dl><p className="sf-muted">Требования к управлению проверяйте по документам конкретной модели. Запас хода зависит от нагрузки и условий поездки.</p></div>
         {currentProduct.tags.length > 0 && <ul className="sf-product-tags" aria-label="Подборки магазина">{currentProduct.tags.map(tag => <li key={tag}><a href={catalogHref({ tag })}>{tagLabels[tag]}</a></li>)}</ul>}
         <section className="sf-product-description"><h2>О модели</h2><p className="sf-preserve-lines">{currentProduct.description || 'Описание этой модели готовится. Подробности можно уточнить у магазина.'}</p></section>
         <nav className="sf-product-info-links" aria-label="Условия покупки"><a href="#delivery">Доставка, оплата и гарантия</a><a href="#contact">Связаться с магазином</a></nav>
@@ -201,7 +216,7 @@ export function Storefront() {
       {path === 'favorites' && <div className="sf-collection-page">{favorites.length > 0 && <div className="sf-collection-tools"><p>Сохранено моделей: <strong>{favorites.length}</strong></p><button className="sf-text-button" onClick={() => { setFavorites([]); setNotice('Избранное очищено.'); }}><Trash2 size={16} />Очистить</button></div>}{catalogState || (selectedFavorites.length ? <>{selectedFavorites.length < favorites.length && <p className="sf-notice">Часть сохранённых моделей больше не опубликована.</p>}{cards(selectedFavorites)}</> : <Empty title="В избранном пока пусто" icon={Heart}>Нажмите на сердечко в карточке товара — модель сохранится здесь и в этом браузере.</Empty>)}</div>}
 
       {path === 'compare' && <div className="sf-collection-page">{compare.length > 0 && <div className="sf-collection-tools"><p>Выбрано: <strong>{compare.length}</strong> из 3</p><button className="sf-text-button" onClick={() => { setCompare([]); setNotice('Сравнение очищено.'); }}><Trash2 size={16} />Очистить</button></div>}{catalogState || (selectedCompare.length ? <><div className="sf-compare-scroll" tabIndex={0} aria-label="Таблица сравнения: прокрутите по горизонтали"><table className="sf-compare-table"><caption className="sf-sr-only">Сравнение характеристик выбранных моделей</caption><thead><tr><th scope="col">Модель</th>{selectedCompare.map(product => <th scope="col" key={product.id}><button className="sf-compare-remove" aria-label={`Убрать ${product.name} из сравнения`} onClick={() => toggleCompare(product.id)}><X size={16} /></button><a href={`#product/${encodeURIComponent(product.id)}`}><ProductPhoto product={product} /><span>{product.name}</span></a></th>)}</tr></thead><tbody>{([
-          ['Цена', (product: Product) => money(product.price)], ['Наличие', (product: Product) => stockLabels[product.stock_status]], ['Тип', (product: Product) => categoryLabels[product.category]], ['Права', (product: Product) => vehicleCategories.includes(product.category) ? licenseLabels[effectiveLicense(product)] : 'Не требуются'], ['Запас хода', (product: Product) => product.range_km === null ? 'Уточняется' : `до ${product.range_km} км`], ['Скорость', (product: Product) => product.speed_kmh === null ? 'Уточняется' : `${product.speed_kmh} км/ч`], ['Мощность', (product: Product) => product.power_w === null ? 'Уточняется' : `${product.power_w} Вт`], ['Вес', (product: Product) => product.weight_kg === null ? 'Уточняется' : `${product.weight_kg} кг`],
+          ['Цена', (product: Product) => money(product.price)], ['Наличие', (product: Product) => stockLabels[product.stock_status]], ['Тип', (product: Product) => categoryLabels[product.category]], ['Права', (product: Product) => vehicleCategories.includes(product.category) ? licenseLabels[effectiveLicense(product)] : 'Не требуются'], ['Запас хода', (product: Product) => product.range_km === null ? 'Уточняется' : `до ${product.range_km} км`], ['Скорость', (product: Product) => product.speed_kmh === null ? 'Уточняется' : `${product.speed_kmh} км/ч`], ['Мощность', (product: Product) => product.power_w === null ? 'Уточняется' : `${product.power_w} Вт`], ['Вес', (product: Product) => product.weight_kg === null ? 'Уточняется' : `${product.weight_kg} кг`], ['Багажник', (product: Product) => product.cargo_l === null ? 'Уточняется' : `${product.cargo_l} л`],
         ] as [string, (product: Product) => string][]).map(([label, getValue]) => <tr key={label}><th scope="row">{label}</th>{selectedCompare.map(product => <td key={product.id}>{getValue(product)}</td>)}</tr>)}<tr><th scope="row">Выбрать</th>{selectedCompare.map(product => <td key={product.id}>{cart.some(item => item.product_id === product.id) ? <a href="#cart" className="sf-button sf-button--secondary">В корзине</a> : <button className="sf-button" disabled={product.stock_status === 'out-of-stock'} onClick={() => addToCart(product.id)}>{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}</td>)}</tr></tbody></table></div>{selectedCompare.length < compare.length && <p className="sf-notice">Некоторые выбранные модели больше не опубликованы. Очистите сравнение, чтобы выбрать другие.</p>}<a className="sf-button sf-button--secondary" href="#catalog">Добавить модель из каталога</a></> : <Empty title="Сравнивать пока нечего" icon={ArrowLeftRight}>Нажмите «Сравнить» в карточке товара — до трёх моделей встанут рядом по цене и характеристикам.</Empty>)}</div>}
 
       {path === 'cart' && <div className="sf-cart-page">{receipt ? <InquiryConfirmation inquiry={receipt} /> : catalogState || (cart.length ? <div className="sf-cart-layout"><section className="sf-cart-items" aria-label="Выбранные товары"><div className="sf-collection-tools sf-cart-tools"><p>Товаров: <strong>{cartCount}</strong></p><button className="sf-text-button" onClick={retry}>Обновить наличие</button><button className="sf-text-button" onClick={() => { setCart([]); setNotice('Корзина очищена.'); }}><Trash2 size={16} />Очистить</button></div>{cart.map(item => {

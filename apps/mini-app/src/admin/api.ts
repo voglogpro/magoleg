@@ -12,6 +12,7 @@ export type Product = {
   speed_kmh: number | null;
   power_w: number | null;
   weight_kg: number | null;
+  cargo_l: number | null;
   image_url: string;
   published: boolean;
   featured: boolean;

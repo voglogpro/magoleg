@@ -88,12 +88,23 @@
 .sf-store .sf-filter-icon[aria-expanded=true] { border-color: var(--sf-orange); color: #ff984e; background: #242429; }
 .sf-store .sf-filter-icon .sf-count { position: absolute; top: -6px; right: -6px; }
 .sf-store .sf-home-picks { margin-top: 30px; }
-.sf-store .sf-pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; }
-.sf-store .sf-pick-grid a { display: flex; min-height: 84px; flex-direction: column; justify-content: center; gap: 4px; padding: 14px; border: 1px solid var(--sf-line); border-radius: 10px; background: var(--sf-surface); }
-.sf-store .sf-pick-grid a:hover { border-color: var(--sf-orange); background: #242429; }
-.sf-store .sf-pick-grid strong { font-size: 15px; font-weight: 650; }
-.sf-store .sf-pick-grid span { color: var(--sf-muted); font-size: 12px; line-height: 1.4; }
-.sf-store .sf-pick-grid em { margin-top: 2px; color: #ff984e; font-size: 12px; font-style: normal; font-weight: 600; }
+/* Picks are swiped on a phone and paged with arrows on a desktop; the same card serves both. */
+.sf-store .sf-pick-rail { position: relative; }
+.sf-store .sf-pick-track { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 4px; }
+.sf-store .sf-pick-track::-webkit-scrollbar { display: none; }
+.sf-store .sf-pick-card { display: flex; overflow: hidden; flex: 0 0 62%; max-width: 260px; flex-direction: column; border: 1px solid var(--sf-line); border-radius: 12px; background: var(--sf-surface); scroll-snap-align: start; }
+.sf-store .sf-pick-card:hover { border-color: var(--sf-orange); }
+.sf-store .sf-pick-photo { display: grid; aspect-ratio: 16 / 10; max-height: 170px; background: #1b1b1f; color: var(--sf-muted); place-items: center; }
+.sf-store .sf-pick-photo img { width: 100%; height: 100%; object-fit: cover; }
+.sf-store .sf-pick-card strong { padding: 11px 13px 0; font-size: 15px; font-weight: 650; }
+.sf-store .sf-pick-card > span { padding: 3px 13px 0; color: var(--sf-muted); font-size: 12px; line-height: 1.4; }
+.sf-store .sf-pick-card em { padding: 5px 13px 12px; margin-top: auto; color: #ff984e; font-size: 12px; font-style: normal; font-weight: 600; }
+.sf-store .sf-pick-arrows button { position: absolute; top: 34%; display: grid; width: 38px; height: 38px; border: 1px solid var(--sf-line); border-radius: 50%; background: rgba(20,20,23,.9); color: var(--sf-text); place-items: center; }
+.sf-store .sf-pick-arrows button:first-child { left: -10px; }
+.sf-store .sf-pick-arrows button:last-child { right: -10px; }
+.sf-store .sf-pick-arrows button:hover { border-color: var(--sf-orange); }
+.sf-store .sf-pick-rail--grid .sf-pick-track { display: grid; overflow: visible; grid-template-columns: repeat(2, minmax(0,1fr)); }
+.sf-store .sf-pick-rail--grid .sf-pick-card { flex: none; max-width: none; }
 .sf-store .sf-picks-page { display: grid; gap: 18px; }
 /* The picks themselves carry the page; its intro stays a caption, not a headline. */
 .sf-store .sf-picks-page .sf-lead { max-width: 62ch; font-size: 15px; color: var(--sf-muted); }
@@ -103,8 +114,7 @@
 .sf-store .sf-product-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .sf-store .sf-product-tags a { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 13px; border: 1px solid var(--sf-line); border-radius: 999px; background: var(--sf-surface); font-size: 13px; }
 .sf-store .sf-product-tags a:hover { border-color: var(--sf-orange); color: #ff984e; }
-@media (min-width: 700px) { .sf-store .sf-pick-grid { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; } }
-@media (min-width: 1024px) { .sf-store .sf-pick-grid { grid-template-columns: repeat(6, minmax(0,1fr)); } .sf-store .sf-picks-page .sf-pick-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (min-width: 700px) { .sf-store .sf-pick-card { flex-basis: 236px; } .sf-store .sf-pick-rail--grid .sf-pick-track { gap: 14px; grid-template-columns: repeat(3, minmax(0,1fr)); } }
 .sf-store .sf-home-products { margin-top: 30px; }
 .sf-store .sf-catalog-preparing { padding: 24px 0; border-top: 1px solid var(--sf-line); border-bottom: 1px solid var(--sf-line); }
 .sf-store .sf-catalog-preparing h3 { font-size: 18px; }

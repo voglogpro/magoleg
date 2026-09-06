@@ -1,6 +1,6 @@
 import type { Product } from './api';
 
-const numericFields = ['price', 'range_km', 'speed_kmh', 'power_w', 'weight_kg'] as const;
+const numericFields = ['price', 'range_km', 'speed_kmh', 'power_w', 'weight_kg', 'cargo_l'] as const;
 type NumericField = typeof numericFields[number];
 export type ProductDraft = Omit<Product, 'id' | 'updated_at' | NumericField> & Record<NumericField, string>;
 export type ProductPayload = Omit<Product, 'id' | 'updated_at'>;
@@ -18,6 +18,7 @@ export function productDraft(product?: Product): ProductDraft {
     speed_kmh: product?.speed_kmh == null ? '' : String(product.speed_kmh),
     power_w: product?.power_w == null ? '' : String(product.power_w),
     weight_kg: product?.weight_kg == null ? '' : String(product.weight_kg),
+    cargo_l: product?.cargo_l == null ? '' : String(product.cargo_l),
   };
 }
 
