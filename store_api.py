@@ -34,7 +34,10 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 LOGGER = logging.getLogger("gshop.store")
 MAX_JSON = 64 * 1024
 MAX_UPLOAD = 8 * 1024 * 1024
-MAX_PIXELS = 20_000_000
+# Phone cameras shoot 48-50 MP; the shop should not have to shrink a photo by hand, so the
+# ceiling only has to stay under Pillow's decompression-bomb guard. Big files are decoded at a
+# reduced scale (draft) and stored downscaled, so memory does not grow with the source photo.
+MAX_PIXELS = 80_000_000
 SESSION_AGE = 8 * 60 * 60
 SESSION_IDLE = 60 * 60
 COOKIE_NAME = "gpartner_admin"
@@ -635,11 +638,12 @@ def sanitize_image(payload: bytes) -> bytes:
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(io.BytesIO(payload)) as source:
                 require(source.format in ("JPEG", "PNG", "WEBP"), "Разрешены только JPEG, PNG и WebP.")
-                require(source.width * source.height <= MAX_PIXELS and source.width >= 64 and source.height >= 64,
-                        "Фото: минимум 64×64, максимум 20 мегапикселей.")
+                require(source.width >= 64 and source.height >= 64, "Фото слишком маленькое: нужно хотя бы 64×64 точки.")
+                require(source.width * source.height <= MAX_PIXELS, "Фотография слишком большая даже для камеры телефона.")
                 require(not getattr(source, "is_animated", False), "Загрузите неподвижную фотографию.")
                 source.verify()
             with Image.open(io.BytesIO(payload)) as source:
+                source.draft("RGB", (2000, 2000))  # JPEG decodes at 1/2-1/8 scale: large photos cost little memory.
                 corrected = ImageOps.exif_transpose(source)
                 corrected.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
                 converted = corrected.convert("RGBA" if "A" in corrected.getbands() else "RGB")
