@@ -181,6 +181,13 @@ SEO карточек через hash-навигацию ограничено: о
 Windows/Python 3.11; Python 3.13 и реальный Linux-контейнер проверяются отдельно в CI.
 Docker отсутствует на локальной машине. Проверка GitHub не заменяет деплой BotHost.
 
+GitHub Actions для исходного релиза `50b1de7` завершился успешно:
+[результат Linux CI](https://github.com/voglogpro/magoleg/actions/runs/34017882610).
+Подтверждены frontend-тесты и браузерные сценарии, Python 3.13, Docker build,
+запуск сервиса под UID 10001 и сохранение SQLite после пересоздания контейнера
+с имитацией Git bindmount BotHost. Проверка именно аккаунта BotHost остаётся
+пунктом запуска выше.
+
 `cd apps/mini-app` → `npm ci --ignore-scripts` → `npm test` → `npm run build`.
 
 Из корня: `python -m unittest discover -s tests`. В GitHub добавлен workflow
@@ -198,3 +205,5 @@ Docker отсутствует на локальной машине. Провер
 `node src/storefront/browser-check.mjs` в другом терминале. Скрипт подменяет API
 контролируемыми тестовыми ответами и сохраняет снимки в `test-results/storefront`.
 Он не создаёт заявки на настоящем сервере и не заменяет сквозной тест CRM/API.
+Внешний Telegram SDK исключён из детерминированного браузерного теста; нативный
+мост Mini App необходимо дополнительно проверить в Telegram после деплоя.

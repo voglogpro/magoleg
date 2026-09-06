@@ -21,6 +21,9 @@ const check = (condition, message) => { assert.ok(condition, message); assertion
 
 for (const width of [320, 390, 768, 900, 1440]) {
   const context = await browser.newContext({ viewport: { width, height: width < 900 ? 844 : 1000 } });
+  // Storefront regression must not wait on Telegram's external network. This suite
+  // covers shopping, not the native Telegram bridge; test that bridge on a device.
+  await context.route('https://telegram.org/js/telegram-web-app.js', route => route.fulfill({ contentType: 'application/javascript', body: '/* Telegram bridge excluded from the deterministic browser suite. */' }));
   const page = await context.newPage();
   const countIs = async (selector, expected) => {
     await page.waitForFunction(({ selector, expected }) => document.querySelectorAll(selector).length === expected, { selector, expected });
