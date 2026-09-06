@@ -45,14 +45,21 @@ for (const width of [320, 390, 768, 900, 1440]) {
     else await route.fulfill({ status: 401, json: { error: 'Неверный логин или пароль.' } });
   });
   await page.route('**/api/account/register', route => route.fulfill({
-    json: { role: 'customer', account: { name: 'Проверка', contact: '+79001234567' }, csrfToken: 'qa-token' },
+    json: { role: 'customer', account: { name: 'Проверка', contact: '+79001234567', city: 'Краснодар' }, csrfToken: 'qa-token' },
   }));
   await page.route('**/api/inquiries', async route => {
     submissions.push({ payload: route.request().postDataJSON(), key: route.request().headers()['idempotency-key'] });
     await route.fulfill({ status: 201, json: { inquiry: { id: `QA-${width}`, status: 'new', total: 39800 } } });
   });
   await page.goto(base);
+  await page.waitForSelector('.sf-city-dialog');
+  check(await page.locator('.sf-city-dialog').isVisible(), `${width}: a first visit is asked for its city`);
+  await page.locator('.sf-city-options button').first().click();
   await page.waitForSelector('.sf-product-card');
+  check((await page.locator('.sf-city-bar').innerText()).includes('Москва'), `${width}: the chosen city stays on screen`);
+  await page.reload();
+  await page.waitForSelector('.sf-product-card');
+  check(await page.locator('.sf-city-dialog').count() === 0, `${width}: the city is asked only once`);
   await page.screenshot({ path: `${output}/home-${width}.png`, fullPage: true });
   check(await page.locator('.sf-search').count() === 0, `${width}: no catalogue search field`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
@@ -97,6 +104,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   }
   await page.locator('[name=name]').fill('Проверка');
   await page.locator('[name=contact]').fill('+79001234567');
+  check(await page.locator('.sf-inquiry [name=city]').inputValue() === 'Москва', `${width}: the order carries the chosen city`);
   await page.locator('[name=consent]').check();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${output}/cart-${width}.png`, fullPage: true });
@@ -105,6 +113,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check((await page.locator('.sf-confirmation').innerText()).includes(`QA-${width}`), `${width}: actual receipt`);
   check(await page.evaluate(() => JSON.parse(localStorage.getItem('gpartner.cart.v1')).length === 0), `${width}: successful inquiry clears sent cart`);
   check(submissions.length === 1 && submissions[0].key?.length >= 16 && submissions[0].payload.items[0].quantity === 2 && !('total' in submissions[0].payload), `${width}: safe actual payload + idempotency`);
+  check(submissions[0].payload.city === 'Москва', `${width}: the shop learns where the order goes`);
   for (const route of ['compare', 'favorites', 'profile', 'menu', 'about', 'delivery', 'contact', 'guide', 'privacy', 'product/cargo']) {
     await page.goto(`${base}/#${route}`);
     await page.waitForSelector('.sf-page-heading');
@@ -122,8 +131,9 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.locator('.sf-account-tabs button').nth(1).click();
   await page.locator('.sf-login-form [name=name]').fill('Проверка');
   await page.locator('.sf-login-form [name=contact]').fill('+79001234567');
+  await page.locator('.sf-login-form [name=city]').fill('Краснодар');
   await page.locator('.sf-login-form [name=password]').fill('qa-account-password');
-  accountState = { account: { name: 'Проверка', contact: '+79001234567' }, csrfToken: 'qa-token' };
+  accountState = { account: { name: 'Проверка', contact: '+79001234567', city: 'Краснодар' }, csrfToken: 'qa-token' };
   await page.locator('.sf-login-form button[type=submit]').click();
   await page.waitForSelector('.sf-history-title');
   check((await page.locator('.sf-account-card').innerText()).includes('+79001234567'), `${width}: registered shopper sees their account`);

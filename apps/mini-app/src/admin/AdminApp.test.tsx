@@ -88,7 +88,7 @@ describe('admin CRM', () => {
     expect(fetchMock.mock.calls.filter(([url, options]) => url.endsWith('/settings') && options.method === 'PUT')).toHaveLength(0);
   });
   it('updates an inquiry status using the server API', async () => {
-    const inquiry: Inquiry = { id: 'inquiry-1', name: 'Test customer', contact: 'test@example.com', message: 'Please call back.', items: [{ product_id: product.id, name: product.name, price: 42000, quantity: 1, image_url: product.image_url }], total: 42000, status: 'new', created_at: '2026-09-06T12:00:00Z', updated_at: '2026-09-06T12:00:00Z' };
+    const inquiry: Inquiry = { id: 'inquiry-1', name: 'Test customer', contact: 'test@example.com', city: 'Казань', message: 'Please call back.', items: [{ product_id: product.id, name: product.name, price: 42000, quantity: 1, image_url: product.image_url }], total: 42000, status: 'new', created_at: '2026-09-06T12:00:00Z', updated_at: '2026-09-06T12:00:00Z' };
     const defaultMock = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url: string, options: RequestInit) => url.includes('/inquiries?') ? Promise.resolve(response({ inquiries: [inquiry], total: 1, page: 1, page_size: 50, total_pages: 1 })) : defaultMock(url, options));
     render(<AdminApp/>); await screen.findByText('Каталог пока пуст');
@@ -104,7 +104,7 @@ describe('admin CRM', () => {
       const query = new URL(url, 'https://test.invalid').searchParams;
       const page = Number(query.get('page'));
       const total = query.get('status') === 'new' ? 1 : 1001;
-      const row: Inquiry = { id: `inquiry-${page}`, name: `Customer page ${page}`, contact: 'test@example.com', message: '', items: [], total: 0, status: 'new', created_at: '2026-09-06T12:00:00Z', updated_at: '2026-09-06T12:00:00Z' };
+      const row: Inquiry = { id: `inquiry-${page}`, name: `Customer page ${page}`, contact: 'test@example.com', city: 'Москва', message: '', items: [], total: 0, status: 'new', created_at: '2026-09-06T12:00:00Z', updated_at: '2026-09-06T12:00:00Z' };
       return Promise.resolve(response({ inquiries: [row], total, page, page_size: 50, total_pages: Math.ceil(total / 50) }));
     });
     render(<AdminApp/>); await screen.findByText('Каталог пока пуст');

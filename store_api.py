@@ -250,6 +250,8 @@ class Store:
             # Inquiries predate accounts; older rows stay unlinked and owner-only.
             if "customer_id" not in {row["name"] for row in connection.execute("PRAGMA table_info(inquiries)")}:
                 connection.execute("ALTER TABLE inquiries ADD COLUMN customer_id TEXT")
+            if "city" not in {row["name"] for row in connection.execute("PRAGMA table_info(customers)")}:
+                connection.execute("ALTER TABLE customers ADD COLUMN city TEXT NOT NULL DEFAULT ''")
             connection.execute("CREATE INDEX IF NOT EXISTS inquiries_customer ON inquiries(customer_id, created_at)")
             connection.execute("INSERT OR IGNORE INTO settings(id,data) VALUES(1,?)",
                                (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),))
@@ -335,7 +337,7 @@ class Store:
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         now = time.time()
         with self.connect() as connection:
-            row = connection.execute("""SELECT s.token_hash, s.csrf, c.id, c.name, c.contact
+            row = connection.execute("""SELECT s.token_hash, s.csrf, c.id, c.name, c.contact, c.city
                 FROM customer_sessions s JOIN customers c ON c.id = s.customer_id
                 WHERE s.token_hash=? AND s.expires_at > ? AND s.last_seen > ?""",
                                      (token_hash, now, now - ACCOUNT_SESSION_IDLE)).fetchone()
@@ -496,7 +498,7 @@ async def admin_logout(request: web.Request) -> web.Response:
 
 
 def account_payload(row: sqlite3.Row) -> dict[str, Any]:
-    return {"account": {"name": row["name"], "contact": row["contact"]}}
+    return {"account": {"name": row["name"], "contact": row["contact"], "city": row["city"]}}
 
 
 async def account_state(request: web.Request) -> web.Response:
@@ -510,10 +512,11 @@ async def account_register(request: web.Request) -> web.Response:
     store = request.app[STORE_KEY]
     store.rate_limit(request, "account-register", 5, 3600)
     data = await read_json(request)
-    require(not (set(data) - {"name", "contact", "password", "consent"}), "Неизвестные поля регистрации.")
+    require(not (set(data) - {"name", "contact", "city", "password", "consent"}), "Неизвестные поля регистрации.")
     require(data.get("consent") is True, "Нужно согласие на обработку данных для создания аккаунта.")
     name = text_value(data.get("name"), "Имя", 100, 2)
     contact = text_value(data.get("contact"), "Контакт", 150, 5)
+    city = text_value(data.get("city", ""), "Город", 80, 2)
     identity = contact_identity(contact)
     require(bool(identity), "Укажите телефон, email или имя пользователя Telegram.")
     password = data.get("password")
@@ -528,9 +531,10 @@ async def account_register(request: web.Request) -> web.Response:
         connection.execute("BEGIN IMMEDIATE")
         taken = connection.execute("SELECT 1 FROM customers WHERE identity=?", (identity,)).fetchone()
         require(taken is None, "Аккаунт с таким контактом уже существует. Войдите или используйте другой контакт.", 409)
-        connection.execute("INSERT INTO customers VALUES(?,?,?,?,?,?)",
-                           (customer_id, identity, contact, name, encoded, now_iso()))
-    return store.open_account_session(customer_id, {"role": "customer", "account": {"name": name, "contact": contact}})
+        connection.execute("INSERT INTO customers(id,identity,contact,name,password_hash,created_at,city) VALUES(?,?,?,?,?,?,?)",
+                           (customer_id, identity, contact, name, encoded, now_iso(), city))
+    return store.open_account_session(customer_id, {"role": "customer",
+                                                    "account": {"name": name, "contact": contact, "city": city}})
 
 
 async def account_login(request: web.Request) -> web.Response:
@@ -547,13 +551,14 @@ async def account_login(request: web.Request) -> web.Response:
         return open_admin_session(store, {"role": "owner", "username": store.username})
     identity = contact_identity(contact)
     with store.connect() as connection:
-        row = connection.execute("SELECT id, name, contact, password_hash FROM customers WHERE identity=?",
+        row = connection.execute("SELECT id, name, contact, city, password_hash FROM customers WHERE identity=?",
                                  (identity,)).fetchone() if identity else None
     require(await store.matching_password(password, row["password_hash"] if row else ""),
             "Неверный логин или пароль.", 401)
     assert row is not None  # A matching password proves the lookup found an account.
     return store.open_account_session(row["id"], {"role": "customer",
-                                                  "account": {"name": row["name"], "contact": row["contact"]}})
+                                                  "account": {"name": row["name"], "contact": row["contact"],
+                                                              "city": row["city"]}})
 
 
 async def account_logout(request: web.Request) -> web.Response:
@@ -577,7 +582,8 @@ async def account_inquiries(request: web.Request) -> web.Response:
     inquiries = []
     for stored in rows:
         inquiry = json.loads(stored["data"])
-        inquiries.append({key: inquiry[key] for key in ("id", "status", "total", "created_at", "items")})
+        inquiries.append({key: inquiry.get(key, "") if key == "city" else inquiry[key]
+                          for key in ("id", "status", "total", "created_at", "city", "items")})
     return web.json_response({"inquiries": inquiries})
 
 
@@ -744,11 +750,12 @@ async def create_inquiry(request: web.Request) -> web.Response:
     # Behind BotHost many customers share one proxy IP. Keep a broad peer ceiling
     # and a separate per-contact limit instead of denying the sixth real customer.
     store.rate_limit(request, "inquiry-peer", 60, 600)
-    require(not (set(data) - {"name", "contact", "message", "items", "consent"}), "Неизвестные поля заявки.")
+    require(not (set(data) - {"name", "contact", "city", "message", "items", "consent"}), "Неизвестные поля заявки.")
     require(data.get("consent") is True, "Нужно согласие на обработку данных для ответа на заявку.")
     name = text_value(data.get("name"), "Имя", 100, 2)
     contact = text_value(data.get("contact"), "Контакт", 150, 5)
     message = text_value(data.get("message", ""), "Комментарий", 3000)
+    city = text_value(data.get("city", ""), "Город доставки", 80)
     require(valid_phone(contact) or
             bool(re.fullmatch(r"@?[A-Za-z][A-Za-z0-9_]{4,31}", contact)) or
             bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact)),
@@ -763,6 +770,7 @@ async def create_inquiry(request: web.Request) -> web.Response:
     requested = data.get("items", [])
     require(isinstance(requested, list) and len(requested) <= 30, "В заявке допускается не больше 30 моделей.")
     require(bool(requested) or len(message) >= 10, "Выберите товар или опишите вопрос (от 10 символов).")
+    require(not requested or len(city) >= 2, "Укажите город доставки — магазин отправляет заказы по России.")
     with store.connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
         # The second check is inside the write transaction: concurrent retries
@@ -789,7 +797,7 @@ async def create_inquiry(request: web.Request) -> web.Response:
             items.append({"product_id": product_id, "name": product["name"], "price": product["price"],
                           "quantity": quantity, "image_url": product["image_url"]})
         timestamp = now_iso()
-        inquiry = {"id": secrets.token_hex(16), "name": name, "contact": contact, "message": message,
+        inquiry = {"id": secrets.token_hex(16), "name": name, "contact": contact, "city": city, "message": message,
                    "items": items, "total": float(total.quantize(Decimal(".01"))), "status": "new",
                    "created_at": timestamp, "updated_at": timestamp, "consent_at": timestamp}
         connection.execute("INSERT INTO inquiries(id,data,status,created_at,updated_at,customer_id) VALUES(?,?,?,?,?,?)",

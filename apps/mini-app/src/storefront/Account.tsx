@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, ClipboardList, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { getAccountInquiries, registerAccount, signIn, signOut } from './api';
+import { CityDatalist } from './CityPicker';
 import { money } from './domain';
 import type { AccountInquiry, AccountProfile } from './types';
 
@@ -38,6 +39,7 @@ function History() {
         <span className={`sf-history__status sf-history__status--${inquiry.status}`}>{statusLabels[inquiry.status]}</span>
         <span className="sf-history__date">{formatDate(inquiry.created_at)}</span>
       </div>
+      {inquiry.city && <p className="sf-history__city">Доставка в город {inquiry.city}</p>}
       <ul className="sf-history__items">{inquiry.items.map(item => <li key={item.product_id}><span>{item.name}</span><b>{item.quantity} шт.</b></li>)}</ul>
       <div className="sf-history__foot">
         <span>Заявка №{inquiry.id.slice(0, 8)}</span>
@@ -59,12 +61,13 @@ function Card({ icon: Icon, eyebrow, title, children }: {
   </section>;
 }
 
-export function Account({ account, csrfToken, onChange }: {
-  account: AccountProfile | null; csrfToken: string; onChange: () => void;
+export function Account({ account, csrfToken, city = '', onChange, onCity }: {
+  account: AccountProfile | null; csrfToken: string; city?: string; onChange: () => void; onCity?: (city: string) => void;
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
+  const [town, setTown] = useState(city);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -76,7 +79,7 @@ export function Account({ account, csrfToken, onChange }: {
     setError('');
     try {
       const result = mode === 'register'
-        ? await registerAccount(name.trim(), contact.trim(), password)
+        ? await registerAccount(name.trim(), contact.trim(), town.trim(), password)
         : await signIn(contact.trim(), password);
       setPassword('');
       if (result.role === 'owner') {
@@ -85,6 +88,7 @@ export function Account({ account, csrfToken, onChange }: {
         window.open('/admin', '_blank', 'noopener');
         return;
       }
+      if (result.account?.city) onCity?.(result.account.city);
       setName(''); setContact('');
       onChange();
     } catch (reason) {
@@ -108,7 +112,7 @@ export function Account({ account, csrfToken, onChange }: {
   </Card>;
 
   if (account) return <Card icon={UserRound} eyebrow="Аккаунт покупателя" title={account.name}>
-    <p className="sf-account-contact">{account.contact}</p>
+    <p className="sf-account-contact">{account.contact}{account.city ? ` · ${account.city}` : ''}</p>
     {error && <p className="sf-error" role="alert">{error}</p>}
     <h3 className="sf-history-title">Мои заявки</h3>
     <History />
@@ -132,6 +136,10 @@ export function Account({ account, csrfToken, onChange }: {
       <label>{registering ? 'Телефон, email или @Telegram' : 'Логин, телефон или email'}
         <input name="contact" autoComplete="username" required minLength={registering ? 5 : 1} maxLength={150} value={contact} disabled={busy} onChange={event => setContact(event.target.value)} />
       </label>
+      {registering && <label>Ваш город
+        <input name="city" list="sf-cities" autoComplete="address-level2" required minLength={2} maxLength={80} value={town} disabled={busy} onChange={event => setTown(event.target.value)} placeholder="Например, Краснодар" />
+        <CityDatalist />
+      </label>}
       <label>Пароль
         <input name="password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} required minLength={registering ? 12 : 1} maxLength={256} value={password} disabled={busy} onChange={event => setPassword(event.target.value)} />
         {registering && <small>От 12 символов — так аккаунт не подберут перебором.</small>}

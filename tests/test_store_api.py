@@ -312,7 +312,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.client.put(f"/api/admin/products/{product['id']}", json={"price": 70000.25}, headers=self.headers)
         response = await self.client.post("/api/inquiries", json={
             "name": "Customer", "contact": "+7 999 111 22 33", "message": "Please confirm stock.",
-            "items": [{"product_id": product["id"], "quantity": 2}], "consent": True,
+            "city": "Краснодар", "items": [{"product_id": product["id"], "quantity": 2}], "consent": True,
         }, headers={"Origin": self.origin})
         self.assertEqual(response.status, 201, await response.text())
         receipt = (await response.json())["inquiry"]
@@ -340,9 +340,14 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.assert_error(await self.client.post("/api/inquiries", json={**payload, "items": [
             {"product_id": "a" * 32, "quantity": 1, "price": 1},
         ]}), 400)
-        await self.assert_error(await self.client.post("/api/inquiries", json={**payload, "items": [
+        await self.assert_error(await self.client.post("/api/inquiries", json={**payload, "city": "Москва", "items": [
             {"product_id": "a" * 32, "quantity": 1},
         ]}), 409)
+        # A cart without a destination cannot be quoted for a country-wide shop.
+        product = await self.published_product()
+        await self.assert_error(await self.client.post("/api/inquiries", json={
+            **payload, "items": [{"product_id": product["id"], "quantity": 1}],
+        }), 400)
 
     async def test_public_inquiry_rate_limit(self):
         for _ in range(60):
@@ -482,9 +487,9 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(query=query):
                 await self.assert_error(await self.client.get(f"/api/admin/inquiries?{query}"), 400)
 
-    async def register(self, contact="+7 999 111 22 33", password=CUSTOMER_PASSWORD, name="Customer"):
+    async def register(self, contact="+7 999 111 22 33", password=CUSTOMER_PASSWORD, name="Customer", city="Москва"):
         response = await self.client.post("/api/account/register", json={
-            "name": name, "contact": contact, "password": password, "consent": True,
+            "name": name, "contact": contact, "city": city, "password": password, "consent": True,
         }, headers={"Origin": self.origin})
         return response
 
@@ -493,7 +498,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200, await response.text())
         body = await response.json()
         self.assertEqual(body["role"], "customer")
-        self.assertEqual(body["account"], {"name": "Customer", "contact": "+7 999 111 22 33"})
+        self.assertEqual(body["account"], {"name": "Customer", "contact": "+7 999 111 22 33", "city": "Москва"})
         cookie = response.cookies[ACCOUNT_COOKIE]
         self.assertTrue(cookie["httponly"])
         self.assertEqual(cookie["samesite"], "Strict")
@@ -524,7 +529,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         customer = await self.client.post("/api/account/login", json={
             "contact": "+79991112233", "password": CUSTOMER_PASSWORD,
         }, headers={"Origin": self.origin})
-        self.assertEqual((await customer.json())["role"], "customer")
+        self.assertEqual((await customer.json())["account"], {"name": "Customer", "contact": "+7 999 111 22 33", "city": "Москва"})
         # Owner credentials open the CRM through the very same form.
         owner = await self.client.post("/api/account/login", json={
             "contact": "test-owner", "password": TEST_PASSWORD,
@@ -542,7 +547,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         product = await self.published_product()
         await self.enable_inquiries()
         order = {"name": "Customer", "contact": "+7 999 111 22 33", "message": "Please confirm stock.",
-                 "items": [{"product_id": product["id"], "quantity": 1}], "consent": True}
+                 "city": "Казань", "items": [{"product_id": product["id"], "quantity": 1}], "consent": True}
         anonymous = await self.client.post("/api/inquiries", json=order, headers={"Origin": self.origin})
         self.assertEqual(anonymous.status, 201, await anonymous.text())
         await self.assert_error(await self.client.get("/api/account/inquiries"), 401)
@@ -554,7 +559,10 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         inquiries = (await history.json())["inquiries"]
         self.assertEqual([inquiry["id"] for inquiry in inquiries], [(await signed_in.json())["inquiry"]["id"]])
         self.assertEqual(inquiries[0]["items"][0]["name"], product["name"])
+        self.assertEqual(inquiries[0]["city"], "Казань")
         self.assertNotIn("contact", inquiries[0])
+        owner_view = await self.client.get("/api/admin/inquiries")
+        self.assertEqual((await owner_view.json())["inquiries"][0]["city"], "Казань")
         # A second person registering with the same details starts with an empty history.
         await self.client.post("/api/account/logout", headers={
             "Origin": self.origin, "X-CSRF-Token": (await (await self.client.get("/api/account")).json())["csrfToken"],
