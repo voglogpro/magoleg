@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, Home, Menu, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Trash2, UserRound, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, CloudRain, Dumbbell, Feather, Heart, Home, Menu, Package, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Sparkles, Sprout, Trash2, Truck, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { Account } from './Account';
 import { CityBar, CityPicker } from './CityPicker';
 import { StoreHero } from '../components/StoreHero';
@@ -32,6 +32,12 @@ function TypeChips({ current, onPick, options }: {
   </div>;
 }
 
+/** Each pick gets a drawn icon of its own: a tile names an audience, not one model in stock. */
+const pickIcons: Record<string, LucideIcon> = {
+  'tag-waterproof': CloudRain, 'tag-heavy-rider': Dumbbell, 'tag-two-up': Users,
+  'tag-courier': Package, 'tag-women': Feather, 'tag-beginner': Sprout, 'stock-in-stock': Truck,
+};
+
 /** A pick is a plain catalogue link, so the shopper can narrow it further with the usual filters. */
 function PickCards({ picks, layout }: { picks: SmartPick[]; layout: 'row' | 'grid' }) {
   const rail = useRef<HTMLDivElement>(null);
@@ -51,10 +57,13 @@ function PickCards({ picks, layout }: { picks: SmartPick[]; layout: 'row' | 'gri
     rail.current?.scrollBy({ left: direction * ((card?.offsetWidth ?? 220) + 12), behavior: 'smooth' });
   };
   return <div className={`sf-pick-rail sf-pick-rail--${layout}`}>
-    <div className="sf-pick-track" ref={rail}>{picks.map(pick => <a className="sf-pick-card" href={catalogHref(pick.filters)} key={pick.id}>
-      <span className="sf-pick-photo">{pick.image ? <img src={pick.image} alt="" loading="lazy" draggable={false} /> : <PackageOpen size={26} aria-hidden="true" />}</span>
-      <strong>{pick.label}</strong><span>{pick.hint}</span><em>{pick.count} {plural(pick.count, ['модель', 'модели', 'моделей'])}</em>
-    </a>)}</div>
+    <div className="sf-pick-track" ref={rail}>{picks.map(pick => {
+      const Icon = pickIcons[pick.id] ?? Sparkles;
+      return <a className="sf-pick-card" href={catalogHref(pick.filters)} key={pick.id}>
+        <span className="sf-pick-art" aria-hidden="true"><span><Icon size={26} strokeWidth={1.7} /></span></span>
+        <strong>{pick.label}</strong><span>{pick.hint}</span><em>{pick.count} {plural(pick.count, ['модель', 'модели', 'моделей'])}</em>
+      </a>;
+    })}</div>
     {layout === 'row' && pageable && <div className="sf-pick-arrows sf-desktop-only">
       <button aria-label="Предыдущие подборки" onClick={() => scrollBy(-1)}><ArrowLeft size={18} /></button>
       <button aria-label="Следующие подборки" onClick={() => scrollBy(1)}><ArrowRight size={18} /></button>

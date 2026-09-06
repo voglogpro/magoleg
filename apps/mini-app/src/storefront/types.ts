@@ -88,7 +88,7 @@ export const tagHints: Record<ProductTag, string> = {
   courier: 'Для работы и груза', women: 'Лёгкие и удобные', beginner: 'Просто освоить с нуля',
 };
 /** A named catalogue filter a shopper can open in one tap, with the number of models behind it. */
-export type SmartPick = { id: string; label: string; hint: string; filters: Partial<Filters>; count: number; image: string };
+export type SmartPick = { id: string; label: string; hint: string; filters: Partial<Filters>; count: number };
 export const badgeLabels: Record<Exclude<ProductBadge, ''>, string> = {
   hit: 'Хит продаж', 'best-price': 'Лучшая цена', value: 'Цена-качество',
 };

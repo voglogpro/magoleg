@@ -66,7 +66,8 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
   check(await page.locator('.sf-home-selection').count() === 0, `${width}: home no longer repeats the catalogue tab`);
   check(await page.locator('.sf-home-picks .sf-pick-card').count() === 3, `${width}: picks lead the home page`);
-  check(await page.locator('.sf-home-picks .sf-pick-photo img').count() === 3, `${width}: every pick carries a photo`);
+  check(await page.locator('.sf-home-picks .sf-pick-art svg').count() === 3, `${width}: every pick carries its own icon`);
+  check(await page.locator('.sf-home-picks .sf-pick-art img').count() === 0, `${width}: a pick tile never borrows a product photo`);
   check(await page.locator('.sf-badge').first().innerText() === 'Хит продаж', `${width}: the shop badge rides on the card`);
   await page.locator('.sf-pick-card').first().click();
   await page.waitForURL(/tag=.*sort=value|sort=value.*tag=/);
