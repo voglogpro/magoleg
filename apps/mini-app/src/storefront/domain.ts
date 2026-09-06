@@ -12,17 +12,43 @@ export const telegramLink = (value: string) => {
   return /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(name) ? `https://t.me/${name}` : '';
 };
 
+/**
+ * «Выгодные сначала»: a cheaper price, a longer range and a roomier trunk each push a model up.
+ * Every metric is scaled inside the current result set, so the order answers "what is the best
+ * deal among these models", not "which number is the biggest in the shop". An unknown metric
+ * scores zero, which keeps price-on-request models from floating to the top of a value ranking.
+ */
+function valueScores(products: Product[]) {
+  const spread = (read: (product: Product) => number | null) => {
+    const values = products.map(read).filter((value): value is number => value !== null);
+    return values.length ? { min: Math.min(...values), max: Math.max(...values) } : null;
+  };
+  const scale = (value: number | null, range: { min: number; max: number } | null, higherIsBetter: boolean) => {
+    if (value === null || range === null) return 0;
+    if (range.max === range.min) return 1;
+    const share = (value - range.min) / (range.max - range.min);
+    return higherIsBetter ? share : 1 - share;
+  };
+  const price = spread(product => product.price);
+  const range = spread(product => product.range_km);
+  const cargo = spread(product => product.cargo_l);
+  return new Map(products.map(product => [product.id,
+    0.5 * scale(product.price, price, false) + 0.3 * scale(product.range_km, range, true) + 0.2 * scale(product.cargo_l, cargo, true)]));
+}
+
 export function filterProducts(products: Product[], filters: Filters) {
   const minimum = filters.min.trim() ? Number(filters.min) : null;
   const maximum = filters.max.trim() ? Number(filters.max) : null;
-  return products.filter(product => product.published
+  const matched = products.filter(product => product.published
     && (filters.category === 'all' || product.category === filters.category)
     && (filters.tag === 'all' || product.tags.includes(filters.tag))
     && (filters.license === 'all' || effectiveLicense(product) === filters.license)
     && (filters.stock === 'all' || product.stock_status === filters.stock)
     && (minimum === null || (product.price !== null && product.price >= minimum))
-    && (maximum === null || (product.price !== null && product.price <= maximum)))
-    .sort((a, b) => {
+    && (maximum === null || (product.price !== null && product.price <= maximum)));
+  const scores = filters.sort === 'value' ? valueScores(matched) : null;
+  return matched.sort((a, b) => {
+      if (scores) return (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0) || a.name.localeCompare(b.name, 'ru-RU');
       if (filters.sort === 'name') return a.name.localeCompare(b.name, 'ru-RU');
       if (filters.sort === 'price-asc' || filters.sort === 'price-desc') {
         if (a.price === null) return b.price === null ? 0 : 1;
@@ -43,13 +69,26 @@ export const plural = (count: number, forms: [string, string, string]) => {
  * shop ticks per product. Empty picks are dropped so the storefront never offers a selection
  * that leads to an empty catalogue. Rights requirements stay in the filter panel only — as a
  * pick they read like a promise about the law, which the shop does not want to make.
+ *
+ * Every pick opens the catalogue ranked by value, and shows a model from inside itself as its
+ * cover, preferring one no earlier pick has taken so the row does not repeat a single photo.
  */
 export function smartPicks(products: Product[]): SmartPick[] {
-  const picks: Omit<SmartPick, 'count'>[] = [
-    ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag } })),
-    { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'Отправляем от 3 дней', filters: { stock: 'in-stock' } },
+  const picks: Omit<SmartPick, 'count' | 'image'>[] = [
+    ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag, sort: 'value' as const } })),
+    { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'Отправляем от 3 дней', filters: { stock: 'in-stock', sort: 'value' as const } },
   ];
-  return picks.map(pick => ({ ...pick, count: filterProducts(products, { ...defaultFilters, ...pick.filters }).length })).filter(pick => pick.count > 0);
+  const taken = new Set<string>();
+  const offered: SmartPick[] = [];
+  for (const pick of picks) {
+    const matched = filterProducts(products, { ...defaultFilters, ...pick.filters });
+    if (!matched.length) continue;
+    const cover = matched.find(product => productImage(product.image_url) && !taken.has(product.id))
+      ?? matched.find(product => productImage(product.image_url));
+    if (cover) taken.add(cover.id);
+    offered.push({ ...pick, count: matched.length, image: cover ? productImage(cover.image_url) : '' });
+  }
+  return offered;
 }
 
 export function parseFilters(search: string): Filters {
@@ -62,7 +101,7 @@ export function parseFilters(search: string): Filters {
     license: get('license', ['all', 'required', 'not-required', 'unknown'], 'all') as Filters['license'],
     stock: get('stock', ['all', 'in-stock', 'preorder', 'out-of-stock'], 'all') as Filters['stock'],
     min: amount('min'), max: amount('max'),
-    sort: get('sort', ['featured', 'price-asc', 'price-desc', 'name'], 'featured') as Filters['sort'],
+    sort: get('sort', ['featured', 'value', 'price-asc', 'price-desc', 'name'], 'featured') as Filters['sort'],
   };
 }
 

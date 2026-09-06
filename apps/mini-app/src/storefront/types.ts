@@ -17,6 +17,7 @@ export type Product = {
   speed_kmh: number | null;
   power_w: number | null;
   weight_kg: number | null;
+  cargo_l: number | null;
   image_url: string;
   featured: boolean;
   published: boolean;
@@ -51,7 +52,7 @@ export type Filters = {
   stock: Stock | 'all';
   min: string;
   max: string;
-  sort: 'featured' | 'price-asc' | 'price-desc' | 'name';
+  sort: 'featured' | 'value' | 'price-asc' | 'price-desc' | 'name';
 };
 
 export const defaultSettings: ShopSettings = {
@@ -86,7 +87,7 @@ export const tagHints: Record<ProductTag, string> = {
   courier: 'Для работы и груза', women: 'Лёгкие и удобные', beginner: 'Просто освоить с нуля',
 };
 /** A named catalogue filter a shopper can open in one tap, with the number of models behind it. */
-export type SmartPick = { id: string; label: string; hint: string; filters: Partial<Filters>; count: number };
+export type SmartPick = { id: string; label: string; hint: string; filters: Partial<Filters>; count: number; image: string };
 export const badgeLabels: Record<Exclude<ProductBadge, ''>, string> = {
   hit: 'Хит продаж', 'best-price': 'Лучшая цена', value: 'Цена-качество',
 };

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, plural, productImage, sanitizeCart, sanitizeIds, smartPicks, telegramLink } from './domain';
 import { defaultFilters, type Product } from './types';
 
-const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/products/one.webp', featured: false, published: true, tags: ['courier'], badge: '', updated_at: '2026-09-06' };
+const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/products/one.webp', featured: false, published: true, tags: ['courier'], badge: '', updated_at: '2026-09-06' };
 
 describe('catalogue filtering', () => {
   it('never presents an unverified rights classification as confirmed', () => {
@@ -43,7 +43,8 @@ describe('smart picks', () => {
     const picks = smartPicks([product, licensed]);
     expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'stock-in-stock']);
     expect(picks.map(pick => pick.count)).toEqual([1, 1]);
-    expect(picks[0].filters).toEqual({ tag: 'courier' });
+    expect(picks[0].filters).toEqual({ tag: 'courier', sort: 'value' });
+    expect(picks[0].image).toBe('/media/products/one.webp');
   });
   it('hides picks with nothing behind them, including unpublished models', () => {
     expect(smartPicks([{ ...product, published: false }])).toEqual([]);
@@ -51,6 +52,17 @@ describe('smart picks', () => {
   });
   it('leaves rights requirements to the filter panel instead of naming a pick', () => {
     expect(smartPicks([product, licensed]).map(pick => pick.id).join()).not.toContain('license');
+  });
+  it('ranks a pick by value: cheaper, longer range and a roomier trunk win', () => {
+    const cheap = { ...product, id: 'cheap', name: 'А', price: 10000, range_km: 20, cargo_l: 0 };
+    const roomy = { ...product, id: 'roomy', name: 'Б', price: 20000, range_km: 100, cargo_l: 60 };
+    const dear = { ...product, id: 'dear', name: 'В', price: 30000, range_km: 25, cargo_l: 5 };
+    expect(filterProducts([dear, roomy, cheap], { ...defaultFilters, sort: 'value' }).map(item => item.id)).toEqual(['roomy', 'cheap', 'dear']);
+  });
+  it('keeps price-on-request below an otherwise identical priced model', () => {
+    const priced = { ...product, id: 'priced', name: 'А' };
+    const onRequest = { ...product, id: 'on-request', name: 'Б', price: null };
+    expect(filterProducts([onRequest, priced], { ...defaultFilters, sort: 'value' }).map(item => item.id)).toEqual(['priced', 'on-request']);
   });
   it('counts models in readable Russian', () => {
     expect([1, 2, 5, 11, 21, 104].map(count => plural(count, ['модель', 'модели', 'моделей']))).toEqual(['модель', 'модели', 'моделей', 'моделей', 'модель', 'модели']);

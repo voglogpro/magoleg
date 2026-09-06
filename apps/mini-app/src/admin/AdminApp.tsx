@@ -163,6 +163,7 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <label>Макс. скорость, км/ч<input inputMode="decimal" type="number" min="0" max="500" step="0.1" value={draft.speed_kmh} onChange={event => update('speed_kmh', event.target.value)}/></label>
           <label>Мощность, Вт<input inputMode="numeric" type="number" min="0" max="500000" step="1" value={draft.power_w} onChange={event => update('power_w', event.target.value)}/></label>
           <label>Вес, кг<input inputMode="decimal" type="number" min="0" max="10000" step="0.1" value={draft.weight_kg} onChange={event => update('weight_kg', event.target.value)}/></label>
+          <label>Багажник, л<input inputMode="decimal" type="number" min="0" max="1000" step="1" value={draft.cargo_l} onChange={event => update('cargo_l', event.target.value)}/></label>
         </div></fieldset>
         <fieldset disabled={busy}><legend>Умные подборки и отметки</legend>
           <p className="crm-help">Подборки собирают товары на главной: покупатель нажимает и видит только подходящие модели.</p>

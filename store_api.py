@@ -59,7 +59,7 @@ PRODUCT_TAGS = ("waterproof", "heavy-rider", "two-up", "courier", "women", "begi
 PRODUCT_BADGES = ("hit", "best-price", "value")
 PRODUCT_FIELDS = {
     "name", "description", "category", "license", "license_verified", "price",
-    "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg",
+    "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg", "cargo_l",
     "image_url", "published", "featured", "tags", "badge",
 }
 
@@ -380,7 +380,7 @@ class Store:
         values = {
             "name": "", "description": "", "category": "scooter", "license": "unknown",
             "license_verified": False, "price": None, "stock_status": "preorder", "range_km": None,
-            "speed_kmh": None, "power_w": None, "weight_kg": None, "image_url": "", "published": False,
+            "speed_kmh": None, "power_w": None, "weight_kg": None, "cargo_l": None, "image_url": "", "published": False,
             "featured": False, "tags": [], "badge": "",
             **(previous or {}), **{key: value for key, value in data.items() if key in PRODUCT_FIELDS},
         }
@@ -399,7 +399,7 @@ class Store:
         require(values["license"] == "unknown" or values["license_verified"],
                 "Для указания требований к правам сначала подтвердите проверку документов модели.")
         for key, maximum in (("price", 100_000_000), ("range_km", 3000), ("speed_kmh", 500),
-                             ("power_w", 500_000), ("weight_kg", 10_000)):
+                             ("power_w", 500_000), ("weight_kg", 10_000), ("cargo_l", 1_000)):
             values[key] = number_value(values[key], key, maximum)
         if values["price"] is not None:
             price = Decimal(str(values["price"]))
@@ -601,7 +601,7 @@ async def list_products(request: web.Request) -> web.Response:
     with request.app[STORE_KEY].connect() as connection:
         rows = connection.execute("SELECT data FROM products WHERE published=1 ORDER BY updated_at DESC,id" if public
                                   else "SELECT data FROM products ORDER BY updated_at DESC,id").fetchall()
-    products = [{"tags": [], "badge": "", **json.loads(row["data"])} for row in rows]
+    products = [{"tags": [], "badge": "", "cargo_l": None, **json.loads(row["data"])} for row in rows]
     return web.json_response({"products": products})
 
 

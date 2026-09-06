@@ -5,7 +5,7 @@ import type { Inquiry, Product, ShopSettings } from './api';
 
 const session = { username: 'test-owner', csrfToken: 'test-csrf-token' };
 const settings: ShopSettings = { shop_name: 'Test shop', phone: '', telegram: '', address: '', hours: '', delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false };
-const product: Product = { id: 'test-product', name: 'City 42', description: 'A genuine model description.', category: 'scooter', license: 'unknown', license_verified: false, price: 42000, stock_status: 'preorder', range_km: null, speed_kmh: null, power_w: null, weight_kg: null, image_url: '/media/test.webp', published: false, featured: false, tags: ['courier'], badge: 'hit', updated_at: '2026-09-06T12:00:00Z' };
+const product: Product = { id: 'test-product', name: 'City 42', description: 'A genuine model description.', category: 'scooter', license: 'unknown', license_verified: false, price: 42000, stock_status: 'preorder', range_km: null, speed_kmh: null, power_w: null, weight_kg: null, cargo_l: null, image_url: '/media/test.webp', published: false, featured: false, tags: ['courier'], badge: 'hit', updated_at: '2026-09-06T12:00:00Z' };
 let authenticated = true;
 let rows: Product[] = [];
 const fetchMock = vi.fn();
