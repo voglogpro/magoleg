@@ -16,7 +16,11 @@
     "badge": "",
     "featured": false,
     "published": false,
-    "image_url": ""
+    "image_url": "",
+    "photo_files": [
+      "../apps/mini-app/public/products/kugoo-2026/f3-plus-front-v1.png",
+      "../apps/mini-app/public/products/kugoo-2026/f3-plus-side-v1.png"
+    ]
   },
   {
     "name": "Электровелосипед Kugoo Kirin V3 PRO MAX 60V 28.6Ah",
@@ -35,7 +39,11 @@
     "badge": "",
     "featured": false,
     "published": false,
-    "image_url": ""
+    "image_url": "",
+    "photo_files": [
+      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-front-v1.png",
+      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-rear-v1.png"
+    ]
   },
   {
     "name": "Электропитбайк Kugoo WISH 01 SE 48V 20.8Ah 1500W",
@@ -54,7 +62,11 @@
     "badge": "",
     "featured": false,
     "published": false,
-    "image_url": ""
+    "image_url": "",
+    "photo_files": [
+      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-front-v1.png",
+      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-side-v1.png"
+    ]
   },
   {
     "name": "Электросамокат Kugoo Kirin M2+ NEW 2025",
@@ -73,6 +85,10 @@
     "badge": "best-price",
     "featured": false,
     "published": false,
-    "image_url": ""
+    "image_url": "",
+    "photo_files": [
+      "../apps/mini-app/public/products/kugoo-2026/m2-plus-front-v1.png",
+      "../apps/mini-app/public/products/kugoo-2026/m2-plus-side-v1.png"
+    ]
   }
 ]
