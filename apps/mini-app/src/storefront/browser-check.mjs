@@ -68,6 +68,16 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.locator('.sf-pick-grid a').first().click();
   await page.waitForURL(/tag=/);
   check(await countIs('.sf-product-card', 1), `${width}: a smart pick narrows the catalogue`);
+  await page.goto(`${base}/#picks`);
+  await page.waitForSelector('.sf-pick-grid a');
+  check(await countIs('.sf-pick-grid a', 5), `${width}: the picks page offers every selection that has models`);
+  const rightsFree = page.locator('.sf-pick-grid a').filter({ hasText: 'Можно без прав' });
+  check((await rightsFree.innerText()).includes('2 модели'), `${width}: a pick counts its models`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: picks no overflow`);
+  await page.screenshot({ path: `${output}/picks-${width}.png`, fullPage: true });
+  await rightsFree.click();
+  await page.waitForURL(/license=not-required/);
+  check(await countIs('.sf-product-card', 2), `${width}: a rights pick filters the catalogue without the shop ticking anything`);
   await page.locator('.sf-results-heading button').click();
   await page.goto(`${base}/#home`);
   await page.waitForSelector('.sf-product-card');

@@ -3,12 +3,12 @@ import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, Home, Menu, PackageOpen, 
 import { Account } from './Account';
 import { CityBar, CityPicker } from './CityPicker';
 import { StoreHero } from '../components/StoreHero';
-import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, sanitizeCart, sanitizeCity, sanitizeIds } from './domain';
+import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, sanitizeCart, sanitizeCity, sanitizeIds, smartPicks } from './domain';
 import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
 import { ProductCard, ProductPhoto } from './ProductCard';
-import { categoryLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagHints, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product, type ProductTag } from './types';
+import { categoryLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product, type SmartPick } from './types';
 import './storefront.css';
 
 function Empty({ title, children, icon: Icon = PackageOpen, action = true }: {
@@ -30,6 +30,13 @@ function TypeChips({ current, onPick, options }: {
     {options.map(([category, label]) =>
       <button key={category} aria-pressed={current === category} onClick={() => onPick(category)}>{label}</button>)}
   </div>;
+}
+
+/** A pick is a plain catalogue link, so the shopper can narrow it further with the usual filters. */
+function PickGrid({ picks }: { picks: SmartPick[] }) {
+  return <div className="sf-pick-grid">{picks.map(pick => <a href={catalogHref(pick.filters)} key={pick.id}>
+    <strong>{pick.label}</strong><span>{pick.hint}</span><em>{pick.count} {plural(pick.count, ['модель', 'модели', 'моделей'])}</em>
+  </a>)}</div>;
 }
 
 const catalogTypes = [['all', 'Все модели'], ...Object.entries(categoryLabels)] as [Filters['category'], string][];
@@ -60,7 +67,7 @@ export function Storefront() {
   let productId = '';
   if (isProduct) { try { productId = decodeURIComponent(path.slice(8)); } catch { /* Invalid deep link is rendered as not found. */ } }
   const currentProduct = products.find(product => product.id === productId);
-  const titles: Record<string, string> = { home: 'Главная', catalog: 'Каталог транспорта', favorites: 'Избранное', compare: 'Сравнение моделей', profile: 'Личный кабинет', cart: 'Корзина', menu: 'Меню', ...infoTitles };
+  const titles: Record<string, string> = { home: 'Главная', catalog: 'Каталог транспорта', picks: 'Умные подборки', favorites: 'Избранное', compare: 'Сравнение моделей', profile: 'Личный кабинет', cart: 'Корзина', menu: 'Меню', ...infoTitles };
   const title = isProduct ? currentProduct?.name || 'Карточка товара' : titles[path] || 'Страница не найдена';
 
   useEffect(() => {
@@ -107,7 +114,7 @@ export function Storefront() {
   </div>;
   const catalogState = loading ? <p className="sf-loading" role="status">Загружаем каталог…</p> : error ? <div className="sf-empty" role="alert"><h2>Каталог временно недоступен</h2><p>{error}</p><button className="sf-button" onClick={retry}>Повторить загрузку</button></div> : null;
   const featured = [...products.filter(product => product.featured), ...products.filter(product => !product.featured)].slice(0, 4);
-  const offeredTags = (Object.keys(tagLabels) as ProductTag[]).filter(tag => products.some(product => product.tags.includes(tag)));
+  const picks = smartPicks(products);
   const sections = ['about', 'delivery', 'contact', 'guide'];
 
   return <div className="sf-store">
@@ -116,7 +123,7 @@ export function Storefront() {
       <div className="sf-header__inner">
         <a className="sf-icon-button sf-mobile-only" href="#menu" aria-label="Открыть меню"><Menu size={23} /></a>
         <a className="sf-brand" href="#home" aria-label={`${settings.shop_name} — главная`}><img src="/brand/gpartner-mark-v2-512.png" width="40" height="40" alt="" draggable={false} /><span>{settings.shop_name}</span></a>
-        <nav className="sf-desktop-nav" aria-label="Разделы магазина"><a href="#catalog" aria-current={path === 'catalog' ? 'page' : undefined}>Каталог</a><a href="#about" aria-current={path === 'about' ? 'page' : undefined}>О магазине</a><a href="#delivery" aria-current={path === 'delivery' ? 'page' : undefined}>Доставка и оплата</a><a href="#contact" aria-current={path === 'contact' ? 'page' : undefined}>Контакты</a></nav>
+        <nav className="sf-desktop-nav" aria-label="Разделы магазина"><a href="#catalog" aria-current={path === 'catalog' ? 'page' : undefined}>Каталог</a><a href="#picks" aria-current={path === 'picks' ? 'page' : undefined}>Подборки</a><a href="#about" aria-current={path === 'about' ? 'page' : undefined}>О магазине</a><a href="#delivery" aria-current={path === 'delivery' ? 'page' : undefined}>Доставка и оплата</a><a href="#contact" aria-current={path === 'contact' ? 'page' : undefined}>Контакты</a></nav>
         <div className="sf-header-actions">
           <a className="sf-icon-button" href="#favorites" aria-label={`Избранное: ${favorites.length}`} aria-current={path === 'favorites' ? 'page' : undefined}><Heart size={22} />{favorites.length > 0 && <span className="sf-count">{favorites.length}</span>}</a>
           <a className="sf-icon-button sf-desktop-only" href="#compare" aria-label={`Сравнение: ${compare.length}`}><ArrowLeftRight size={22} /></a>
@@ -140,9 +147,9 @@ export function Storefront() {
               <a className="sf-filter-icon" href="#catalog?filters=open" aria-label="Фильтры: цена, права, наличие"><SlidersHorizontal size={20} /></a>
             </div>
           </section>
-          {offeredTags.length > 0 && <section className="sf-home-picks" aria-labelledby="sf-picks-title">
-            <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2></div>
-            <div className="sf-pick-grid">{offeredTags.map(tag => <a href={catalogHref({ tag })} key={tag}><strong>{tagLabels[tag]}</strong><span>{tagHints[tag]}</span></a>)}</div>
+          {picks.length > 0 && <section className="sf-home-picks" aria-labelledby="sf-picks-title">
+            <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2><a href="#picks">Все подборки <ArrowRight size={16} /></a></div>
+            <PickGrid picks={picks.slice(0, 6)} />
           </section>}
           <section className="sf-home-products" aria-labelledby="sf-products-title"><div className="sf-section-heading"><h2 id="sf-products-title">{products.some(product => product.featured) ? 'Выбор магазина' : 'Модели в каталоге'}</h2>{products.length > 0 && <a href="#catalog">Все модели <ArrowRight size={16} /></a>}</div>
             {catalogState || (featured.length ? cards(featured) : <div className="sf-catalog-preparing"><h3>Готовим ассортимент</h3><p>Здесь появятся фотографии, характеристики и цены после публикации товаров магазином.</p><a href="#contact">Контакты и информация о магазине</a></div>)}
@@ -150,6 +157,14 @@ export function Storefront() {
           <nav className="sf-store-links" aria-label="Информация для покупателя"><a href="#about"><strong>О магазине</strong><span>Информация и реквизиты</span></a><a href="#delivery"><strong>Доставка по России</strong><span>От 3 дней, условия и оплата</span></a><a href="#guide"><strong>Помощь с выбором</strong><span>Подберём под ваши задачи</span></a></nav>
         </div>
       </>}
+
+      {path === 'picks' && <div className="sf-picks-page">
+        {catalogState || (picks.length ? <>
+          <p className="sf-lead">Готовые наборы фильтров: нажмите подборку — каталог сразу покажет подходящие модели. Дальше их можно сузить обычными фильтрами.</p>
+          <PickGrid picks={picks} />
+          <div className="sf-catalog-assistance"><p>Не нашли подходящую подборку?</p><a href="#catalog?filters=open">Собрать фильтр самому <ArrowRight size={16} /></a></div>
+        </> : <Empty title="Подборки готовятся">Когда магазин опубликует товары, здесь появятся готовые наборы: без прав, для курьеров, для большого веса и другие.</Empty>)}
+      </div>}
 
       {path === 'catalog' && <div className="sf-catalog">
         <div className="sf-type-row">
@@ -196,7 +211,7 @@ export function Storefront() {
 
       {Object.hasOwn(infoTitles, path) && <Information key={path} topic={path} settings={settings} />}
       {path === 'profile' && <div className="sf-profile"><p className="sf-lead">Ваш выбор и обращения</p><p>Избранное и корзина сохраняются в этом браузере и работают без аккаунта. Аккаунт нужен, чтобы видеть историю своих заявок.</p><nav className="sf-account-links"><a href="#favorites">Избранное <span>{favorites.length}</span></a><a href="#compare">Сравнение <span>{compare.length}</span></a><a href="#cart">Корзина <span>{cartCount}</span></a><a href="#contact">Связаться с магазином <ArrowRight size={17} /></a></nav><Account account={account} csrfToken={csrfToken} city={city.name} onChange={refreshAccount} onCity={chooseCity} /></div>}
-      {path === 'menu' && <nav className="sf-menu" aria-label="Все разделы"><a href="#catalog">Каталог транспорта <ArrowRight size={17} /></a>{sections.map(section => <a href={`#${section}`} key={section}>{infoTitles[section]}<ArrowRight size={17} /></a>)}<a href="#compare">Сравнение моделей <ArrowRight size={17} /></a><a href="#privacy">Обработка данных <ArrowRight size={17} /></a></nav>}
+      {path === 'menu' && <nav className="sf-menu" aria-label="Все разделы"><a href="#catalog">Каталог транспорта <ArrowRight size={17} /></a><a href="#picks">Умные подборки <ArrowRight size={17} /></a>{sections.map(section => <a href={`#${section}`} key={section}>{infoTitles[section]}<ArrowRight size={17} /></a>)}<a href="#compare">Сравнение моделей <ArrowRight size={17} /></a><a href="#privacy">Обработка данных <ArrowRight size={17} /></a></nav>}
       {!Object.hasOwn(titles, path) && !isProduct && <Empty title="Такой страницы нет">Вернитесь в каталог или выберите раздел в меню магазина.</Empty>}
     </main>
     <footer className="sf-footer"><div><span>{settings.shop_name} · доставка по России</span><nav aria-label="Дополнительная информация"><a href="#about">О магазине</a><a href="#privacy">Обработка данных</a><a href="#contact">Контакты</a></nav></div></footer>

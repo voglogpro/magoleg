@@ -1,4 +1,4 @@
-import { defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagLabels, type CartItem, type CityChoice, type Filters, type Product } from './types';
+import { defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type CityChoice, type Filters, type Product, type ProductTag, type SmartPick } from './types';
 
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
@@ -31,6 +31,26 @@ export function filterProducts(products: Product[], filters: Filters) {
       }
       return Number(b.featured) - Number(a.featured) || a.name.localeCompare(b.name, 'ru-RU');
     });
+}
+
+export const plural = (count: number, forms: [string, string, string]) => {
+  const tail = count % 100 >= 11 && count % 100 <= 14 ? 0 : count % 10;
+  return forms[tail === 1 ? 0 : tail >= 2 && tail <= 4 ? 1 : 2];
+};
+
+/**
+ * Smart picks are ordinary catalogue filters with a shopper-friendly name: some the shop ticks
+ * per product, the rest follow from data every product already carries. Empty picks are dropped
+ * so the storefront never offers a selection that leads to an empty catalogue.
+ */
+export function smartPicks(products: Product[]): SmartPick[] {
+  const picks: Omit<SmartPick, 'count'>[] = [
+    ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag } })),
+    { id: 'license-not-required', label: 'Можно без прав', hint: 'Права на такие модели не нужны', filters: { license: 'not-required' } },
+    { id: 'license-required', label: 'Нужны права', hint: 'Мощнее, но с категорией', filters: { license: 'required' } },
+    { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'Отправляем от 3 дней', filters: { stock: 'in-stock' } },
+  ];
+  return picks.map(pick => ({ ...pick, count: filterProducts(products, { ...defaultFilters, ...pick.filters }).length })).filter(pick => pick.count > 0);
 }
 
 export function parseFilters(search: string): Filters {
