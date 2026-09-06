@@ -1,8 +1,10 @@
+import type { Category } from '../storefront/types';
+
 export type Product = {
   id: string;
   name: string;
   description: string;
-  category: 'kick-scooter' | 'scooter';
+  category: Category;
   license: 'required' | 'not-required' | 'unknown';
   price: number | null;
   stock_status: 'in-stock' | 'preorder' | 'out-of-stock';
@@ -19,7 +21,6 @@ export type Product = {
 
 export type ShopSettings = {
   shop_name: string;
-  city: string;
   phone: string;
   telegram: string;
   address: string;

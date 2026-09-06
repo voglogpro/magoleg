@@ -8,7 +8,7 @@ const base = process.env.STOREFRONT_QA_URL || 'http://127.0.0.1:5181';
 const output = resolve(process.env.STOREFRONT_QA_OUTPUT || 'test-results/storefront');
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
-const settings = { shop_name: 'G-Partner', city: 'Большой Сочи', phone: '+7 (900) 123-45-67', telegram: '@gpartner_shop', address: 'Тестовый адрес для автоматической проверки', hours: '10:00–18:00', delivery: 'Самовывоз и доставка по согласованию.', payment: 'После подтверждения магазина.', legal_name: 'Тестовый продавец', legal_details: 'Тестовые реквизиты, не опубликованы на реальном сайте.', warranty: 'По документам модели.', inquiries_enabled: true };
+const settings = { shop_name: 'G-Partner', phone: '+7 (900) 123-45-67', telegram: '@gpartner_shop', address: 'Тестовый адрес для автоматической проверки', hours: '10:00–18:00', delivery: 'Самовывоз и доставка по согласованию.', payment: 'После подтверждения магазина.', legal_name: 'Тестовый продавец', legal_details: 'Тестовые реквизиты, не опубликованы на реальном сайте.', warranty: 'По документам модели.', inquiries_enabled: true };
 const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/test.webp', featured: true, published: true, updated_at: '2026-09-06' };
 const products = [
   { ...seed, id: 'city', name: 'Городская модель' },
@@ -58,6 +58,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
   await page.locator('.sf-home-selection .sf-category-tabs button').nth(2).click();
   await page.waitForURL(/category=scooter/);
+  check(await page.locator('.sf-category-tabs button').count() === 6, `${width}: every catalogue category is offered`);
   check(await countIs('.sf-product-card', 2), `${width}: transport category works`);
   await page.locator('.sf-filter-toggle').click();
   await page.locator('.sf-filter-options button').nth(1).click();
@@ -104,7 +105,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check((await page.locator('.sf-confirmation').innerText()).includes(`QA-${width}`), `${width}: actual receipt`);
   check(await page.evaluate(() => JSON.parse(localStorage.getItem('gpartner.cart.v1')).length === 0), `${width}: successful inquiry clears sent cart`);
   check(submissions.length === 1 && submissions[0].key?.length >= 16 && submissions[0].payload.items[0].quantity === 2 && !('total' in submissions[0].payload), `${width}: safe actual payload + idempotency`);
-  for (const route of ['compare', 'favorites', 'profile', 'menu', 'about', 'city', 'delivery', 'contact', 'guide', 'privacy', 'product/cargo']) {
+  for (const route of ['compare', 'favorites', 'profile', 'menu', 'about', 'delivery', 'contact', 'guide', 'privacy', 'product/cargo']) {
     await page.goto(`${base}/#${route}`);
     await page.waitForSelector('.sf-page-heading');
     await page.waitForTimeout(90);
@@ -116,8 +117,8 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.locator('.sf-login-form [name=contact]').fill('owner');
   await page.locator('.sf-login-form [name=password]').fill('wrong-password');
   await page.locator('.sf-login-form button[type=submit]').click();
-  await page.waitForSelector('.sf-account-login .sf-error');
-  check((await page.locator('.sf-account-login .sf-error').innerText()).includes('Неверный'), `${width}: rejected sign-in explains itself`);
+  await page.waitForSelector('.sf-account-card .sf-error');
+  check((await page.locator('.sf-account-card .sf-error').innerText()).includes('Неверный'), `${width}: rejected sign-in explains itself`);
   await page.locator('.sf-account-tabs button').nth(1).click();
   await page.locator('.sf-login-form [name=name]').fill('Проверка');
   await page.locator('.sf-login-form [name=contact]').fill('+79001234567');
@@ -125,16 +126,21 @@ for (const width of [320, 390, 768, 900, 1440]) {
   accountState = { account: { name: 'Проверка', contact: '+79001234567' }, csrfToken: 'qa-token' };
   await page.locator('.sf-login-form button[type=submit]').click();
   await page.waitForSelector('.sf-history-title');
-  check((await page.locator('.sf-account-login').innerText()).includes('+79001234567'), `${width}: registered shopper sees their account`);
+  check((await page.locator('.sf-account-card').innerText()).includes('+79001234567'), `${width}: registered shopper sees their account`);
   accountState = { account: null };
-  await page.locator('.sf-account-login button.sf-button--secondary').click();
+  await page.locator('.sf-account-leave').click();
   await page.waitForSelector('.sf-account-tabs');
   await page.locator('.sf-account-tabs button').nth(0).click();
   await page.locator('.sf-login-form [name=contact]').fill('owner');
   await page.locator('.sf-login-form [name=password]').fill('owner-password');
   await page.locator('.sf-login-form button[type=submit]').click();
-  await page.waitForSelector('.sf-account-login a[href="/admin"]');
-  check(await page.locator('.sf-account-login a[href="/admin"]').getAttribute('target') === '_blank', `${width}: owner panel escapes Mini App frame`);
+  await page.waitForSelector('.sf-account-card a[href="/admin"]');
+  check(await page.locator('.sf-account-card a[href="/admin"]').getAttribute('target') === '_blank', `${width}: owner panel escapes Mini App frame`);
+  await page.goto(`${base}/#home`);
+  await page.waitForSelector('.sf-product-card');
+  check(await page.locator('.sf-bottom-nav a[href="#favorites"]').count() === 0, `${width}: favourites left the bottom bar`);
+  check(await page.locator('.sf-header-actions a[href="#favorites"]').isVisible(), `${width}: favourites sit beside the cart`);
+  check(!(await page.locator('.sf-store').innerText()).includes('Сочи'), `${width}: no single-city claim`);
   check(errors.length === 0, `${width}: no runtime errors: ${errors.join('; ')}`);
   await context.close();
 }

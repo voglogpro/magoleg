@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { adminRequest, AdminApiError, formatDate, formatPrice, mediaSource, type AdminSession, type Inquiry, type Product, type ShopSettings } from './api';
 import { productDraft, validateProduct, validateUpload, type ProductDraft } from './product-form';
+import { categoryLabels } from '../storefront/types';
 import './admin.css';
 
 type Request = <T>(path: string, options?: Parameters<typeof adminRequest>[1]) => Promise<T>;
@@ -141,7 +142,7 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
         <div className="crm-product-tools"><label className="crm-search">Найти товар<input type="search" placeholder="Название или артикул" value={search} onChange={event => setSearch(event.target.value)} maxLength={120}/></label><label>Публикация<select value={status} onChange={event => setStatus(event.target.value)}><option value="all">Все товары</option><option value="published">На сайте</option><option value="draft">Черновики</option></select></label></div>
         {loading ? <p className="crm-muted" role="status">Загружаем товары…</p> : visible.length ? <ul className="crm-product-rows">{visible.map(product => <li key={product.id}><button type="button" disabled={busy} className={`crm-product-row ${editing !== 'new' && editing?.id === product.id ? 'is-selected' : ''}`} onClick={() => edit(product)}>
           <span className="crm-product-thumb">{mediaSource(product.image_url) ? <img src={mediaSource(product.image_url)} alt="" loading="lazy"/> : <span>Без фото</span>}</span>
-          <span className="crm-product-row-copy"><strong>{product.name || 'Без названия'}</strong><span>{formatPrice(product.price)}</span><small>{product.category === 'scooter' ? 'Электроскутер' : 'Электросамокат'}</small></span>
+          <span className="crm-product-row-copy"><strong>{product.name || 'Без названия'}</strong><span>{formatPrice(product.price)}</span><small>{categoryLabels[product.category] ?? 'Товар'}</small></span>
           <span className={`crm-badge ${product.published ? 'crm-badge--published' : ''}`}>{product.published ? 'На сайте' : 'Черновик'}</span>
         </button></li>)}</ul> : <div className="crm-empty"><h2>{products.length ? 'Товары не найдены' : 'Каталог пока пуст'}</h2><p>{products.length ? 'Измените название в поиске или выберите все товары.' : 'Загрузите фото, укажите название и цену. До публикации товар виден только здесь.'}</p>{products.length > 0 && <button className="crm-button" onClick={() => { setSearch(''); setStatus('all'); }}>Сбросить поиск</button>}</div>}
       </div>
@@ -150,7 +151,7 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
         {formErrors.length > 0 && <div className="crm-notice crm-notice--error crm-form-errors" role="alert" tabIndex={-1}><strong>Проверьте карточку</strong><ul>{formErrors.map(item => <li key={item}>{item}</li>)}</ul></div>}
         <fieldset disabled={busy}><legend>Основная информация</legend>
           <label>Название товара<input id="crm-product-name" value={draft.name} onChange={event => update('name', event.target.value)} maxLength={160} required minLength={2} placeholder="Бренд и модель"/></label>
-          <div className="crm-fields-two"><label>Вид транспорта<select value={draft.category} onChange={event => update('category', event.target.value as Product['category'])}><option value="scooter">Электроскутер</option><option value="kick-scooter">Электросамокат</option></select></label><label>Наличие<select value={draft.stock_status} onChange={event => update('stock_status', event.target.value as Product['stock_status'])}><option value="preorder">Под заказ</option><option value="in-stock">В наличии</option><option value="out-of-stock">Нет в наличии</option></select></label></div>
+          <div className="crm-fields-two"><label>Категория<select value={draft.category} onChange={event => update('category', event.target.value as Product['category'])}>{Object.entries(categoryLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Наличие<select value={draft.stock_status} onChange={event => update('stock_status', event.target.value as Product['stock_status'])}><option value="preorder">Под заказ</option><option value="in-stock">В наличии</option><option value="out-of-stock">Нет в наличии</option></select></label></div>
           <label>Описание<textarea rows={5} value={draft.description} onChange={event => update('description', event.target.value)} maxLength={12000} placeholder="Особенности модели, комплектация и кому она подходит"/></label>
           <label>Цена, ₽<input inputMode="decimal" type="number" min="0.01" max="100000000" step="0.01" value={draft.price} onChange={event => update('price', event.target.value)} placeholder="Укажите реальную цену"/></label>
         </fieldset>
@@ -211,7 +212,6 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
     {loading ? <p role="status">Загружаем настройки…</p> : settings && <form className="crm-form crm-settings-form" onSubmit={save}>
       <fieldset disabled={busy}><legend>Магазин и связь</legend><div className="crm-fields-two">
         <label>Название магазина<input required maxLength={100} value={settings.shop_name} onChange={event => update('shop_name', event.target.value)}/></label>
-        <label>Город или регион<input required maxLength={160} value={settings.city} onChange={event => update('city', event.target.value)}/></label>
         <label>Телефон<input type="tel" autoComplete="tel" maxLength={32} placeholder="Номер для покупателей" value={settings.phone} onChange={event => update('phone', event.target.value)}/></label>
         <label>Telegram<input maxLength={100} placeholder="@username" value={settings.telegram} onChange={event => update('telegram', event.target.value)}/></label>
       </div><label>Адрес магазина<input maxLength={500} autoComplete="street-address" placeholder="Укажите, если доступно посещение или самовывоз" value={settings.address} onChange={event => update('address', event.target.value)}/></label><label>Часы работы<input maxLength={200} placeholder="Укажите дни и время" value={settings.hours} onChange={event => update('hours', event.target.value)}/></label></fieldset>

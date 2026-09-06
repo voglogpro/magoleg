@@ -252,14 +252,14 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
     async def test_product_settings_and_session_survive_restart(self):
         await self.login()
         product = await self.published_product()
-        await self.client.put("/api/admin/settings", json={"city": "Stored city"}, headers=self.headers)
+        await self.client.put("/api/admin/settings", json={"warranty": "Stored warranty"}, headers=self.headers)
         cookie = self.client.session.cookie_jar.filter_cookies(self.client.make_url("/api/admin/session"))[COOKIE_NAME].value
         await self.client.close()
         self.client = await self.make_client()
         response = await self.client.get("/api/products")
         self.assertEqual((await response.json())["products"][0]["id"], product["id"])
         response = await self.client.get("/api/settings")
-        self.assertEqual((await response.json())["settings"]["city"], "Stored city")
+        self.assertEqual((await response.json())["settings"]["warranty"], "Stored warranty")
         response = await self.client.get("/api/admin/session", headers={"Cookie": f"{COOKIE_NAME}={cookie}"})
         self.assertEqual(response.status, 200)
 
@@ -282,7 +282,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.login()
         response = await self.client.put("/api/admin/settings", json={"inquiries_enabled": True}, headers=self.headers)
         await self.assert_error(response, 400)
-        for values in ({"telegram": "javascript:alert(1)"}, {"phone": "<script>"}, {"unknown": "x"}, {"city": ""}):
+        for values in ({"telegram": "javascript:alert(1)"}, {"phone": "<script>"}, {"unknown": "x"}, {"city": "Сочи"}, {"shop_name": ""}):
             response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
             await self.assert_error(response, 400)
         await self.enable_inquiries()

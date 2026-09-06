@@ -48,11 +48,12 @@ MEDIA_NAME = re.compile(r"[a-f0-9]{32}\.webp\Z")
 PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "shop_name": "G-Partner", "city": "Большой Сочи", "phone": "",
+    "shop_name": "G-Partner", "phone": "",
     "telegram": "", "address": "", "hours": "", "delivery": "",
     "payment": "", "legal_name": "", "legal_details": "", "warranty": "",
     "inquiries_enabled": False,
 }
+PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "parts", "accessories")
 PRODUCT_FIELDS = {
     "name", "description", "category", "license", "license_verified", "price",
     "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg",
@@ -277,7 +278,9 @@ class Store:
             with self.connect() as opened:
                 return self.settings(opened)
         row = connection.execute("SELECT data FROM settings WHERE id=1").fetchone()
-        return {**DEFAULT_SETTINGS, **json.loads(row["data"])}
+        stored = json.loads(row["data"])
+        # Keys retired from DEFAULT_SETTINGS stop being served, even if a row still holds them.
+        return {key: stored.get(key, default) for key, default in DEFAULT_SETTINGS.items()}
 
     def check_origin(self, request: web.Request) -> None:
         require(request.headers.get("Sec-Fetch-Site") != "cross-site", "Запрос с другого сайта запрещён.", 403)
@@ -377,7 +380,7 @@ class Store:
         }
         for key, maximum in (("name", 160), ("description", 12000), ("image_url", 100)):
             values[key] = text_value(values[key], key, maximum)
-        require(values["category"] in ("kick-scooter", "scooter"), "Неизвестная категория транспорта.")
+        require(values["category"] in PRODUCT_CATEGORIES, "Неизвестная категория товара.")
         require(values["license"] in ("required", "not-required", "unknown"), "Неизвестное требование к правам.")
         require(values["stock_status"] in ("in-stock", "preorder", "out-of-stock"), "Неизвестный статус наличия.")
         for key in ("published", "featured", "license_verified"):
@@ -690,7 +693,7 @@ async def save_settings(request: web.Request) -> web.Response:
             settings[key] = boolean_value(value, "Приём заявок")
         else:
             maximum = 8000 if key in ("legal_details", "delivery", "payment", "warranty") else 500
-            settings[key] = text_value(value, key, maximum, 1 if key in ("shop_name", "city") else 0)
+            settings[key] = text_value(value, key, maximum, 1 if key == "shop_name" else 0)
     if settings["phone"]:
         require(valid_phone(settings["phone"]), "Укажите корректный телефон магазина (от 7 до 15 цифр).")
     if settings["telegram"]:
