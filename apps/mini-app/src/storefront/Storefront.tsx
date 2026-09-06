@@ -7,7 +7,7 @@ import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseF
 import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
-import { ProductCard, ProductPhoto } from './ProductCard';
+import { ProductCard, ProductGallery, ProductPhoto } from './ProductCard';
 import { categoryLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product, type SmartPick } from './types';
 import './storefront.css';
 
@@ -206,7 +206,7 @@ export function Storefront() {
       </div>}
 
       {isProduct && (catalogState || (currentProduct ? <div className="sf-product-detail">
-        <ProductPhoto key={currentProduct.image_url} product={currentProduct} large />
+        <ProductGallery key={currentProduct.id} product={currentProduct} />
         <div className="sf-product-detail__summary"><p className="sf-product-category">{categoryLabels[currentProduct.category]}</p><p className={`sf-stock sf-stock--${currentProduct.stock_status}`}>{stockLabels[currentProduct.stock_status]}</p><strong className="sf-detail-price">{money(currentProduct.price)}</strong><p className="sf-muted">Наличие, комплектацию и условия получения подтвердит магазин.</p><div className="sf-detail-actions">{cart.some(item => item.product_id === currentProduct.id) ? <a className="sf-button" href="#cart">Перейти в корзину</a> : <button className="sf-button" disabled={currentProduct.stock_status === 'out-of-stock'} onClick={() => addToCart(currentProduct.id)}>{currentProduct.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'Добавить в корзину'}</button>}<button className="sf-button sf-button--secondary" aria-pressed={favorites.includes(currentProduct.id)} onClick={() => toggleFavorite(currentProduct.id)}>{favorites.includes(currentProduct.id) ? 'В избранном' : 'В избранное'}</button><button className="sf-text-button" aria-pressed={compare.includes(currentProduct.id)} onClick={() => toggleCompare(currentProduct.id)}>{compare.includes(currentProduct.id) ? 'Убрать из сравнения' : 'Добавить в сравнение'}</button></div><dl className="sf-detail-specs">{([['Запас хода', currentProduct.range_km, 'км'], ['Максимальная скорость', currentProduct.speed_kmh, 'км/ч'], ['Мощность', currentProduct.power_w, 'Вт'], ['Вес', currentProduct.weight_kg, 'кг'], ['Багажник', currentProduct.cargo_l, 'л']] as const).map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{value === null ? 'Уточняется' : `${value} ${unit}`}</dd></div>)}{vehicleCategories.includes(currentProduct.category) && <div><dt>Водительские права</dt><dd>{licenseLabels[effectiveLicense(currentProduct)]}</dd></div>}</dl><p className="sf-muted">Требования к управлению проверяйте по документам конкретной модели. Запас хода зависит от нагрузки и условий поездки.</p></div>
         {currentProduct.tags.length > 0 && <ul className="sf-product-tags" aria-label="Подборки магазина">{currentProduct.tags.map(tag => <li key={tag}><a href={catalogHref({ tag })}>{tagLabels[tag]}</a></li>)}</ul>}
         <section className="sf-product-description"><h2>О модели</h2><p className="sf-preserve-lines">{currentProduct.description || 'Описание этой модели готовится. Подробности можно уточнить у магазина.'}</p></section>

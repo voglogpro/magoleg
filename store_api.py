@@ -60,10 +60,12 @@ PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "parts", "accessories
 # Shop-picked audiences a shopper can browse by; the owner ticks them per product.
 PRODUCT_TAGS = ("waterproof", "heavy-rider", "two-up", "courier", "women", "beginner")
 PRODUCT_BADGES = ("hit", "best-price", "value")
+# A card carries a small gallery; the first photo is the cover shown in catalogue listings.
+MAX_PHOTOS = 8
 PRODUCT_FIELDS = {
     "name", "description", "category", "license", "license_verified", "price",
     "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg", "cargo_l",
-    "image_url", "published", "featured", "tags", "badge",
+    "image_url", "images", "published", "featured", "tags", "badge",
 }
 
 
@@ -383,12 +385,15 @@ class Store:
         values = {
             "name": "", "description": "", "category": "scooter", "license": "unknown",
             "license_verified": False, "price": None, "stock_status": "preorder", "range_km": None,
-            "speed_kmh": None, "power_w": None, "weight_kg": None, "cargo_l": None, "image_url": "", "published": False,
+            "speed_kmh": None, "power_w": None, "weight_kg": None, "cargo_l": None, "image_url": "", "images": [], "published": False,
             "featured": False, "tags": [], "badge": "",
             **(previous or {}), **{key: value for key, value in data.items() if key in PRODUCT_FIELDS},
         }
         for key, maximum in (("name", 160), ("description", 12000), ("image_url", 100)):
             values[key] = text_value(values[key], key, maximum)
+        # A client that knows nothing of galleries still edits one photo; its value becomes the gallery.
+        if "images" not in data and "image_url" in data:
+            values["images"] = [values["image_url"]] if values["image_url"] else []
         require(values["category"] in PRODUCT_CATEGORIES, "Неизвестная категория товара.")
         require(values["license"] in ("required", "not-required", "unknown"), "Неизвестное требование к правам.")
         require(values["stock_status"] in ("in-stock", "preorder", "out-of-stock"), "Неизвестный статус наличия.")
@@ -407,10 +412,20 @@ class Store:
         if values["price"] is not None:
             price = Decimal(str(values["price"]))
             require(price > 0 and price == price.quantize(Decimal(".01")), "Цена должна быть больше нуля, максимум два знака после запятой.")
-        if values["image_url"]:
-            filename = values["image_url"].removeprefix("/media/")
-            require(values["image_url"].startswith("/media/") and bool(MEDIA_NAME.fullmatch(filename))
+        photos = values["images"]
+        require(isinstance(photos, list) and len(photos) <= MAX_PHOTOS,
+                f"Фотографий в карточке может быть не больше {MAX_PHOTOS}.")
+        seen: list[str] = []
+        for photo in photos:
+            photo = text_value(photo, "Фото", 100)
+            filename = photo.removeprefix("/media/")
+            require(photo.startswith("/media/") and bool(MEDIA_NAME.fullmatch(filename))
                     and (self.uploads / filename).is_file(), "Сначала загрузите изображение через кабинет.")
+            if photo not in seen:
+                seen.append(photo)
+        values["images"] = seen
+        # The cover is simply the first photo, so a card never shows an image the gallery lost.
+        values["image_url"] = seen[0] if seen else ""
         if values["published"]:
             require(len(values["name"]) >= 2 and len(values["description"]) >= 10
                     and bool(values["image_url"]) and values["price"] is not None,
@@ -605,6 +620,9 @@ async def list_products(request: web.Request) -> web.Response:
         rows = connection.execute("SELECT data FROM products WHERE published=1 ORDER BY updated_at DESC,id" if public
                                   else "SELECT data FROM products ORDER BY updated_at DESC,id").fetchall()
     products = [{"tags": [], "badge": "", "cargo_l": None, **json.loads(row["data"])} for row in rows]
+    for product in products:
+        # Cards saved before galleries existed carry their single photo as a one-photo gallery.
+        product.setdefault("images", [product["image_url"]] if product["image_url"] else [])
     return web.json_response({"products": products})
 
 

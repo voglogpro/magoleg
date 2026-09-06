@@ -85,7 +85,14 @@
 .crm-app fieldset { display: grid; gap: 18px; border: 0; border-top: 1px solid var(--crm-line); padding: 20px 0 0; margin: 0; min-width: 0; }
 .crm-app legend { font-size: 17px; font-weight: 600; padding: 0 12px 0 0; }
 .crm-app .crm-fields-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.crm-app .crm-photo-editor { display: grid; grid-template-columns: minmax(160px, .8fr) minmax(0, 1.2fr); gap: 20px; align-items: center; }
+.crm-app .crm-photo-editor { display: grid; gap: 16px; }
+.crm-app .crm-photo-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.crm-app .crm-photo-list li { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--crm-line); background: #141417; }
+.crm-app .crm-photo-list img { width: 100%; height: 110px; object-fit: contain; }
+.crm-app .crm-photo-list span { color: var(--crm-muted); font-size: 12px; }
+.crm-app .crm-photo-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-app .crm-photo-actions .crm-button { margin-top: 0; padding: 6px 10px; font-size: 12px; }
+.crm-app .crm-photo-empty { color: var(--crm-muted); font-size: 13px; }
 .crm-app .crm-photo-preview { position: relative; width: 100%; min-width: 0; min-height: 180px; aspect-ratio: 4 / 3; background: #141417; border: 1px solid var(--crm-line); display: grid; place-items: center; padding: 14px; color: var(--crm-muted); font-size: 13px; text-align: center; }
 .crm-app .crm-photo-preview img { position: absolute; inset: 14px; display: block; width: calc(100% - 28px); height: calc(100% - 28px); object-fit: contain; }
 .crm-app input[type='file'] { padding: 8px; font-size: 12px; margin: 8px 0; }

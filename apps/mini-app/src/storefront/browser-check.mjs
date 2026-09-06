@@ -9,9 +9,9 @@ const output = resolve(process.env.STOREFRONT_QA_OUTPUT || 'test-results/storefr
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const settings = { shop_name: 'G-Partner', phone: '+7 (900) 123-45-67', telegram: '@gpartner_shop', address: 'Тестовый адрес для автоматической проверки', hours: '10:00–18:00', delivery: 'Самовывоз и доставка по согласованию.', payment: 'После подтверждения магазина.', legal_name: 'Тестовый продавец', legal_details: 'Тестовые реквизиты, не опубликованы на реальном сайте.', warranty: 'По документам модели.', inquiries_enabled: true };
-const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/test.webp', featured: true, published: true, tags: [], badge: '', updated_at: '2026-09-06' };
+const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/test.webp', images: ['/media/test.webp', '/media/test-2.webp'], featured: true, published: true, tags: [], badge: '', updated_at: '2026-09-06' };
 const products = [
-  { ...seed, id: 'city', name: 'Городская модель' },
+  { ...seed, id: 'city', name: 'Городская модель', images: ['/media/test.webp'] },
   { ...seed, id: 'cargo', name: 'Грузовой электроскутер с длинным названием', category: 'scooter', price: 119900, license: 'required', range_km: 80, power_w: 1500, tags: ['courier', 'heavy-rider'], badge: 'hit' },
   { ...seed, id: 'quote', name: 'Модель под заказ', category: 'scooter', price: null, stock_status: 'preorder', license_verified: false, featured: false },
   { ...seed, id: 'sold', name: 'Проданная модель', stock_status: 'out-of-stock', price: 34900, featured: false },
@@ -35,6 +35,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.route('**/api/settings', route => route.fulfill({ json: { settings } }));
   await page.route('**/api/products', route => route.fulfill({ json: { products } }));
   await page.route('**/media/test.webp', route => route.fulfill({ path: resolve('public/products/city-white.webp'), contentType: 'image/webp' }));
+  await page.route('**/media/test-2.webp', route => route.fulfill({ path: resolve('public/products/city-dark.webp'), contentType: 'image/webp' }));
   let accountState = { account: null };
   await page.route('**/api/account', route => route.fulfill({ json: accountState }));
   await page.route('**/api/account/logout', route => route.fulfill({ json: { ok: true } }));
@@ -140,7 +141,16 @@ for (const width of [320, 390, 768, 900, 1440]) {
     await page.waitForTimeout(90);
     check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: ${route} no overflow`);
   }
+  check(await page.locator('.sf-gallery__track > *').count() === 2, `${width}: the product page shows every photo of the model`);
+  check((await page.locator('.sf-gallery__counter').innerText()) === '1 / 2', `${width}: the gallery counts from the first photo`);
+  await page.locator('.sf-gallery__thumbs button').nth(1).click();
+  await page.waitForFunction(() => document.querySelector('.sf-gallery__counter')?.textContent === '2 / 2');
+  check(await page.locator('.sf-gallery__thumbs button').nth(1).getAttribute('aria-pressed') === 'true', `${width}: a thumbnail moves the gallery and marks itself current`);
+  await page.waitForTimeout(400);  // let the smooth scroll settle before the screenshot
   await page.screenshot({ path: `${output}/product-${width}.png`, fullPage: true });
+  await page.goto(`${base}/#product/city`);
+  await page.waitForSelector('.sf-product-detail');
+  check(await page.locator('.sf-gallery').count() === 0, `${width}: a single-photo model keeps the plain photo`);
   await page.goto(`${base}/#profile`);
   await page.waitForSelector('.sf-login-form');
   await page.locator('.sf-login-form [name=contact]').fill('owner');

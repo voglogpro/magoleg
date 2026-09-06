@@ -238,6 +238,29 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         for path in ("/media/store.sqlite3", "/media/%2e%2e%2fstore.sqlite3", "/media/" + "a" * 32 + ".webp"):
             await self.assert_error(await self.client.get(path), 404)
 
+    async def test_product_gallery_keeps_its_order_and_derives_the_catalogue_cover(self):
+        await self.login()
+        first, second = await self.upload(), await self.upload()
+        created = await self.client.post("/api/admin/products", json={
+            "name": "Gallery model", "description": "Several photos of one model.",
+            "category": "scooter", "price": 50000, "images": [second, first, second],
+        }, headers=self.headers)
+        self.assertEqual(created.status, 201, await created.text())
+        product = (await created.json())["product"]
+        self.assertEqual(product["images"], [second, first])  # duplicates dropped, order kept
+        self.assertEqual(product["image_url"], second)
+        # A card saved before galleries existed still reads back as a one-photo gallery.
+        legacy = await self.client.post("/api/admin/products", json={
+            "name": "Legacy model", "description": "Saved by an older client.",
+            "category": "scooter", "price": 40000, "image_url": first,
+        }, headers=self.headers)
+        self.assertEqual((await legacy.json())["product"]["images"], [first])
+        missing = await self.client.post("/api/admin/products", json={
+            "name": "Ghost photo", "description": "Points at a file nobody uploaded.",
+            "category": "scooter", "images": ["/media/" + "a" * 32 + ".webp"],
+        }, headers=self.headers)
+        await self.assert_error(missing, 400)
+
     async def test_upload_fits_a_phone_camera_photo_instead_of_refusing_it(self):
         await self.login()
         buffer = io.BytesIO()

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Heart } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Heart } from 'lucide-react';
 import { effectiveLicense, money, productImage } from './domain';
 import { badgeLabels, categoryLabels, licenseLabels, stockLabels, vehicleCategories, type Product } from './types';
 
@@ -8,6 +8,40 @@ export function ProductPhoto({ product, large = false }: { product: Product; lar
   const url = productImage(product.image_url);
   return <div className={`sf-product-photo${large ? ' sf-product-photo--large' : ''}`}>
     {url && !broken ? <img src={url} alt={product.name} loading={large ? 'eager' : 'lazy'} decoding="async" draggable={false} onError={() => setBroken(true)} /> : <span>Фото скоро появится</span>}
+  </div>;
+}
+
+/**
+ * The photos live in a scroll-snap track, so a phone swipes through them the way it swipes
+ * anything else, and the thumbnails stay ordinary buttons a keyboard can reach. The scroll
+ * position — not a click — decides which photo is current, so both ways of moving agree.
+ */
+export function ProductGallery({ product }: { product: Product }) {
+  const photos = product.images.map(productImage).filter(Boolean);
+  const [active, setActive] = useState(0);
+  const track = useRef<HTMLDivElement>(null);
+  const show = (index: number) => {
+    const slide = track.current?.children[index] as HTMLElement | undefined;
+    if (slide) track.current?.scrollTo({ left: slide.offsetLeft - (track.current.firstElementChild as HTMLElement).offsetLeft, behavior: 'smooth' });
+  };
+  if (photos.length < 2) return <ProductPhoto product={product} large />;
+  return <div className="sf-gallery">
+    <div className="sf-gallery__track" ref={track} tabIndex={0} aria-label={`Фотографии: ${product.name}`}
+      onScroll={event => setActive(Math.round(event.currentTarget.scrollLeft / Math.max(1, event.currentTarget.clientWidth)))}>
+      {photos.map((url, index) => <div className="sf-product-photo sf-product-photo--large" key={url}>
+        <img src={url} alt={`${product.name}: фото ${index + 1}`} loading={index ? 'lazy' : 'eager'} decoding="async" draggable={false} />
+      </div>)}
+    </div>
+    <p className="sf-gallery__counter" aria-live="polite">{active + 1} / {photos.length}</p>
+    <div className="sf-gallery__arrows sf-desktop-only">
+      <button type="button" aria-label="Предыдущее фото" disabled={active === 0} onClick={() => show(active - 1)}><ArrowLeft size={18} /></button>
+      <button type="button" aria-label="Следующее фото" disabled={active >= photos.length - 1} onClick={() => show(active + 1)}><ArrowRight size={18} /></button>
+    </div>
+    <div className="sf-gallery__thumbs" role="group" aria-label="Выбор фотографии">
+      {photos.map((url, index) => <button type="button" key={url} aria-pressed={index === active} aria-label={`Фото ${index + 1}`} onClick={() => show(index)}>
+        <img src={url} alt="" loading="lazy" draggable={false} />
+      </button>)}
+    </div>
   </div>;
 }
 
