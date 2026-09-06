@@ -70,23 +70,18 @@ export const plural = (count: number, forms: [string, string, string]) => {
  * that leads to an empty catalogue. Rights requirements stay in the filter panel only — as a
  * pick they read like a promise about the law, which the shop does not want to make.
  *
- * Every pick opens the catalogue ranked by value, and shows a model from inside itself as its
- * cover, preferring one no earlier pick has taken so the row does not repeat a single photo.
+ * Every pick opens the catalogue ranked by value. Its tile carries a drawn icon rather than a
+ * product photo: the tile names an audience, and a photo of one model would misrepresent it.
  */
 export function smartPicks(products: Product[]): SmartPick[] {
-  const picks: Omit<SmartPick, 'count' | 'image'>[] = [
+  const picks: Omit<SmartPick, 'count'>[] = [
     ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag, sort: 'value' as const } })),
     { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'Отправляем от 3 дней', filters: { stock: 'in-stock', sort: 'value' as const } },
   ];
-  const taken = new Set<string>();
   const offered: SmartPick[] = [];
   for (const pick of picks) {
-    const matched = filterProducts(products, { ...defaultFilters, ...pick.filters });
-    if (!matched.length) continue;
-    const cover = matched.find(product => productImage(product.image_url) && !taken.has(product.id))
-      ?? matched.find(product => productImage(product.image_url));
-    if (cover) taken.add(cover.id);
-    offered.push({ ...pick, count: matched.length, image: cover ? productImage(cover.image_url) : '' });
+    const count = filterProducts(products, { ...defaultFilters, ...pick.filters }).length;
+    if (count) offered.push({ ...pick, count });
   }
   return offered;
 }

@@ -44,7 +44,6 @@ describe('smart picks', () => {
     expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'stock-in-stock']);
     expect(picks.map(pick => pick.count)).toEqual([1, 1]);
     expect(picks[0].filters).toEqual({ tag: 'courier', sort: 'value' });
-    expect(picks[0].image).toBe('/media/products/one.webp');
   });
   it('hides picks with nothing behind them, including unpublished models', () => {
     expect(smartPicks([{ ...product, published: false }])).toEqual([]);
