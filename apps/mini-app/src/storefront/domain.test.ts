@@ -11,11 +11,11 @@ describe('catalogue filtering', () => {
     expect(filterProducts([product, unchecked], { ...defaultFilters, license: 'not-required' })).toEqual([product]);
     expect(filterProducts([unchecked], { ...defaultFilters, license: 'unknown' })).toEqual([unchecked]);
   });
-  it('combines search, category, availability and price without mutating products', () => {
+  it('combines category, availability and price without mutating products', () => {
     const another = { ...product, id: 'two', category: 'kick-scooter' as const };
     const unpublished = { ...product, id: 'hidden', published: false };
     const source = [another, product, unpublished];
-    expect(filterProducts(source, { ...defaultFilters, category: 'scooter', query: ' ГОРОДА ', stock: 'in-stock', min: '9000', max: '11000' })).toEqual([product]);
+    expect(filterProducts(source, { ...defaultFilters, category: 'scooter', stock: 'in-stock', min: '9000', max: '11000' })).toEqual([product]);
     expect(source[0]).toBe(another);
   });
   it('puts price-on-request last in either price sort and excludes it from price ranges', () => {
@@ -25,9 +25,10 @@ describe('catalogue filtering', () => {
     expect(filterProducts([unknown, product], { ...defaultFilters, min: '0' })).toEqual([product]);
   });
   it('round-trips shareable filter URLs and rejects invalid parameters', () => {
-    const filters = { ...defaultFilters, category: 'scooter' as const, license: 'required' as const, query: 'Зелёный & новый', min: '5000', sort: 'price-asc' as const };
+    const filters = { ...defaultFilters, category: 'scooter' as const, license: 'required' as const, min: '5000', sort: 'price-asc' as const };
     expect(parseFilters(catalogHref(filters).split('?')[1])).toEqual(filters);
     expect(parseFilters('category=spaceship&license=free&min=-1&max=NaN&sort=code')).toEqual(defaultFilters);
+    expect(parseFilters('filters=open')).toEqual(defaultFilters);
   });
 });
 

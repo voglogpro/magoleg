@@ -45,7 +45,6 @@ export type Filters = {
   category: Category | 'all';
   license: License | 'all';
   stock: Stock | 'all';
-  query: string;
   min: string;
   max: string;
   sort: 'featured' | 'price-asc' | 'price-desc' | 'name';
@@ -55,7 +54,7 @@ export const defaultSettings: ShopSettings = {
   shop_name: 'G-Partner', city: 'Большой Сочи', phone: '', telegram: '', address: '', hours: '',
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
 };
-export const defaultFilters: Filters = { category: 'all', license: 'all', stock: 'all', query: '', min: '', max: '', sort: 'featured' };
+export const defaultFilters: Filters = { category: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
 export const categoryLabels = { 'kick-scooter': 'Электросамокаты', scooter: 'Электроскутеры' };
 export const licenseLabels = { required: 'С правами', 'not-required': 'Без прав', unknown: 'Требования уточняются' };
 export const stockLabels = { 'in-stock': 'В наличии', preorder: 'Под заказ', 'out-of-stock': 'Нет в наличии' };

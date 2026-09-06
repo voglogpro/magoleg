@@ -35,6 +35,11 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.route('**/api/settings', route => route.fulfill({ json: { settings } }));
   await page.route('**/api/products', route => route.fulfill({ json: { products } }));
   await page.route('**/media/test.webp', route => route.fulfill({ path: resolve('public/products/city-white.webp'), contentType: 'image/webp' }));
+  await page.route('**/api/admin/login', async route => {
+    const body = route.request().postDataJSON();
+    if (body?.username === 'owner' && body?.password === 'owner-password') await route.fulfill({ json: { username: 'owner', csrfToken: 'qa-token' } });
+    else await route.fulfill({ status: 401, json: { error: 'Неверный логин или пароль.' } });
+  });
   await page.route('**/api/inquiries', async route => {
     submissions.push({ payload: route.request().postDataJSON(), key: route.request().headers()['idempotency-key'] });
     await route.fulfill({ status: 201, json: { inquiry: { id: `QA-${width}`, status: 'new', total: 39800 } } });
@@ -42,9 +47,9 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.goto(base);
   await page.waitForSelector('.sf-product-card');
   await page.screenshot({ path: `${output}/home-${width}.png`, fullPage: true });
-  check(await page.locator('.sf-choice-grid svg').count() === 0, `${width}: no decorative category icons`);
+  check(await page.locator('.sf-search').count() === 0, `${width}: no catalogue search field`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
-  await page.locator('.sf-choice-grid a').nth(1).click();
+  await page.locator('.sf-home-selection .sf-category-tabs button').nth(2).click();
   await page.waitForURL(/category=scooter/);
   check(await countIs('.sf-product-card', 2), `${width}: transport category works`);
   await page.locator('.sf-filter-toggle').click();
@@ -52,15 +57,13 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await countIs('.sf-product-card', 1), `${width}: verified rights combine with category`);
   await page.locator('.sf-filter-panel__actions .sf-button').click();
   check(await page.locator('.sf-filter-panel').isHidden(), `${width}: close filters`);
+  check(await page.locator('.sf-filter-toggle .sf-count').innerText() === '2', `${width}: filter icon counts hidden filters`);
   await page.locator('.sf-results-heading button').click();
   check(await countIs('.sf-product-card', 4), `${width}: reset all`);
-  await page.locator('.sf-search input').fill('Грузовой');
-  await page.locator('.sf-search button').click();
-  check(await countIs('.sf-product-card', 1), `${width}: search`);
-  await page.reload();
+  await page.goto(`${base}/#catalog?filters=open`);
   await page.waitForSelector('.sf-product-card');
-  check(await page.locator('.sf-product-card').count() === 1, `${width}: query survives reload`);
-  await page.locator('.sf-results-heading button').click();
+  check(await page.locator('.sf-filter-panel').isVisible(), `${width}: home filter icon opens the panel`);
+  await page.locator('.sf-filter-panel__actions .sf-button').click();
   await page.locator('.sf-view-toggle button').nth(1).click();
   check(await page.locator('.sf-product-grid--list').count() === 1, `${width}: list view`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: list no overflow`);
@@ -102,8 +105,16 @@ for (const width of [320, 390, 768, 900, 1440]) {
   }
   await page.screenshot({ path: `${output}/product-${width}.png`, fullPage: true });
   await page.goto(`${base}/#profile`);
-  check(await page.locator('a[href="/admin"]').count() === 1, `${width}: owner entry`);
-  check(await page.locator('a[href="/admin"]').getAttribute('target') === '_blank', `${width}: owner entry escapes Mini App frame`);
+  await page.waitForSelector('.sf-login-form');
+  await page.locator('.sf-login-form [name=username]').fill('owner');
+  await page.locator('.sf-login-form [name=password]').fill('wrong-password');
+  await page.locator('.sf-login-form button[type=submit]').click();
+  await page.waitForSelector('.sf-account-login .sf-error');
+  check((await page.locator('.sf-account-login .sf-error').innerText()).includes('Неверный'), `${width}: rejected sign-in explains itself`);
+  await page.locator('.sf-login-form [name=password]').fill('owner-password');
+  await page.locator('.sf-login-form button[type=submit]').click();
+  await page.waitForSelector('.sf-account-login a[href="/admin"]');
+  check(await page.locator('.sf-account-login a[href="/admin"]').getAttribute('target') === '_blank', `${width}: owner panel escapes Mini App frame`);
   check(errors.length === 0, `${width}: no runtime errors: ${errors.join('; ')}`);
   await context.close();
 }
