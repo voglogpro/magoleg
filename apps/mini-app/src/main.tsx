@@ -16,13 +16,7 @@ import '@fontsource/montserrat/cyrillic-800.css';
 import '@fontsource/montserrat/latin-800.css';
 import '@fontsource/montserrat/cyrillic-900.css';
 import '@fontsource/montserrat/latin-900.css';
-import '@fontsource/orbitron/latin-600.css';
-import '@fontsource/orbitron/latin-700.css';
-import '@fontsource/orbitron/latin-800.css';
-import '@fontsource/orbitron/latin-900.css';
-import { App } from './App';
-import './styles.css';
-import './gpartner.css';
+import { App } from './StoreApp';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

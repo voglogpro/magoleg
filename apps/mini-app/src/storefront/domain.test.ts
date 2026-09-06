@@ -1,0 +1,65 @@
+import { describe, expect, it } from 'vitest';
+import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, productImage, sanitizeCart, sanitizeIds, telegramLink } from './domain';
+import { defaultFilters, type Product } from './types';
+
+const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/products/one.webp', featured: false, published: true, updated_at: '2026-09-06' };
+
+describe('catalogue filtering', () => {
+  it('never presents an unverified rights classification as confirmed', () => {
+    const unchecked = { ...product, id: 'unchecked', license_verified: false };
+    expect(effectiveLicense(unchecked)).toBe('unknown');
+    expect(filterProducts([product, unchecked], { ...defaultFilters, license: 'not-required' })).toEqual([product]);
+    expect(filterProducts([unchecked], { ...defaultFilters, license: 'unknown' })).toEqual([unchecked]);
+  });
+  it('combines search, category, availability and price without mutating products', () => {
+    const another = { ...product, id: 'two', category: 'kick-scooter' as const };
+    const unpublished = { ...product, id: 'hidden', published: false };
+    const source = [another, product, unpublished];
+    expect(filterProducts(source, { ...defaultFilters, category: 'scooter', query: ' ГОРОДА ', stock: 'in-stock', min: '9000', max: '11000' })).toEqual([product]);
+    expect(source[0]).toBe(another);
+  });
+  it('puts price-on-request last in either price sort and excludes it from price ranges', () => {
+    const unknown = { ...product, id: 'unknown', price: null };
+    const expensive = { ...product, id: 'expensive', price: 20000 };
+    expect(filterProducts([unknown, product, expensive], { ...defaultFilters, sort: 'price-desc' }).map(item => item.id)).toEqual(['expensive', 'one', 'unknown']);
+    expect(filterProducts([unknown, product], { ...defaultFilters, min: '0' })).toEqual([product]);
+  });
+  it('round-trips shareable filter URLs and rejects invalid parameters', () => {
+    const filters = { ...defaultFilters, category: 'scooter' as const, license: 'required' as const, query: 'Зелёный & новый', min: '5000', sort: 'price-asc' as const };
+    expect(parseFilters(catalogHref(filters).split('?')[1])).toEqual(filters);
+    expect(parseFilters('category=spaceship&license=free&min=-1&max=NaN&sort=code')).toEqual(defaultFilters);
+  });
+});
+
+describe('persistent customer selections', () => {
+  it('preserves kopeks and sums prices in integer minor units', () => {
+    expect(money(42500.5).replace(/\s/g, '')).toBe('42500,50₽');
+    expect(money(42500).replace(/\s/g, '')).toBe('42500₽');
+    expect(cartTotal([{ product_id: 'one', quantity: 3 }], [{ ...product, price: 0.1 }]).knownTotal).toBe(0.3);
+  });
+  it('ignores corrupted, duplicate or excessive local cart quantities', () => {
+    expect(sanitizeCart([{ product_id: 'one', quantity: 2 }, { product_id: 'one', quantity: 4 }, { product_id: 'bad', quantity: -1 }, { product_id: 'huge', quantity: 100 }, { product_id: 'str', quantity: '1' }, null])).toEqual([{ product_id: 'one', quantity: 2 }]);
+    expect(sanitizeCart({ not: 'an array' })).toEqual([]);
+    expect(sanitizeCart([{ product_id: 'max', quantity: 20 }, { product_id: 'over', quantity: 21 }])).toEqual([{ product_id: 'max', quantity: 20 }]);
+    expect(sanitizeIds(['one', 'one', '', 7, 'two', 'three', 'four'], 3)).toEqual(['one', 'two', 'three']);
+  });
+  it('separates known totals, unknown prices and unavailable products', () => {
+    expect(cartTotal([{ product_id: 'one', quantity: 2 }, { product_id: 'missing', quantity: 1 }], [product])).toEqual({ knownTotal: 20000, unknownPrices: 1, unavailable: 1 });
+    expect(cartTotal([{ product_id: 'one', quantity: 2 }], [{ ...product, price: null }])).toEqual({ knownTotal: 0, unknownPrices: 2, unavailable: 0 });
+  });
+});
+
+describe('safe media and contact links', () => {
+  it('accepts only same-site uploaded media paths', () => {
+    expect(productImage('/media/products/one.webp')).toBe('/media/products/one.webp');
+    for (const bad of ['https://evil.test/a.png', '//evil.test/a', '/media/../secret', 'javascript:alert(1)', '/products/demo.jpg']) expect(productImage(bad)).toBe('');
+  });
+  it('validates telephone and Telegram destinations', () => {
+    expect(phoneLink('+7 (900) 123-45-67')).toBe('tel:+79001234567');
+    expect(phoneLink('help')).toBe('');
+    expect(telegramLink('@gpartner_shop')).toBe('https://t.me/gpartner_shop');
+    expect(telegramLink('https://t.me/gpartner_shop')).toBe('https://t.me/gpartner_shop');
+    expect(telegramLink('https://evil.test/gpartner_shop')).toBe('');
+    expect(telegramLink('javascript:alert(1)')).toBe('');
+  });
+});

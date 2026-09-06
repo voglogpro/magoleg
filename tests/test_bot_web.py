@@ -1,6 +1,8 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from aiohttp.test_utils import TestClient, TestServer
 
@@ -24,8 +26,10 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         public_dir = Path(self.temp_dir.name)
+        self.environment = patch.dict(os.environ, {"DATA_DIR": str(public_dir / "store"), "ADMIN_PASSWORD": "", "ADMIN_PASSWORD_HASH": ""})
+        self.environment.start()
         (public_dir / "index.html").write_text(
-            "<!doctype html><title>Magoleg test</title>",
+            '<!doctype html><title>Magoleg test</title><script defer src="https://telegram.org/js/telegram-web-app.js"></script>',
             encoding="utf-8",
         )
         (public_dir / "assets").mkdir()
@@ -38,12 +42,23 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.client.close()
+        self.environment.stop()
         self.temp_dir.cleanup()
 
     async def test_health_endpoint(self) -> None:
         response = await self.client.get("/health")
         self.assertEqual(response.status, 200)
         self.assertEqual((await response.json())["status"], "ok")
+
+    async def test_admin_has_no_third_party_script_and_cannot_be_framed(self) -> None:
+        response = await self.client.get("/admin")
+        self.assertEqual(response.status, 200)
+        self.assertNotIn("telegram.org", await response.text())
+        self.assertEqual(response.headers["X-Frame-Options"], "DENY")
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        public = await self.client.get("/")
+        self.assertIn("https://web.telegram.org", public.headers["Content-Security-Policy"])
+        self.assertNotIn("X-Frame-Options", public.headers)
 
     async def test_spa_fallback_and_static_asset(self) -> None:
         page = await self.client.get("/catalog/demo")

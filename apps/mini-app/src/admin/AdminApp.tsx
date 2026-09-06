@@ -1,0 +1,325 @@
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { adminRequest, AdminApiError, formatDate, formatPrice, mediaSource, type AdminSession, type Inquiry, type Product, type ShopSettings } from './api';
+import { productDraft, validateProduct, validateUpload, type ProductDraft } from './product-form';
+import './admin.css';
+
+type Request = <T>(path: string, options?: Parameters<typeof adminRequest>[1]) => Promise<T>;
+type PanelProps = { request: Request; onDirty: (value: boolean) => void; onBusy: (value: boolean) => void };
+type Tab = 'products' | 'inquiries' | 'settings';
+const tabLabels: Record<Tab, string> = { products: 'Товары', inquiries: 'Заявки', settings: 'Магазин и документы' };
+const errorText = (error: unknown) => error instanceof Error ? error.message : 'Не удалось выполнить действие.';
+const discardMessage = 'Есть несохранённые изменения. Покинуть страницу без сохранения?';
+
+function Notice({ error = false, children }: { error?: boolean; children: React.ReactNode }) {
+  return <div className={`crm-notice ${error ? 'crm-notice--error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div>;
+}
+
+function Login({ onLogin, initialError }: { onLogin: (session: AdminSession) => void; initialError: string }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(initialError);
+  const [busy, setBusy] = useState(false);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true); setError('');
+    try {
+      const session = await adminRequest<AdminSession>('/login', { method: 'POST', body: { username: username.trim(), password } });
+      setPassword(''); onLogin(session);
+    } catch (cause) { setError(errorText(cause)); }
+    finally { setBusy(false); }
+  }
+  return <main className="crm-login">
+    <a className="crm-brand" href="/">G-PARTNER</a>
+    <div className="crm-login-card">
+      <p className="crm-eyebrow">Управление магазином</p>
+      <h1>Вход для владельца</h1>
+      <p className="crm-muted">Товары, заявки покупателей и информация на сайте.</p>
+      {error && <Notice error>{error}</Notice>}
+      <form onSubmit={submit} className="crm-form">
+        <label>Логин<input name="username" autoComplete="username" placeholder="Ваш логин" required maxLength={100} value={username} onChange={event => setUsername(event.target.value)} disabled={busy}/></label>
+        <label>Пароль<input name="password" type="password" autoComplete="current-password" placeholder="Ваш пароль" required maxLength={256} value={password} onChange={event => setPassword(event.target.value)} disabled={busy}/></label>
+        <button className="crm-button crm-button--primary" disabled={busy} type="submit">{busy ? 'Входим…' : 'Войти'}</button>
+      </form>
+      <p className="crm-login-note">Доступ только для сотрудников магазина. Пароль не сохраняется в приложении.</p>
+    </div>
+    <a className="crm-link" href="/">Вернуться в магазин</a>
+  </main>;
+}
+
+function useUnsaved(dirty: boolean, onDirty: PanelProps['onDirty']) {
+  useEffect(() => {
+    onDirty(dirty);
+    const preventUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    if (dirty) window.addEventListener('beforeunload', preventUnload);
+    return () => { onDirty(false); window.removeEventListener('beforeunload', preventUnload); };
+  }, [dirty, onDirty]);
+}
+
+function Products({ request, onDirty, onBusy }: PanelProps) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [editing, setEditing] = useState<Product | 'new' | null>(null);
+  const [draft, setDraft] = useState<ProductDraft>(productDraft());
+  const [original, setOriginal] = useState(JSON.stringify(productDraft()));
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dirty = editing !== null && JSON.stringify(draft) !== original;
+  useUnsaved(dirty, onDirty);
+  useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
+  useEffect(() => { if (formErrors.length) document.querySelector<HTMLElement>('.crm-form-errors')?.focus(); }, [formErrors]);
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true); setError('');
+    try { const result = await request<{ products: Product[] }>('/products', { signal }); setProducts(result.products); }
+    catch (cause) { if (!(cause instanceof Error && cause.name === 'AbortError')) setError(errorText(cause)); }
+    finally { if (!signal?.aborted) setLoading(false); }
+  }, [request]);
+  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load]);
+
+  function edit(product: Product | 'new' | null) {
+    if (dirty && !window.confirm(discardMessage)) return;
+    const value = productDraft(product && product !== 'new' ? product : undefined);
+    setEditing(product); setDraft(value); setOriginal(JSON.stringify(value)); setFormErrors([]); setError(''); setMessage('');
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#crm-product-name')?.focus());
+  }
+  function update<K extends keyof ProductDraft>(key: K, value: ProductDraft[K]) { setDraft(current => ({ ...current, [key]: value })); }
+  async function upload(file?: File) {
+    if (!file) return;
+    const failure = validateUpload(file);
+    if (failure) { setFormErrors([failure]); if (fileRef.current) fileRef.current.value = ''; return; }
+    setBusy(true); setFormErrors([]); setMessage('');
+    try {
+      const body = new FormData(); body.append('file', file);
+      const result = await request<{ image_url: string }>('/upload', { method: 'POST', body });
+      update('image_url', result.image_url);
+      setMessage('Фото загружено. Сохраните товар, чтобы применить изменение.');
+    } catch (cause) { setFormErrors([errorText(cause)]); }
+    finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  }
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const button = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const publish = button?.value === 'publish';
+    const result = validateProduct(draft, publish);
+    setFormErrors(result.errors); setMessage('');
+    if (result.errors.length) { document.querySelector<HTMLElement>('.crm-form-errors')?.focus(); return; }
+    if (editing !== 'new' && editing?.published && !publish && !window.confirm('Снять товар с публикации и сохранить как черновик? Он исчезнет из каталога.')) return;
+    setBusy(true);
+    try {
+      const isNew = editing === 'new';
+      const response = await request<{ product: Product }>(isNew ? '/products' : `/products/${encodeURIComponent(editing!.id)}`, { method: isNew ? 'POST' : 'PUT', body: result.payload });
+      setProducts(current => isNew ? [response.product, ...current] : current.map(item => item.id === response.product.id ? response.product : item));
+      const nextDraft = productDraft(response.product);
+      setEditing(response.product); setDraft(nextDraft); setOriginal(JSON.stringify(nextDraft));
+      setMessage(publish ? 'Товар опубликован. Изменения доступны в каталоге магазина.' : 'Черновик сохранён. Покупатели его не видят.');
+    } catch (cause) { setFormErrors([errorText(cause)]); }
+    finally { setBusy(false); }
+  }
+  async function remove() {
+    if (!editing || editing === 'new' || !window.confirm(`Удалить товар «${editing.name}»? Он будет удалён из каталога. Восстановление через панель недоступно.`)) return;
+    setBusy(true); setFormErrors([]); setMessage('');
+    try {
+      await request(`/products/${encodeURIComponent(editing.id)}`, { method: 'DELETE' });
+      setProducts(current => current.filter(item => item.id !== editing.id)); setEditing(null);
+      setMessage('Товар удалён из каталога.');
+    } catch (cause) { setFormErrors([errorText(cause)]); }
+    finally { setBusy(false); }
+  }
+  const visible = products.filter(product => (!search.trim() || `${product.name} ${product.id}`.toLocaleLowerCase('ru').includes(search.trim().toLocaleLowerCase('ru'))) && (status === 'all' || (status === 'published' ? product.published : !product.published)));
+
+  return <section aria-label="Управление товарами">
+    <div className="crm-section-head"><div><h1>Товары</h1><p className="crm-muted">{products.length ? `${products.length} в базе · ${products.filter(product => product.published).length} опубликовано` : 'Добавьте первый товар и подготовьте его к публикации.'}</p></div><button className="crm-button crm-button--primary" type="button" disabled={busy || loading} onClick={() => edit('new')}>Добавить товар</button></div>
+    {error && <Notice error>{error}<button className="crm-link" type="button" onClick={() => void load()}>Повторить загрузку</button></Notice>}
+    {message && !editing && <Notice>{message}</Notice>}
+    <div className={`crm-products-layout ${editing ? 'crm-products-layout--editing' : ''}`}>
+      <div className="crm-products-list">
+        <div className="crm-product-tools"><label className="crm-search">Найти товар<input type="search" placeholder="Название или артикул" value={search} onChange={event => setSearch(event.target.value)} maxLength={120}/></label><label>Публикация<select value={status} onChange={event => setStatus(event.target.value)}><option value="all">Все товары</option><option value="published">На сайте</option><option value="draft">Черновики</option></select></label></div>
+        {loading ? <p className="crm-muted" role="status">Загружаем товары…</p> : visible.length ? <ul className="crm-product-rows">{visible.map(product => <li key={product.id}><button type="button" disabled={busy} className={`crm-product-row ${editing !== 'new' && editing?.id === product.id ? 'is-selected' : ''}`} onClick={() => edit(product)}>
+          <span className="crm-product-thumb">{mediaSource(product.image_url) ? <img src={mediaSource(product.image_url)} alt="" loading="lazy"/> : <span>Без фото</span>}</span>
+          <span className="crm-product-row-copy"><strong>{product.name || 'Без названия'}</strong><span>{formatPrice(product.price)}</span><small>{product.category === 'scooter' ? 'Электроскутер' : 'Электросамокат'}</small></span>
+          <span className={`crm-badge ${product.published ? 'crm-badge--published' : ''}`}>{product.published ? 'На сайте' : 'Черновик'}</span>
+        </button></li>)}</ul> : <div className="crm-empty"><h2>{products.length ? 'Товары не найдены' : 'Каталог пока пуст'}</h2><p>{products.length ? 'Измените название в поиске или выберите все товары.' : 'Загрузите фото, укажите название и цену. До публикации товар виден только здесь.'}</p>{products.length > 0 && <button className="crm-button" onClick={() => { setSearch(''); setStatus('all'); }}>Сбросить поиск</button>}</div>}
+      </div>
+      {editing && <form className="crm-product-editor crm-form" onSubmit={save}>
+        <div className="crm-editor-head"><div><p className="crm-eyebrow">{editing === 'new' ? 'Новый товар' : editing.published ? 'Опубликован' : 'Черновик'}</p><h2>{editing === 'new' ? 'Карточка товара' : editing.name}</h2></div><button className="crm-button" type="button" disabled={busy} onClick={() => edit(null)}>Закрыть</button></div>
+        {formErrors.length > 0 && <div className="crm-notice crm-notice--error crm-form-errors" role="alert" tabIndex={-1}><strong>Проверьте карточку</strong><ul>{formErrors.map(item => <li key={item}>{item}</li>)}</ul></div>}
+        <fieldset disabled={busy}><legend>Основная информация</legend>
+          <label>Название товара<input id="crm-product-name" value={draft.name} onChange={event => update('name', event.target.value)} maxLength={160} required minLength={2} placeholder="Бренд и модель"/></label>
+          <div className="crm-fields-two"><label>Вид транспорта<select value={draft.category} onChange={event => update('category', event.target.value as Product['category'])}><option value="scooter">Электроскутер</option><option value="kick-scooter">Электросамокат</option></select></label><label>Наличие<select value={draft.stock_status} onChange={event => update('stock_status', event.target.value as Product['stock_status'])}><option value="preorder">Под заказ</option><option value="in-stock">В наличии</option><option value="out-of-stock">Нет в наличии</option></select></label></div>
+          <label>Описание<textarea rows={5} value={draft.description} onChange={event => update('description', event.target.value)} maxLength={12000} placeholder="Особенности модели, комплектация и кому она подходит"/></label>
+          <label>Цена, ₽<input inputMode="decimal" type="number" min="0.01" max="100000000" step="0.01" value={draft.price} onChange={event => update('price', event.target.value)} placeholder="Укажите реальную цену"/></label>
+        </fieldset>
+        <fieldset disabled={busy}><legend>Фотография товара</legend>
+          <div className="crm-photo-editor"><div className="crm-photo-preview">{mediaSource(draft.image_url) ? <img src={mediaSource(draft.image_url)} alt="Фото редактируемого товара"/> : <p>Фотография ещё не загружена</p>}</div><div><label htmlFor="crm-photo-file">{draft.image_url ? 'Заменить фотографию' : 'Загрузить фотографию'}</label><input ref={fileRef} id="crm-photo-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => void upload(event.target.files?.[0])}/><p className="crm-help">JPG, PNG или WebP, до 8 МБ. Транспорт должен целиком помещаться в кадре.</p>{draft.image_url && <button className="crm-button" type="button" onClick={() => update('image_url', '')}>Убрать фото из карточки</button>}</div></div>
+        </fieldset>
+        <fieldset disabled={busy}><legend>Характеристики</legend><p className="crm-help">Заполняйте только подтверждённые данные. Пустые значения не будут показаны как нулевые.</p><div className="crm-fields-two">
+          <label>Запас хода, км<input inputMode="decimal" type="number" min="0" max="3000" step="0.1" value={draft.range_km} onChange={event => update('range_km', event.target.value)}/></label>
+          <label>Макс. скорость, км/ч<input inputMode="decimal" type="number" min="0" max="500" step="0.1" value={draft.speed_kmh} onChange={event => update('speed_kmh', event.target.value)}/></label>
+          <label>Мощность, Вт<input inputMode="numeric" type="number" min="0" max="500000" step="1" value={draft.power_w} onChange={event => update('power_w', event.target.value)}/></label>
+          <label>Вес, кг<input inputMode="decimal" type="number" min="0" max="10000" step="0.1" value={draft.weight_kg} onChange={event => update('weight_kg', event.target.value)}/></label>
+        </div></fieldset>
+        <fieldset disabled={busy}><legend>Документы и показ на сайте</legend>
+          <label>Водительские права<select value={draft.license} onChange={event => update('license', event.target.value as Product['license'])}><option value="unknown">Не проверено</option><option value="required">С правами</option><option value="not-required">Без прав</option></select></label>
+          <label className="crm-checkbox"><input type="checkbox" checked={draft.license_verified} onChange={event => update('license_verified', event.target.checked)}/><span>Я проверил документы модели и требования к водительским правам</span></label>
+          <label className="crm-checkbox"><input type="checkbox" checked={draft.featured} onChange={event => update('featured', event.target.checked)}/><span>Показывать в подборке на главной</span></label>
+          <p className="crm-help">Для публикации обязательны название, описание, фотография и цена. Категории по правам доступны только после проверки документов.</p>
+        </fieldset>
+        {message && <Notice>{message}</Notice>}
+        <div className="crm-editor-actions"><button className="crm-button crm-button--primary" type="submit" name="intent" value="publish" disabled={busy}>{busy ? 'Подождите…' : editing !== 'new' && editing.published ? 'Сохранить публикацию' : 'Опубликовать'}</button><button className="crm-button" type="submit" name="intent" value="draft" disabled={busy}>Сохранить черновик</button>{editing !== 'new' && <button className="crm-button crm-button--danger" type="button" disabled={busy} onClick={() => void remove()}>Удалить товар</button>}</div>
+        {editing !== 'new' && <p className="crm-help">Обновлено: {formatDate(editing.updated_at)} · ID: {editing.id}</p>}
+      </form>}
+    </div>
+  </section>;
+}
+
+function Settings({ request, onDirty, onBusy }: PanelProps) {
+  const [settings, setSettings] = useState<ShopSettings | null>(null);
+  const [original, setOriginal] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  useUnsaved(settings !== null && JSON.stringify(settings) !== original, onDirty);
+  useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true); setError('');
+    try { const result = await request<{ settings: ShopSettings }>('/settings', { signal }); setSettings(result.settings); setOriginal(JSON.stringify(result.settings)); }
+    catch (cause) { if (!(cause instanceof Error && cause.name === 'AbortError')) setError(errorText(cause)); }
+    finally { if (!signal?.aborted) setLoading(false); }
+  }, [request]);
+  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load]);
+  function update<K extends keyof ShopSettings>(key: K, value: ShopSettings[K]) { setSettings(current => current && { ...current, [key]: value }); }
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (!settings) return;
+    setError(''); setMessage('');
+    if (settings.inquiries_enabled && (!settings.legal_name.trim() || !settings.legal_details.trim() || (!settings.phone.trim() && !settings.telegram.trim()))) {
+      setError('Чтобы принимать заявки, укажите продавца, реквизиты и хотя бы один способ связи: телефон или Telegram.'); return;
+    }
+    setBusy(true);
+    try { const result = await request<{ settings: ShopSettings }>('/settings', { method: 'PUT', body: settings }); setSettings(result.settings); setOriginal(JSON.stringify(result.settings)); setMessage('Информация магазина сохранена и доступна на сайте.'); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setBusy(false); }
+  }
+  return <section><div className="crm-section-head"><div><h1>Магазин и документы</h1><p className="crm-muted">Только достоверная информация, которую увидят покупатели.</p></div></div>
+    {error && <Notice error>{error}{!settings && <button className="crm-link" type="button" onClick={() => void load()}>Повторить загрузку</button>}</Notice>}{message && <Notice>{message}</Notice>}
+    {loading ? <p role="status">Загружаем настройки…</p> : settings && <form className="crm-form crm-settings-form" onSubmit={save}>
+      <fieldset disabled={busy}><legend>Магазин и связь</legend><div className="crm-fields-two">
+        <label>Название магазина<input required maxLength={100} value={settings.shop_name} onChange={event => update('shop_name', event.target.value)}/></label>
+        <label>Город или регион<input required maxLength={160} value={settings.city} onChange={event => update('city', event.target.value)}/></label>
+        <label>Телефон<input type="tel" autoComplete="tel" maxLength={32} placeholder="Номер для покупателей" value={settings.phone} onChange={event => update('phone', event.target.value)}/></label>
+        <label>Telegram<input maxLength={100} placeholder="@username" value={settings.telegram} onChange={event => update('telegram', event.target.value)}/></label>
+      </div><label>Адрес магазина<input maxLength={500} autoComplete="street-address" placeholder="Укажите, если доступно посещение или самовывоз" value={settings.address} onChange={event => update('address', event.target.value)}/></label><label>Часы работы<input maxLength={200} placeholder="Укажите дни и время" value={settings.hours} onChange={event => update('hours', event.target.value)}/></label></fieldset>
+      <fieldset disabled={busy}><legend>Условия покупки</legend>
+        <label>Доставка и получение<textarea rows={4} maxLength={6000} placeholder="Территория, способы, стоимость и сроки доставки" value={settings.delivery} onChange={event => update('delivery', event.target.value)}/></label>
+        <label>Оплата<textarea rows={3} maxLength={6000} placeholder="Реальные способы оплаты и порядок подтверждения заказа" value={settings.payment} onChange={event => update('payment', event.target.value)}/></label>
+        <label>Гарантия и возврат<textarea rows={4} maxLength={6000} placeholder="Подтверждённые условия обслуживания, гарантии и возврата" value={settings.warranty} onChange={event => update('warranty', event.target.value)}/></label>
+      </fieldset>
+      <fieldset disabled={busy}><legend>Продавец и приём заявок</legend><p className="crm-help">Эти сведения публикуются в информации о магазине. Не добавляйте персональные данные, которые не предназначены для общего доступа.</p>
+        <label>Юридическое наименование продавца<input maxLength={500} placeholder="ИП или организация" value={settings.legal_name} onChange={event => update('legal_name', event.target.value)}/></label>
+        <label>Реквизиты и информация для покупателя<textarea rows={5} maxLength={8000} placeholder="Реквизиты продавца, регистрационные данные и условия обработки обращений" value={settings.legal_details} onChange={event => update('legal_details', event.target.value)}/></label>
+        <label className="crm-checkbox"><input type="checkbox" checked={settings.inquiries_enabled} onChange={event => update('inquiries_enabled', event.target.checked)}/><span>Принимать заявки с сайта</span></label>
+        <p className="crm-help">Включайте после заполнения документов, контактов и условий. Заявка не списывает деньги и не является онлайн-оплатой.</p>
+      </fieldset>
+      <button className="crm-button crm-button--primary" disabled={busy} type="submit">{busy ? 'Сохраняем…' : 'Сохранить информацию'}</button>
+    </form>}
+  </section>;
+}
+
+function Inquiries({ request, onBusy }: PanelProps) {
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  useEffect(() => { onBusy(Boolean(busyId)); return () => onBusy(false); }, [busyId, onBusy]);
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true); setError('');
+    try {
+      const result = await request<{ inquiries: Inquiry[]; total: number; total_pages: number }>(`/inquiries?page=${page}&page_size=50&status=${filter}`, { signal });
+      if (signal?.aborted) return;
+      setInquiries(result.inquiries); setTotal(result.total); setTotalPages(result.total_pages);
+      if (page > Math.max(1, result.total_pages)) setPage(Math.max(1, result.total_pages));
+    }
+    catch (cause) { if (!(cause instanceof Error && cause.name === 'AbortError')) setError(errorText(cause)); }
+    finally { if (!signal?.aborted) setLoading(false); }
+  }, [request, page, filter]);
+  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load]);
+  async function changeStatus(id: string, status: Inquiry['status']) {
+    setBusyId(id); setError(''); setMessage('');
+    try { await request(`/inquiries/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } }); setMessage('Статус заявки обновлён.'); await load(); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setBusyId(''); }
+  }
+  return <section><div className="crm-section-head"><div><h1>Заявки покупателей</h1><p className="crm-muted">Обращения с сайта. Цена в заявке зафиксирована на момент отправки.</p></div><button className="crm-button" disabled={loading || Boolean(busyId)} onClick={() => void load()}>Обновить</button></div>
+    {error && <Notice error>{error}</Notice>}{message && <Notice>{message}</Notice>}
+    <label className="crm-inquiry-filter">Статус заявки<select value={filter} disabled={loading || Boolean(busyId)} onChange={event => { setFilter(event.target.value); setPage(1); setMessage(''); }}><option value="all">Все заявки</option><option value="new">Новые</option><option value="contacted">Связались</option><option value="closed">Закрытые</option></select></label>
+    {loading ? <p role="status">Загружаем заявки…</p> : error ? null : !inquiries.length ? <div className="crm-empty"><h2>{filter !== 'all' ? 'В этом статусе заявок нет' : 'Заявок пока нет'}</h2><p>{filter !== 'all' ? 'Выберите другой статус, чтобы увидеть обращения.' : 'Здесь появятся обращения после публикации товаров и включения приёма заявок в настройках магазина.'}</p></div> : <div className="crm-inquiry-list">{inquiries.map(inquiry => <article className="crm-inquiry" key={inquiry.id}>
+      <div className="crm-inquiry-head"><div><h2>{inquiry.name}</h2><p className="crm-help">{formatDate(inquiry.created_at)} · № {inquiry.id}</p></div><label>Статус<select aria-label={`Статус заявки ${inquiry.id}`} value={inquiry.status} disabled={Boolean(busyId)} onChange={event => void changeStatus(inquiry.id, event.target.value as Inquiry['status'])}><option value="new">Новая</option><option value="contacted">Связались</option><option value="closed">Закрыта</option></select></label></div>
+      <dl className="crm-contact-data"><dt>Связаться с покупателем</dt><dd>{inquiry.contact}</dd>{inquiry.message && <><dt>Комментарий</dt><dd>{inquiry.message}</dd></>}</dl>
+      <div className="crm-inquiry-items">{inquiry.items.map((item, index) => <div key={`${item.product_id}-${index}`}><span>{item.name}<small>{item.quantity} шт. × {formatPrice(item.price)}</small></span><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}</div><p className="crm-inquiry-total">Сумма товаров <strong>{formatPrice(inquiry.total)}</strong></p>
+    </article>)}</div>}
+    {!loading && !error && total > 0 && <nav className="crm-pagination" aria-label="Страницы заявок">
+      <button className="crm-button" disabled={page <= 1 || Boolean(busyId)} onClick={() => setPage(current => current - 1)}>Назад</button>
+      <p>Страница {page} из {totalPages}<span className="crm-help">Всего заявок: {total}</span></p>
+      <button className="crm-button" disabled={page >= totalPages || Boolean(busyId)} onClick={() => setPage(current => current + 1)}>Далее</button>
+    </nav>}
+  </section>;
+}
+
+export function AdminApp() {
+  const [session, setSession] = useState<AdminSession | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [error, setError] = useState('');
+  const [tab, setTab] = useState<Tab>('products');
+  const [busy, setBusy] = useState(false);
+  const dirtyRef = useRef(false);
+  const onDirty = useCallback((value: boolean) => { dirtyRef.current = value; }, []);
+  const onBusy = useCallback((value: boolean) => setBusy(value), []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = 'dark';
+    const priorTitle = document.title; document.title = 'Управление магазином — G-Partner';
+    const controller = new AbortController();
+    void adminRequest<AdminSession>('/session', { signal: controller.signal }).then(setSession).catch(cause => {
+      if (cause instanceof Error && cause.name === 'AbortError') return;
+      if (!(cause instanceof AdminApiError && cause.status === 401)) setError(errorText(cause));
+    }).finally(() => { if (!controller.signal.aborted) setChecking(false); });
+    return () => { controller.abort(); document.title = priorTitle; };
+  }, []);
+  const request: Request = useCallback(async (path, options = {}) => {
+    try { return await adminRequest(path, { ...options, csrfToken: session?.csrfToken }); }
+    catch (cause) {
+      if (cause instanceof AdminApiError && cause.status === 401) { setError('Сеанс завершён. Войдите снова.'); setSession(null); }
+      throw cause;
+    }
+  }, [session]);
+  function switchTab(next: Tab) {
+    if (next === tab || busy || (dirtyRef.current && !window.confirm(discardMessage))) return;
+    setTab(next); setError(''); window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  async function logout() {
+    if (dirtyRef.current && !window.confirm(discardMessage)) return;
+    setBusy(true); setError('');
+    try { await request('/logout', { method: 'POST' }); setSession(null); setTab('products'); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setBusy(false); }
+  }
+  return <div className="crm-app">
+    {checking ? <main className="crm-loading" role="status">Проверяем доступ…</main> : !session ? <Login key={error} initialError={error} onLogin={value => { setSession(value); setError(''); }}/>
+      : <><header className="crm-header"><a className="crm-brand" href="/" onClick={event => { if (busy || (dirtyRef.current && !window.confirm(discardMessage))) event.preventDefault(); }}>G-PARTNER <span>Управление</span></a><div className="crm-header-actions"><span className="crm-username">{session.username}</span><a className="crm-button" href="/" target="_blank" rel="noopener noreferrer">Открыть сайт</a><button className="crm-button" disabled={busy} onClick={() => void logout()}>Выйти</button></div></header>
+        <nav className="crm-tabs" aria-label="Разделы управления">{(Object.keys(tabLabels) as Tab[]).map(key => <button key={key} type="button" disabled={busy} aria-current={tab === key ? 'page' : undefined} onClick={() => switchTab(key)}>{tabLabels[key]}</button>)}</nav>
+        <main className="crm-main">{error && <Notice error>{error}</Notice>}{tab === 'products' ? <Products request={request} onDirty={onDirty} onBusy={onBusy}/> : tab === 'settings' ? <Settings request={request} onDirty={onDirty} onBusy={onBusy}/> : <Inquiries request={request} onDirty={onDirty} onBusy={onBusy}/>}</main>
+      </>}
+  </div>;
+}
+
+export default AdminApp;

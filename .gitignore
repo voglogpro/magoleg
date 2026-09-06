@@ -16,3 +16,8 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+data/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.crm-test-data/

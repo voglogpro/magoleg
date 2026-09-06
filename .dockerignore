@@ -1,6 +1,12 @@
 .git
 .gitignore
 .env
+.env.*
+data
+.crm-test-data
+*.sqlite3*
+.venv
+.pytest_cache
 .bot-test-env
 __pycache__
 node_modules

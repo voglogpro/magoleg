@@ -11,10 +11,41 @@ from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
 from aiohttp import web
+from store_api import setup_store
 
 
 LOGGER = logging.getLogger("gshop.bot")
 PROJECT_DIR = Path(__file__).resolve().parent
+
+
+@web.middleware
+async def security_headers(request: web.Request, handler):
+    caught = None
+    try:
+        response = await handler(request)
+    except web.HTTPException as error:
+        response = error
+        caught = error
+    admin = request.path == "/admin" or request.path.startswith("/admin/")
+    frame_ancestors = "'none'" if admin else "'self' https://web.telegram.org"
+    script_sources = "'self'" if admin else "'self' https://telegram.org"
+    response.headers["Content-Security-Policy"] = (
+        f"default-src 'self'; script-src {script_sources}; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; "
+        f"object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors {frame_ancestors}"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if admin:
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        response.headers["Cache-Control"] = "no-store"
+    elif not Path(request.path).suffix and not request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache"
+    if caught is not None:
+        raise caught
+    return response
 
 
 def get_mini_app_url(raw_url: str | None) -> str | None:
@@ -48,9 +79,8 @@ def create_dispatcher(mini_app_url: str | None) -> Dispatcher:
                 ]
             )
             text = (
-                "G-Partner — электроскутеры для города, работы и бизнеса в Большом Сочи. "
-                "Сейчас открыт демонстрационный каталог: цены, наличие "
-                "и условия являются заглушками."
+                "G-Partner — магазин электротранспорта в Большом Сочи. "
+                "Откройте каталог, сравните модели и выберите подходящий вариант."
             )
         else:
             keyboard = None
@@ -91,6 +121,12 @@ def create_web_app(static_dir: Path | None = None) -> web.Application:
 
     async def storefront(request: web.Request) -> web.StreamResponse:
         relative_path = request.match_info.get("path", "")
+        if relative_path == "admin" or relative_path.startswith("admin/"):
+            # The owner login page does not execute any third-party scripts.
+            html = index_file.read_text(encoding="utf-8").replace(
+                '<script defer src="https://telegram.org/js/telegram-web-app.js"></script>', ""
+            )
+            return web.Response(text=html, content_type="text/html")
         if relative_path:
             candidate = (public_dir / relative_path).resolve()
             if public_dir not in candidate.parents:
@@ -102,8 +138,9 @@ def create_web_app(static_dir: Path | None = None) -> web.Application:
 
         return web.FileResponse(index_file)
 
-    app = web.Application()
+    app = web.Application(middlewares=[security_headers])
     app.router.add_get("/health", health)
+    setup_store(app)
     app.router.add_get("/{path:.*}", storefront)
     return app
 
@@ -121,6 +158,14 @@ async def start_web_server() -> web.AppRunner:
 
 async def run_bot() -> None:
     """Start the BotHost long-polling process."""
+    if os.getenv("WEB_ONLY", "false").lower() == "true":
+        import asyncio
+        web_runner = await start_web_server()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await web_runner.cleanup()
+        return
     token = os.getenv("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN is required. Add it to BotHost secrets.")
