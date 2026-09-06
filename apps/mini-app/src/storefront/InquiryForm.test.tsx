@@ -12,6 +12,8 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 function completeForm() {
   fireEvent.change(screen.getByLabelText('Ваше имя'), { target: { value: 'Анна' } });
   fireEvent.change(screen.getByLabelText('Телефон, email или @Telegram'), { target: { value: '+79001234567' } });
+  const city = screen.queryByLabelText('Город доставки');
+  if (city) fireEvent.change(city, { target: { value: 'Москва' } });
   fireEvent.click(screen.getByRole('checkbox'));
 }
 
@@ -32,7 +34,7 @@ describe('guest inquiry', () => {
     const call = vi.mocked(fetch).mock.calls[0];
     const options = call[1]!;
     expect(call[0]).toBe('/api/inquiries');
-    expect(JSON.parse(options.body as string)).toEqual({ name: 'Анна', contact: '+79001234567', message: '', items, consent: true });
+    expect(JSON.parse(options.body as string)).toEqual({ name: 'Анна', contact: '+79001234567', city: 'Москва', message: '', items, consent: true });
     expect((options.headers as Record<string, string>)['Idempotency-Key']).toMatch(/^[\da-f-]{36}$/);
     expect(screen.queryByRole('button', { name: 'Отправить заявку' })).not.toBeInTheDocument();
   });

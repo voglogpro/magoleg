@@ -37,6 +37,7 @@ export type Inquiry = {
   id: string;
   name: string;
   contact: string;
+  city: string;
   message: string;
   items: { product_id: string; name: string; price: number; quantity: number; image_url: string }[];
   total: number;

@@ -38,7 +38,7 @@ export type ShopSettings = {
 export type CartItem = { product_id: string; quantity: number };
 export const MAX_QUANTITY = 20;
 export const MAX_CART_MODELS = 30;
-export type InquiryPayload = { name: string; contact: string; message: string; items: CartItem[]; consent: true };
+export type InquiryPayload = { name: string; contact: string; city: string; message: string; items: CartItem[]; consent: true };
 export type Inquiry = { id: string; total: number | null; status: string };
 export type Filters = {
   category: Category | 'all';
@@ -55,12 +55,16 @@ export const defaultSettings: ShopSettings = {
 };
 export const defaultFilters: Filters = { category: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
 
-export type AccountProfile = { name: string; contact: string };
+export type AccountProfile = { name: string; contact: string; city: string };
+/** Remembered once per browser: the shop asks for a destination, then stops asking. */
+export type CityChoice = { name: string; asked: boolean };
+export const popularCities = ['Москва', 'Санкт-Петербург', 'Краснодар', 'Екатеринбург', 'Новосибирск', 'Казань', 'Ростов-на-Дону', 'Сочи'];
 export type AccountInquiry = {
   id: string;
   status: 'new' | 'contacted' | 'closed';
   total: number | null;
   created_at: string;
+  city: string;
   items: { product_id: string; name: string; price: number | null; quantity: number }[];
 };
 export const categoryLabels: Record<Category, string> = {

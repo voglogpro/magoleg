@@ -1,4 +1,4 @@
-import { defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, type CartItem, type Filters, type Product } from './types';
+import { defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, type CartItem, type CityChoice, type Filters, type Product } from './types';
 
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
@@ -55,6 +55,12 @@ export function catalogHref(patch: Partial<Filters> = {}) {
   if (filters.max) params.set('max', filters.max);
   if (filters.sort !== 'featured') params.set('sort', filters.sort);
   return `#catalog${params.size ? `?${params}` : ''}`;
+}
+
+export function sanitizeCity(value: unknown): CityChoice {
+  const record = value && typeof value === 'object' ? value as Partial<CityChoice> : {};
+  const name = typeof record.name === 'string' ? record.name.trim().slice(0, 80) : '';
+  return { name, asked: record.asked === true || Boolean(name) };
 }
 
 export function sanitizeIds(value: unknown, limit = 200): string[] {
