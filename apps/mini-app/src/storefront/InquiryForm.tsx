@@ -1,7 +1,7 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { submitInquiry } from './api';
 import { money } from './domain';
-import { type CartItem, type Inquiry, type ShopSettings } from './types';
+import { type AccountProfile, type CartItem, type Inquiry, type ShopSettings } from './types';
 
 export function InquiryConfirmation({ inquiry }: { inquiry: Inquiry }) {
   return <div className="sf-confirmation" role="status">
@@ -13,8 +13,8 @@ export function InquiryConfirmation({ inquiry }: { inquiry: Inquiry }) {
   </div>;
 }
 
-export function InquiryForm({ settings, items, blocked = false, onSuccess }: {
-  settings: ShopSettings; items: CartItem[]; blocked?: boolean; onSuccess?: (inquiry: Inquiry) => void;
+export function InquiryForm({ settings, items, account = null, blocked = false, onSuccess }: {
+  settings: ShopSettings; items: CartItem[]; account?: AccountProfile | null; blocked?: boolean; onSuccess?: (inquiry: Inquiry) => void;
 }) {
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
@@ -26,6 +26,13 @@ export function InquiryForm({ settings, items, blocked = false, onSuccess }: {
   const submitting = useRef(false);
   const submission = useRef({ signature: '', key: '' });
   const errorRef = useRef<HTMLParagraphElement>(null);
+
+  // The account may arrive after this form mounts; never overwrite typed text.
+  useEffect(() => {
+    if (!account) return;
+    setName(current => current || account.name);
+    setContact(current => current || account.contact);
+  }, [account]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

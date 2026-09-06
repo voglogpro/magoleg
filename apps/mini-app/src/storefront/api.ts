@@ -1,4 +1,4 @@
-import { defaultSettings, type Inquiry, type InquiryPayload, type Product, type ShopSettings } from './types';
+import { defaultSettings, type AccountInquiry, type AccountProfile, type Inquiry, type InquiryPayload, type Product, type ShopSettings } from './types';
 
 export class StoreApiError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
@@ -49,18 +49,43 @@ export async function getSettings(signal?: AbortSignal): Promise<ShopSettings> {
   return settings;
 }
 
-/** Shared sign-in: the server decides whether the credentials belong to the shop owner. */
-export async function signIn(username: string, password: string): Promise<{ username: string }> {
+type SignInResult = { role: 'owner' | 'customer'; account?: AccountProfile; csrfToken: string };
+
+async function accountRequest<T>(path: string, body: unknown, csrfToken = ''): Promise<T> {
   try {
-    return await request<{ username: string }>('/api/admin/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }),
+    return await request<T>(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+      body: JSON.stringify(body),
     });
   } catch (reason) {
     if (reason instanceof StoreApiError && reason.status === 0) {
-      throw new StoreApiError('Не удалось связаться с магазином. Проверьте соединение и повторите вход.', 0);
+      throw new StoreApiError('Не удалось связаться с магазином. Проверьте соединение и повторите попытку.', 0);
     }
     throw reason;
   }
+}
+
+/** Shared sign-in: the server decides whether the credentials belong to the shop owner. */
+export function signIn(contact: string, password: string) {
+  return accountRequest<SignInResult>('/api/account/login', { contact, password });
+}
+
+export function registerAccount(name: string, contact: string, password: string) {
+  return accountRequest<SignInResult>('/api/account/register', { name, contact, password, consent: true });
+}
+
+export function signOut(csrfToken: string) {
+  return accountRequest<{ ok: true }>('/api/account/logout', {}, csrfToken);
+}
+
+export async function getAccount(signal?: AbortSignal) {
+  return request<{ account: AccountProfile | null; csrfToken?: string }>('/api/account', { signal });
+}
+
+export async function getAccountInquiries(signal?: AbortSignal) {
+  const data = await request<{ inquiries: AccountInquiry[] }>('/api/account/inquiries', { signal });
+  return Array.isArray(data.inquiries) ? data.inquiries : [];
 }
 
 export async function submitInquiry(payload: InquiryPayload, idempotencyKey: string): Promise<Inquiry> {

@@ -55,6 +55,15 @@ export const defaultSettings: ShopSettings = {
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
 };
 export const defaultFilters: Filters = { category: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
+
+export type AccountProfile = { name: string; contact: string };
+export type AccountInquiry = {
+  id: string;
+  status: 'new' | 'contacted' | 'closed';
+  total: number | null;
+  created_at: string;
+  items: { product_id: string; name: string; price: number | null; quantity: number }[];
+};
 export const categoryLabels = { 'kick-scooter': 'Электросамокаты', scooter: 'Электроскутеры' };
 export const licenseLabels = { required: 'С правами', 'not-required': 'Без прав', unknown: 'Требования уточняются' };
 export const stockLabels = { 'in-stock': 'В наличии', preorder: 'Под заказ', 'out-of-stock': 'Нет в наличии' };

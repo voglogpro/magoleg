@@ -35,11 +35,18 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.route('**/api/settings', route => route.fulfill({ json: { settings } }));
   await page.route('**/api/products', route => route.fulfill({ json: { products } }));
   await page.route('**/media/test.webp', route => route.fulfill({ path: resolve('public/products/city-white.webp'), contentType: 'image/webp' }));
-  await page.route('**/api/admin/login', async route => {
+  let accountState = { account: null };
+  await page.route('**/api/account', route => route.fulfill({ json: accountState }));
+  await page.route('**/api/account/logout', route => route.fulfill({ json: { ok: true } }));
+  await page.route('**/api/account/inquiries', route => route.fulfill({ json: { inquiries: [] } }));
+  await page.route('**/api/account/login', async route => {
     const body = route.request().postDataJSON();
-    if (body?.username === 'owner' && body?.password === 'owner-password') await route.fulfill({ json: { username: 'owner', csrfToken: 'qa-token' } });
+    if (body?.contact === 'owner' && body?.password === 'owner-password') await route.fulfill({ json: { role: 'owner', username: 'owner', csrfToken: 'qa-token' } });
     else await route.fulfill({ status: 401, json: { error: 'Неверный логин или пароль.' } });
   });
+  await page.route('**/api/account/register', route => route.fulfill({
+    json: { role: 'customer', account: { name: 'Проверка', contact: '+79001234567' }, csrfToken: 'qa-token' },
+  }));
   await page.route('**/api/inquiries', async route => {
     submissions.push({ payload: route.request().postDataJSON(), key: route.request().headers()['idempotency-key'] });
     await route.fulfill({ status: 201, json: { inquiry: { id: `QA-${width}`, status: 'new', total: 39800 } } });
@@ -106,11 +113,24 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.screenshot({ path: `${output}/product-${width}.png`, fullPage: true });
   await page.goto(`${base}/#profile`);
   await page.waitForSelector('.sf-login-form');
-  await page.locator('.sf-login-form [name=username]').fill('owner');
+  await page.locator('.sf-login-form [name=contact]').fill('owner');
   await page.locator('.sf-login-form [name=password]').fill('wrong-password');
   await page.locator('.sf-login-form button[type=submit]').click();
   await page.waitForSelector('.sf-account-login .sf-error');
   check((await page.locator('.sf-account-login .sf-error').innerText()).includes('Неверный'), `${width}: rejected sign-in explains itself`);
+  await page.locator('.sf-account-tabs button').nth(1).click();
+  await page.locator('.sf-login-form [name=name]').fill('Проверка');
+  await page.locator('.sf-login-form [name=contact]').fill('+79001234567');
+  await page.locator('.sf-login-form [name=password]').fill('qa-account-password');
+  accountState = { account: { name: 'Проверка', contact: '+79001234567' }, csrfToken: 'qa-token' };
+  await page.locator('.sf-login-form button[type=submit]').click();
+  await page.waitForSelector('.sf-history-title');
+  check((await page.locator('.sf-account-login').innerText()).includes('+79001234567'), `${width}: registered shopper sees their account`);
+  accountState = { account: null };
+  await page.locator('.sf-account-login button.sf-button--secondary').click();
+  await page.waitForSelector('.sf-account-tabs');
+  await page.locator('.sf-account-tabs button').nth(0).click();
+  await page.locator('.sf-login-form [name=contact]').fill('owner');
   await page.locator('.sf-login-form [name=password]').fill('owner-password');
   await page.locator('.sf-login-form button[type=submit]').click();
   await page.waitForSelector('.sf-account-login a[href="/admin"]');
