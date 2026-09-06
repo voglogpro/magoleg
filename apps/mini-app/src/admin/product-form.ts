@@ -11,6 +11,7 @@ export function productDraft(product?: Product): ProductDraft {
     category: product?.category ?? 'scooter', license: product?.license ?? 'unknown',
     stock_status: product?.stock_status ?? 'preorder', image_url: product?.image_url ?? '',
     published: product?.published ?? false, featured: product?.featured ?? false,
+    tags: product?.tags ?? [], badge: product?.badge ?? '',
     license_verified: product?.license_verified ?? false,
     price: product?.price == null ? '' : String(product.price),
     range_km: product?.range_km == null ? '' : String(product.range_km),

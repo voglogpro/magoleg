@@ -1,4 +1,6 @@
 export type Category = 'kick-scooter' | 'scooter' | 'e-bike' | 'parts' | 'accessories';
+export type ProductTag = 'waterproof' | 'heavy-rider' | 'two-up' | 'courier' | 'women' | 'beginner';
+export type ProductBadge = '' | 'hit' | 'best-price' | 'value';
 export type License = 'required' | 'not-required' | 'unknown';
 export type Stock = 'in-stock' | 'preorder' | 'out-of-stock';
 
@@ -18,6 +20,8 @@ export type Product = {
   image_url: string;
   featured: boolean;
   published: boolean;
+  tags: ProductTag[];
+  badge: ProductBadge;
   updated_at: string;
 };
 
@@ -42,6 +46,7 @@ export type InquiryPayload = { name: string; contact: string; city: string; mess
 export type Inquiry = { id: string; total: number | null; status: string };
 export type Filters = {
   category: Category | 'all';
+  tag: ProductTag | 'all';
   license: License | 'all';
   stock: Stock | 'all';
   min: string;
@@ -53,7 +58,7 @@ export const defaultSettings: ShopSettings = {
   shop_name: 'G-Partner', phone: '', telegram: '', address: '', hours: '',
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
 };
-export const defaultFilters: Filters = { category: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
+export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
 
 export type AccountProfile = { name: string; contact: string; city: string };
 /** Remembered once per browser: the shop asks for a destination, then stops asking. */
@@ -70,6 +75,18 @@ export type AccountInquiry = {
 export const categoryLabels: Record<Category, string> = {
   'kick-scooter': 'Электросамокаты', scooter: 'Электроскутеры', 'e-bike': 'Электровелосипеды',
   parts: 'Запчасти', accessories: 'Аксессуары',
+};
+/** Smart picks: the shop ticks them per product, shoppers browse by them. */
+export const tagLabels: Record<ProductTag, string> = {
+  waterproof: 'Защита от дождя', 'heavy-rider': 'Для большого веса', 'two-up': 'Удобен вдвоём',
+  courier: 'Для курьеров', women: 'Для девушек', beginner: 'Новичкам',
+};
+export const tagHints: Record<ProductTag, string> = {
+  waterproof: 'Не боятся дождя и луж', 'heavy-rider': 'Держат крупного райдера', 'two-up': 'Хватает места двоим',
+  courier: 'Для работы и груза', women: 'Лёгкие и удобные', beginner: 'Просто освоить с нуля',
+};
+export const badgeLabels: Record<Exclude<ProductBadge, ''>, string> = {
+  hit: 'Хит продаж', 'best-price': 'Лучшая цена', value: 'Цена-качество',
 };
 /** Rider requirements only apply to vehicles; parts and accessories never carry them. */
 export const vehicleCategories: Category[] = ['kick-scooter', 'scooter', 'e-bike'];

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
 import { effectiveLicense, money, productImage } from './domain';
-import { categoryLabels, licenseLabels, stockLabels, vehicleCategories, type Product } from './types';
+import { badgeLabels, categoryLabels, licenseLabels, stockLabels, vehicleCategories, type Product } from './types';
 
 export function ProductPhoto({ product, large = false }: { product: Product; large?: boolean }) {
   const [broken, setBroken] = useState(false);
@@ -19,6 +19,7 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
   return <article className="sf-product-card">
     <div className="sf-product-card__visual">
       <a href={href} aria-label={`Подробнее: ${product.name}`}><ProductPhoto product={product} /></a>
+      {product.badge && <span className={`sf-badge sf-badge--${product.badge}`}>{badgeLabels[product.badge]}</span>}
       <button className="sf-icon-button sf-favorite" type="button" onClick={() => onFavorite(product.id)} aria-label={`${favorite ? 'Убрать' : 'Добавить'} «${product.name}» ${favorite ? 'из избранного' : 'в избранное'}`} aria-pressed={favorite}><Heart size={20} fill={favorite ? 'currentColor' : 'none'} /></button>
     </div>
     <div className="sf-product-card__body">

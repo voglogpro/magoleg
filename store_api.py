@@ -54,10 +54,13 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "inquiries_enabled": False,
 }
 PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "parts", "accessories")
+# Shop-picked audiences a shopper can browse by; the owner ticks them per product.
+PRODUCT_TAGS = ("waterproof", "heavy-rider", "two-up", "courier", "women", "beginner")
+PRODUCT_BADGES = ("hit", "best-price", "value")
 PRODUCT_FIELDS = {
     "name", "description", "category", "license", "license_verified", "price",
     "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg",
-    "image_url", "published", "featured",
+    "image_url", "published", "featured", "tags", "badge",
 }
 
 
@@ -378,13 +381,19 @@ class Store:
             "name": "", "description": "", "category": "scooter", "license": "unknown",
             "license_verified": False, "price": None, "stock_status": "preorder", "range_km": None,
             "speed_kmh": None, "power_w": None, "weight_kg": None, "image_url": "", "published": False,
-            "featured": False, **(previous or {}), **{key: value for key, value in data.items() if key in PRODUCT_FIELDS},
+            "featured": False, "tags": [], "badge": "",
+            **(previous or {}), **{key: value for key, value in data.items() if key in PRODUCT_FIELDS},
         }
         for key, maximum in (("name", 160), ("description", 12000), ("image_url", 100)):
             values[key] = text_value(values[key], key, maximum)
         require(values["category"] in PRODUCT_CATEGORIES, "Неизвестная категория товара.")
         require(values["license"] in ("required", "not-required", "unknown"), "Неизвестное требование к правам.")
         require(values["stock_status"] in ("in-stock", "preorder", "out-of-stock"), "Неизвестный статус наличия.")
+        tags = values["tags"]
+        require(isinstance(tags, list) and len(tags) <= len(PRODUCT_TAGS)
+                and all(tag in PRODUCT_TAGS for tag in tags), "Неизвестная умная подборка.")
+        values["tags"] = [tag for tag in PRODUCT_TAGS if tag in tags]
+        require(values["badge"] in ("", *PRODUCT_BADGES), "Неизвестная отметка товара.")
         for key in ("published", "featured", "license_verified"):
             values[key] = boolean_value(values[key], key)
         require(values["license"] == "unknown" or values["license_verified"],
@@ -592,7 +601,7 @@ async def list_products(request: web.Request) -> web.Response:
     with request.app[STORE_KEY].connect() as connection:
         rows = connection.execute("SELECT data FROM products WHERE published=1 ORDER BY updated_at DESC,id" if public
                                   else "SELECT data FROM products ORDER BY updated_at DESC,id").fetchall()
-    products = [json.loads(row["data"]) for row in rows]
+    products = [{"tags": [], "badge": "", **json.loads(row["data"])} for row in rows]
     return web.json_response({"products": products})
 
 

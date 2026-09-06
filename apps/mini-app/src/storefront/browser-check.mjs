@@ -9,10 +9,10 @@ const output = resolve(process.env.STOREFRONT_QA_OUTPUT || 'test-results/storefr
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const settings = { shop_name: 'G-Partner', phone: '+7 (900) 123-45-67', telegram: '@gpartner_shop', address: 'Тестовый адрес для автоматической проверки', hours: '10:00–18:00', delivery: 'Самовывоз и доставка по согласованию.', payment: 'После подтверждения магазина.', legal_name: 'Тестовый продавец', legal_details: 'Тестовые реквизиты, не опубликованы на реальном сайте.', warranty: 'По документам модели.', inquiries_enabled: true };
-const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/test.webp', featured: true, published: true, updated_at: '2026-09-06' };
+const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/test.webp', featured: true, published: true, tags: [], badge: '', updated_at: '2026-09-06' };
 const products = [
   { ...seed, id: 'city', name: 'Городская модель' },
-  { ...seed, id: 'cargo', name: 'Грузовой электроскутер с длинным названием', category: 'scooter', price: 119900, license: 'required', range_km: 80, power_w: 1500 },
+  { ...seed, id: 'cargo', name: 'Грузовой электроскутер с длинным названием', category: 'scooter', price: 119900, license: 'required', range_km: 80, power_w: 1500, tags: ['courier', 'heavy-rider'], badge: 'hit' },
   { ...seed, id: 'quote', name: 'Модель под заказ', category: 'scooter', price: null, stock_status: 'preorder', license_verified: false, featured: false },
   { ...seed, id: 'sold', name: 'Проданная модель', stock_status: 'out-of-stock', price: 34900, featured: false },
 ];
@@ -63,12 +63,22 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.screenshot({ path: `${output}/home-${width}.png`, fullPage: true });
   check(await page.locator('.sf-search').count() === 0, `${width}: no catalogue search field`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
-  await page.locator('.sf-home-selection .sf-category-tabs button').nth(2).click();
+  check(await page.locator('.sf-home-selection .sf-category-tabs button').count() === 3, `${width}: home offers the three kinds of transport`);
+  check(await page.locator('.sf-badge').first().innerText() === 'Хит продаж', `${width}: the shop badge rides on the card`);
+  await page.locator('.sf-pick-grid a').first().click();
+  await page.waitForURL(/tag=/);
+  check(await countIs('.sf-product-card', 1), `${width}: a smart pick narrows the catalogue`);
+  await page.locator('.sf-results-heading button').click();
+  await page.goto(`${base}/#home`);
+  await page.waitForSelector('.sf-product-card');
+  await page.locator('.sf-home-selection .sf-category-tabs button').nth(1).click();
   await page.waitForURL(/category=scooter/);
-  check(await page.locator('.sf-category-tabs button').count() === 6, `${width}: every catalogue category is offered`);
+  await page.waitForSelector('.sf-catalog');
+  check(await page.locator('.sf-catalog .sf-category-tabs button').count() === 6, `${width}: every catalogue category is offered`);
   check(await countIs('.sf-product-card', 2), `${width}: transport category works`);
   await page.locator('.sf-filter-toggle').click();
-  await page.locator('.sf-filter-options button').nth(1).click();
+  check(await page.locator('.sf-filter-panel > div').first().locator('.sf-filter-options button').count() === 7, `${width}: every smart pick is filterable`);
+  await page.locator('.sf-filter-panel > div').nth(1).locator('.sf-filter-options button').nth(1).click();
   check(await countIs('.sf-product-card', 1), `${width}: verified rights combine with category`);
   await page.locator('.sf-filter-panel__actions .sf-button').click();
   check(await page.locator('.sf-filter-panel').isHidden(), `${width}: close filters`);

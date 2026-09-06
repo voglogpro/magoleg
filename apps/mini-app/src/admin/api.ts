@@ -1,4 +1,4 @@
-import type { Category } from '../storefront/types';
+import type { Category, ProductBadge, ProductTag } from '../storefront/types';
 
 export type Product = {
   id: string;
@@ -16,6 +16,8 @@ export type Product = {
   published: boolean;
   featured: boolean;
   license_verified: boolean;
+  tags: ProductTag[];
+  badge: ProductBadge;
   updated_at: string;
 };
 

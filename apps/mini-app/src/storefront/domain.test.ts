@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, productImage, sanitizeCart, sanitizeIds, telegramLink } from './domain';
 import { defaultFilters, type Product } from './types';
 
-const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/products/one.webp', featured: false, published: true, updated_at: '2026-09-06' };
+const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/products/one.webp', featured: false, published: true, tags: ['courier'], badge: '', updated_at: '2026-09-06' };
 
 describe('catalogue filtering', () => {
   it('never presents an unverified rights classification as confirmed', () => {
@@ -24,10 +24,15 @@ describe('catalogue filtering', () => {
     expect(filterProducts([unknown, product, expensive], { ...defaultFilters, sort: 'price-desc' }).map(item => item.id)).toEqual(['expensive', 'one', 'unknown']);
     expect(filterProducts([unknown, product], { ...defaultFilters, min: '0' })).toEqual([product]);
   });
+  it('narrows the catalogue to a smart pick the shop ticked', () => {
+    const other = { ...product, id: 'two', tags: [] };
+    expect(filterProducts([product, other], { ...defaultFilters, tag: 'courier' })).toEqual([product]);
+    expect(filterProducts([product, other], { ...defaultFilters, tag: 'women' })).toEqual([]);
+  });
   it('round-trips shareable filter URLs and rejects invalid parameters', () => {
-    const filters = { ...defaultFilters, category: 'scooter' as const, license: 'required' as const, min: '5000', sort: 'price-asc' as const };
+    const filters = { ...defaultFilters, category: 'scooter' as const, tag: 'courier' as const, license: 'required' as const, min: '5000', sort: 'price-asc' as const };
     expect(parseFilters(catalogHref(filters).split('?')[1])).toEqual(filters);
-    expect(parseFilters('category=spaceship&license=free&min=-1&max=NaN&sort=code')).toEqual(defaultFilters);
+    expect(parseFilters('category=spaceship&tag=unicorn&license=free&min=-1&max=NaN&sort=code')).toEqual(defaultFilters);
     expect(parseFilters('filters=open')).toEqual(defaultFilters);
   });
 });

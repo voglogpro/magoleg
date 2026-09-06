@@ -1,7 +1,7 @@
-.sf-hero { position: relative; isolation: isolate; min-width: 0; min-height: 352px; background: #090b0e; overflow: hidden; color: #e4e6eb; }
+.sf-hero { position: relative; isolation: isolate; min-width: 0; min-height: 268px; background: #090b0e; overflow: hidden; color: #e4e6eb; }
 .sf-hero .sf-hero-photo { position: absolute; z-index: -3; width: 100%; height: 100%; object-fit: contain; object-position: right bottom; inset: 0; pointer-events: none; user-select: none; }
 .sf-hero .sf-hero-shade { position: absolute; z-index: -2; inset: 0; background: linear-gradient(90deg, #090b0e66, transparent 75%); pointer-events: none; }
-.sf-hero .sf-hero-copy { position: relative; padding: 26px 20px 24px; }
+.sf-hero .sf-hero-copy { position: relative; padding: 20px 20px 18px; }
 .sf-hero .sf-hero-location { margin: 0 0 12px; color: #c2c3cb; font: 500 13px/1.4 Inter, sans-serif; }
 .sf-hero #sf-hero-title { margin: 0; max-width: 660px; font: 800 clamp(27px, 7.1vw, 38px)/1.1 Montserrat, Inter, sans-serif; letter-spacing: -.04em; user-select: none; }
 .sf-hero #sf-hero-title span { display: block; color: #ff6b00; font-size: .83em; }
@@ -13,11 +13,11 @@
 .sf-hero .sf-hero-light-track { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; overflow: hidden; pointer-events: none; }
 .sf-hero .sf-hero-light { width: 25%; height: 100%; background: #ff6b00; opacity: 0; }
 .sf-hero button:focus-visible { outline: 2px solid #e4e6eb; outline-offset: 4px; }
-@media (min-width: 540px) { .sf-hero { min-height: 380px; } .sf-hero .sf-hero-copy { padding: 34px 28px; } .sf-hero #sf-hero-title { font-size: 40px; } }
+@media (min-width: 540px) { .sf-hero { min-height: 300px; } .sf-hero .sf-hero-copy { padding: 26px 28px; } .sf-hero #sf-hero-title { font-size: 40px; } }
 @media (min-width: 900px) {
-  .sf-hero { min-height: 390px; margin-top: 24px; }
+  .sf-hero { min-height: 330px; margin-top: 24px; }
   .sf-hero .sf-hero-photo { left: auto; right: 0; width: auto; max-width: 65%; mask-image: linear-gradient(90deg, transparent, #000 28%); }
-  .sf-hero .sf-hero-copy { padding: 42px; }
+  .sf-hero .sf-hero-copy { padding: 34px 42px; }
   .sf-hero #sf-hero-title { font-size: clamp(38px, 3.7vw, 52px); }
   .sf-hero .sf-hero-description { font-size: 17px; }
   .sf-hero .sf-hero-location { font-size: 14px; }
