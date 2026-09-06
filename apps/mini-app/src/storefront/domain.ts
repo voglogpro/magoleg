@@ -13,14 +13,12 @@ export const telegramLink = (value: string) => {
 };
 
 export function filterProducts(products: Product[], filters: Filters) {
-  const query = filters.query.trim().toLocaleLowerCase('ru-RU');
   const minimum = filters.min.trim() ? Number(filters.min) : null;
   const maximum = filters.max.trim() ? Number(filters.max) : null;
   return products.filter(product => product.published
     && (filters.category === 'all' || product.category === filters.category)
     && (filters.license === 'all' || effectiveLicense(product) === filters.license)
     && (filters.stock === 'all' || product.stock_status === filters.stock)
-    && (!query || `${product.name} ${product.description}`.toLocaleLowerCase('ru-RU').includes(query))
     && (minimum === null || (product.price !== null && product.price >= minimum))
     && (maximum === null || (product.price !== null && product.price <= maximum)))
     .sort((a, b) => {
@@ -42,7 +40,7 @@ export function parseFilters(search: string): Filters {
     category: get('category', ['all', 'kick-scooter', 'scooter'], 'all') as Filters['category'],
     license: get('license', ['all', 'required', 'not-required', 'unknown'], 'all') as Filters['license'],
     stock: get('stock', ['all', 'in-stock', 'preorder', 'out-of-stock'], 'all') as Filters['stock'],
-    query: (params.get('q') ?? '').slice(0, 120), min: amount('min'), max: amount('max'),
+    min: amount('min'), max: amount('max'),
     sort: get('sort', ['featured', 'price-asc', 'price-desc', 'name'], 'featured') as Filters['sort'],
   };
 }
@@ -53,7 +51,6 @@ export function catalogHref(patch: Partial<Filters> = {}) {
   if (filters.category !== 'all') params.set('category', filters.category);
   if (filters.license !== 'all') params.set('license', filters.license);
   if (filters.stock !== 'all') params.set('stock', filters.stock);
-  if (filters.query.trim()) params.set('q', filters.query.trim());
   if (filters.min) params.set('min', filters.min);
   if (filters.max) params.set('max', filters.max);
   if (filters.sort !== 'featured') params.set('sort', filters.sort);

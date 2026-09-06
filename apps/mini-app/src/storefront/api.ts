@@ -49,6 +49,20 @@ export async function getSettings(signal?: AbortSignal): Promise<ShopSettings> {
   return settings;
 }
 
+/** Shared sign-in: the server decides whether the credentials belong to the shop owner. */
+export async function signIn(username: string, password: string): Promise<{ username: string }> {
+  try {
+    return await request<{ username: string }>('/api/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }),
+    });
+  } catch (reason) {
+    if (reason instanceof StoreApiError && reason.status === 0) {
+      throw new StoreApiError('Не удалось связаться с магазином. Проверьте соединение и повторите вход.', 0);
+    }
+    throw reason;
+  }
+}
+
 export async function submitInquiry(payload: InquiryPayload, idempotencyKey: string): Promise<Inquiry> {
   const data = await request<{ inquiry: Inquiry }>('/api/inquiries', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(payload),
