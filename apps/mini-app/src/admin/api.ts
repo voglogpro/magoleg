@@ -14,6 +14,7 @@ export type Product = {
   weight_kg: number | null;
   cargo_l: number | null;
   image_url: string;
+  images: string[];
   published: boolean;
   featured: boolean;
   license_verified: boolean;

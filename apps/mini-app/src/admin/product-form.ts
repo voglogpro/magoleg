@@ -10,6 +10,7 @@ export function productDraft(product?: Product): ProductDraft {
     name: product?.name ?? '', description: product?.description ?? '',
     category: product?.category ?? 'scooter', license: product?.license ?? 'unknown',
     stock_status: product?.stock_status ?? 'preorder', image_url: product?.image_url ?? '',
+    images: product?.images ?? [],
     published: product?.published ?? false, featured: product?.featured ?? false,
     tags: product?.tags ?? [], badge: product?.badge ?? '',
     license_verified: product?.license_verified ?? false,
@@ -34,12 +35,13 @@ export function validateProduct(draft: ProductDraft, publish: boolean): { errors
   if (numbers.price !== null && (numbers.price <= 0 || Math.abs(numbers.price * 100 - Math.round(numbers.price * 100)) > 0.000001)) errors.push('Цена должна быть больше нуля и содержать не больше двух знаков после запятой.');
   if (draft.name.trim().length < 2) errors.push('Укажите название товара — не менее двух символов.');
   if (publish && draft.description.trim().length < 10) errors.push('Для публикации нужно описание — не менее 10 символов.');
-  if (publish && !/^\/media\/[a-zA-Z0-9_.-]+$/.test(draft.image_url)) errors.push('Для публикации загрузите фотографию товара.');
+  if (publish && !draft.images.length) errors.push('Для публикации загрузите хотя бы одну фотографию товара.');
   if (publish && (numbers.price === null || numbers.price <= 0)) errors.push('Для публикации укажите цену больше нуля.');
   if (draft.license !== 'unknown' && !draft.license_verified) errors.push('Подтвердите проверку документов для категории по водительским правам или выберите «Не проверено».');
   return {
     errors: [...new Set(errors)],
-    payload: { ...draft, ...numbers, name: draft.name.trim(), description: draft.description.trim(), published: publish },
+    // The cover is always the first photo of the gallery, so a card never advertises a lost image.
+    payload: { ...draft, ...numbers, name: draft.name.trim(), description: draft.description.trim(), image_url: draft.images[0] ?? '', published: publish },
   };
 }
 

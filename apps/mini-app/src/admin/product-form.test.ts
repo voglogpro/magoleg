@@ -16,7 +16,7 @@ describe('admin publication validation', () => {
   });
   it('requires a description, uploaded photo and positive price to publish', () => {
     expect(validateProduct({ ...productDraft(), name: 'City 42' }, true).errors).toHaveLength(3);
-    expect(validateProduct({ ...productDraft(), name: 'City 42', description: 'A real transport description.', image_url: '/media/test.webp', price: '42000' }, true).errors).toEqual([]);
+    expect(validateProduct({ ...productDraft(), name: 'City 42', description: 'A real transport description.', images: ['/media/test.webp'], price: '42000' }, true).errors).toEqual([]);
   });
   it('does not classify rights without documentary verification', () => {
     expect(validateProduct({ ...productDraft(), name: 'City 42', license: 'not-required' }, false).errors).toHaveLength(1);

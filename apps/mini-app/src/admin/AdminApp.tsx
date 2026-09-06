@@ -11,6 +11,8 @@ type Tab = 'products' | 'inquiries' | 'settings';
 const tabLabels: Record<Tab, string> = { products: 'Товары', inquiries: 'Заявки', settings: 'Магазин и документы' };
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Не удалось выполнить действие.';
 const discardMessage = 'Есть несохранённые изменения. Покинуть страницу без сохранения?';
+/** Mirrors MAX_PHOTOS in store_api.py, so the form stops before the server refuses the card. */
+const MAX_PHOTOS = 8;
 
 function Notice({ error = false, children }: { error?: boolean; children: React.ReactNode }) {
   return <div className={`crm-notice ${error ? 'crm-notice--error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div>;
@@ -90,21 +92,39 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
     requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#crm-product-name')?.focus());
   }
   function update<K extends keyof ProductDraft>(key: K, value: ProductDraft[K]) { setDraft(current => ({ ...current, [key]: value })); }
-  async function upload(file?: File) {
-    if (!file) return;
-    const failure = validateUpload(file);
-    if (failure) { setFormErrors([failure]); if (fileRef.current) fileRef.current.value = ''; return; }
+  /** Photos are uploaded one by one so a failure keeps the ones that already went through. */
+  async function upload(files?: FileList | null) {
+    const chosen = [...files ?? []];
+    if (!chosen.length) return;
     setBusy(true); setFormErrors([]); setMessage('');
+    const uploaded: string[] = [];
+    const problems: string[] = [];
     try {
-      const fitted = await fitPhoto(file);
-      const tooLarge = uploadSizeError(fitted);
-      if (tooLarge) { setFormErrors([tooLarge]); return; }
-      const body = new FormData(); body.append('file', fitted);
-      const result = await request<{ image_url: string }>('/upload', { method: 'POST', body });
-      update('image_url', result.image_url);
-      setMessage('Фото загружено. Сохраните товар, чтобы применить изменение.');
-    } catch (cause) { setFormErrors([errorText(cause)]); }
+      for (const file of chosen) {
+        if (draft.images.length + uploaded.length >= MAX_PHOTOS) { problems.push(`В карточке может быть не больше ${MAX_PHOTOS} фотографий.`); break; }
+        const failure = validateUpload(file);
+        if (failure) { problems.push(`${file.name}: ${failure}`); continue; }
+        const fitted = await fitPhoto(file);
+        const tooLarge = uploadSizeError(fitted);
+        if (tooLarge) { problems.push(`${file.name}: ${tooLarge}`); continue; }
+        const body = new FormData(); body.append('file', fitted);
+        uploaded.push((await request<{ image_url: string }>('/upload', { method: 'POST', body })).image_url);
+      }
+    } catch (cause) { problems.push(errorText(cause)); }
     finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+    if (uploaded.length) {
+      setDraft(current => ({ ...current, images: [...current.images, ...uploaded].slice(0, MAX_PHOTOS) }));
+      setMessage(`Загружено фотографий: ${uploaded.length}. Сохраните товар, чтобы применить изменение.`);
+    }
+    setFormErrors([...new Set(problems)]);
+  }
+  function movePhoto(from: number, to: number) {
+    setDraft(current => {
+      const images = [...current.images];
+      const [moved] = images.splice(from, 1);
+      images.splice(to, 0, moved);
+      return { ...current, images };
+    });
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -160,7 +180,18 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <label>Цена, ₽<input inputMode="decimal" type="number" min="0.01" max="100000000" step="0.01" value={draft.price} onChange={event => update('price', event.target.value)} placeholder="Укажите реальную цену"/></label>
         </fieldset>
         <fieldset disabled={busy}><legend>Фотография товара</legend>
-          <div className="crm-photo-editor"><div className="crm-photo-preview">{mediaSource(draft.image_url) ? <img src={mediaSource(draft.image_url)} alt="Фото редактируемого товара"/> : <p>Фотография ещё не загружена</p>}</div><div><label htmlFor="crm-photo-file">{draft.image_url ? 'Заменить фотографию' : 'Загрузить фотографию'}</label><input ref={fileRef} id="crm-photo-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => void upload(event.target.files?.[0])}/><p className="crm-help">JPG, PNG или WebP — фотография с телефона подойдёт, размер подгоняется автоматически. Транспорт должен целиком помещаться в кадре.</p>{draft.image_url && <button className="crm-button" type="button" onClick={() => update('image_url', '')}>Убрать фото из карточки</button>}</div></div>
+          <div className="crm-photo-editor">
+            <ol className="crm-photo-list">{draft.images.map((photo, index) => <li key={photo}>
+              <img src={mediaSource(photo)} alt=""/>
+              <span>{index === 0 ? 'Главное фото' : `Фото ${index + 1}`}</span>
+              <div className="crm-photo-actions">
+                {index > 0 && <button className="crm-button" type="button" onClick={() => movePhoto(index, 0)}>Сделать главным</button>}
+                <button className="crm-button" type="button" onClick={() => update('images', draft.images.filter(value => value !== photo))}>Удалить</button>
+              </div>
+            </li>)}</ol>
+            {!draft.images.length && <p className="crm-photo-empty">Фотографии ещё не загружены</p>}
+            <div><label htmlFor="crm-photo-file">{draft.images.length ? 'Добавить ещё фотографии' : 'Загрузить фотографии'}</label><input ref={fileRef} id="crm-photo-file" type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={event => void upload(event.target.files)}/><p className="crm-help">JPG, PNG или WebP — фотографии с телефона подойдут, размер подгоняется автоматически. До {MAX_PHOTOS} штук: снимите модель с разных сторон. Первая фотография показывается в каталоге.</p></div>
+          </div>
         </fieldset>
         <fieldset disabled={busy}><legend>Характеристики</legend><p className="crm-help">Заполняйте только подтверждённые данные. Пустые значения не будут показаны как нулевые.</p><div className="crm-fields-two">
           <label>Запас хода, км<input inputMode="decimal" type="number" min="0" max="3000" step="0.1" value={draft.range_km} onChange={event => update('range_km', event.target.value)}/></label>
