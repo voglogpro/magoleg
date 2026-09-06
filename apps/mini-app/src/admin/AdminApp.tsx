@@ -21,13 +21,14 @@ function Notice({ error = false, children }: { error?: boolean; children: React.
 function Login({ onLogin, initialError }: { onLogin: (session: AdminSession) => void; initialError: string }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true); setError('');
     try {
-      const session = await adminRequest<AdminSession>('/login', { method: 'POST', body: { username: username.trim(), password } });
+      const session = await adminRequest<AdminSession>('/login', { method: 'POST', body: { username: username.trim(), password, remember } });
       setPassword(''); onLogin(session);
     } catch (cause) { setError(errorText(cause)); }
     finally { setBusy(false); }
@@ -42,6 +43,8 @@ function Login({ onLogin, initialError }: { onLogin: (session: AdminSession) => 
       <form onSubmit={submit} className="crm-form">
         <label>Логин<input name="username" autoComplete="username" placeholder="Ваш логин" required maxLength={100} value={username} onChange={event => setUsername(event.target.value)} disabled={busy}/></label>
         <label>Пароль<input name="password" type="password" autoComplete="current-password" placeholder="Ваш пароль" required maxLength={256} value={password} onChange={event => setPassword(event.target.value)} disabled={busy}/></label>
+        <label className="crm-checkbox"><input type="checkbox" name="remember" checked={remember} onChange={event => setRemember(event.target.checked)} disabled={busy}/><span>Оставаться в системе на этом устройстве</span></label>
+        <p className="crm-help">До 14 дней, если перерыв в работе не превышает 7 дней. На чужом устройстве снимите отметку.</p>
         <button className="crm-button crm-button--primary" disabled={busy} type="submit">{busy ? 'Входим…' : 'Войти'}</button>
       </form>
       <p className="crm-login-note">Доступ только для сотрудников магазина. Пароль не сохраняется в приложении.</p>
@@ -145,14 +148,15 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
     } catch (cause) { setFormErrors([errorText(cause)]); }
     finally { setBusy(false); }
   }
-  async function remove() {
-    if (!editing || editing === 'new' || !window.confirm(`Удалить товар «${editing.name}»? Он будет удалён из каталога. Восстановление через панель недоступно.`)) return;
-    setBusy(true); setFormErrors([]); setMessage('');
+  async function remove(product: Product) {
+    if (busy || !window.confirm(`Удалить товар «${product.name}»? Он исчезнет из каталога и CRM. Восстановление через панель недоступно.${editing !== 'new' && editing?.id === product.id && dirty ? ' Несохранённые изменения этой карточки будут потеряны.' : ''}`)) return;
+    setBusy(true); setFormErrors([]); setMessage(''); setError('');
     try {
-      await request(`/products/${encodeURIComponent(editing.id)}`, { method: 'DELETE' });
-      setProducts(current => current.filter(item => item.id !== editing.id)); setEditing(null);
-      setMessage('Товар удалён из каталога.');
-    } catch (cause) { setFormErrors([errorText(cause)]); }
+      await request(`/products/${encodeURIComponent(product.id)}`, { method: 'DELETE' });
+      setProducts(current => current.filter(item => item.id !== product.id));
+      if (editing !== 'new' && editing?.id === product.id) setEditing(null);
+      setMessage(`Товар «${product.name}» удалён из каталога и CRM.`);
+    } catch (cause) { setError(errorText(cause)); }
     finally { setBusy(false); }
   }
   const visible = products.filter(product => (!search.trim() || `${product.name} ${product.id}`.toLocaleLowerCase('ru').includes(search.trim().toLocaleLowerCase('ru'))) && (status === 'all' || (status === 'published' ? product.published : !product.published)));
@@ -168,10 +172,10 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <span className="crm-product-thumb">{mediaSource(product.image_url) ? <img src={mediaSource(product.image_url)} alt="" loading="lazy"/> : <span>Без фото</span>}</span>
           <span className="crm-product-row-copy"><strong>{product.name || 'Без названия'}</strong><span>{formatPrice(product.price)}</span><small>{categoryLabels[product.category] ?? 'Товар'}</small></span>
           <span className={`crm-badge ${product.published ? 'crm-badge--published' : ''}`}>{product.published ? 'На сайте' : 'Черновик'}</span>
-        </button></li>)}</ul> : <div className="crm-empty"><h2>{products.length ? 'Товары не найдены' : 'Каталог пока пуст'}</h2><p>{products.length ? 'Измените название в поиске или выберите все товары.' : 'Загрузите фото, укажите название и цену. До публикации товар виден только здесь.'}</p>{products.length > 0 && <button className="crm-button" onClick={() => { setSearch(''); setStatus('all'); }}>Сбросить поиск</button>}</div>}
+        </button><div className="crm-row-actions"><button className="crm-button crm-button--danger" type="button" disabled={busy} aria-label={`Удалить товар «${product.name}»`} onClick={() => void remove(product)}>Удалить товар</button></div></li>)}</ul> : <div className="crm-empty"><h2>{products.length ? 'Товары не найдены' : 'Каталог пока пуст'}</h2><p>{products.length ? 'Измените название в поиске или выберите все товары.' : 'Загрузите фото, укажите название и цену. До публикации товар виден только здесь.'}</p>{products.length > 0 && <button className="crm-button" onClick={() => { setSearch(''); setStatus('all'); }}>Сбросить поиск</button>}</div>}
       </div>
       {editing && <form className="crm-product-editor crm-form" onSubmit={save}>
-        <div className="crm-editor-head"><div><p className="crm-eyebrow">{editing === 'new' ? 'Новый товар' : editing.published ? 'Опубликован' : 'Черновик'}</p><h2>{editing === 'new' ? 'Карточка товара' : editing.name}</h2></div><button className="crm-button" type="button" disabled={busy} onClick={() => edit(null)}>Закрыть</button></div>
+        <div className="crm-editor-head"><div><p className="crm-eyebrow">{editing === 'new' ? 'Новый товар' : editing.published ? 'Опубликован' : 'Черновик'}</p><h2>{editing === 'new' ? 'Карточка товара' : editing.name}</h2></div><div className="crm-editor-head-actions"><button className="crm-button" type="button" disabled={busy} onClick={() => edit(null)}>Закрыть</button>{editing !== 'new' && <button className="crm-button crm-button--danger" type="button" disabled={busy} onClick={() => void remove(editing)}>Удалить товар</button>}</div></div>
         {formErrors.length > 0 && <div className="crm-notice crm-notice--error crm-form-errors" role="alert" tabIndex={-1}><strong>Проверьте карточку</strong><ul>{formErrors.map(item => <li key={item}>{item}</li>)}</ul></div>}
         <fieldset disabled={busy}><legend>Основная информация</legend>
           <label>Название товара<input id="crm-product-name" value={draft.name} onChange={event => update('name', event.target.value)} maxLength={160} required minLength={2} placeholder="Бренд и модель"/></label>
@@ -215,7 +219,7 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <p className="crm-help">Для публикации обязательны название, описание, фотография и цена. Категории по правам доступны только после проверки документов.</p>
         </fieldset>
         {message && <Notice>{message}</Notice>}
-        <div className="crm-editor-actions"><button className="crm-button crm-button--primary" type="submit" name="intent" value="publish" disabled={busy}>{busy ? 'Подождите…' : editing !== 'new' && editing.published ? 'Сохранить публикацию' : 'Опубликовать'}</button><button className="crm-button" type="submit" name="intent" value="draft" disabled={busy}>Сохранить черновик</button>{editing !== 'new' && <button className="crm-button crm-button--danger" type="button" disabled={busy} onClick={() => void remove()}>Удалить товар</button>}</div>
+        <div className="crm-editor-actions"><button className="crm-button crm-button--primary" type="submit" name="intent" value="publish" disabled={busy}>{busy ? 'Подождите…' : editing !== 'new' && editing.published ? 'Сохранить публикацию' : 'Опубликовать'}</button><button className="crm-button" type="submit" name="intent" value="draft" disabled={busy}>Сохранить черновик</button></div>
         {editing !== 'new' && <p className="crm-help">Обновлено: {formatDate(editing.updated_at)} · ID: {editing.id}</p>}
       </form>}
     </div>

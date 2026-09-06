@@ -32,6 +32,53 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('admin CRM', () => {
+  it('restores a saved session without asking for the password again', async () => {
+    render(<AdminApp/>);
+    await screen.findByText('Каталог пока пуст');
+    expect(screen.queryByLabelText('Пароль')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => url.endsWith('/login'))).toBe(false);
+  });
+  it('allows disabling persistent sign-in on a shared device', async () => {
+    authenticated = false;
+    render(<AdminApp/>);
+    fireEvent.change(await screen.findByLabelText('Логин'), { target: { value: 'owner' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'test-password' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Оставаться в системе/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+    await screen.findByText('Каталог пока пуст');
+    const login = fetchMock.mock.calls.find(([url]) => url.endsWith('/login'))!;
+    expect(JSON.parse(login[1].body).remember).toBe(false);
+  });
+  it('cancels deletion from the list without changing the catalogue', async () => {
+    rows = [product];
+    vi.mocked(window.confirm).mockReturnValue(false);
+    render(<AdminApp/>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Удалить товар «City 42»' }));
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('City 42'));
+    expect(fetchMock.mock.calls.some(([, options]) => options.method === 'DELETE')).toBe(false);
+    expect(screen.getByText('City 42')).toBeInTheDocument();
+  });
+  it('deletes only the selected card with CSRF after confirmation', async () => {
+    rows = [product, { ...product, id: 'other', name: 'Keep this model' }];
+    const normal = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, options: RequestInit) => options.method === 'DELETE'
+      ? Promise.resolve(response({ ok: true })) : normal(url, options));
+    render(<AdminApp/>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Удалить товар «City 42»' }));
+    await screen.findByText('Товар «City 42» удалён из каталога и CRM.');
+    expect(screen.queryByRole('button', { name: 'Удалить товар «City 42»' })).not.toBeInTheDocument();
+    expect(screen.getByText('Keep this model')).toBeInTheDocument();
+    const deletion = fetchMock.mock.calls.find(([, options]) => options.method === 'DELETE')!;
+    expect(deletion[0]).toBe('/api/admin/products/test-product');
+    expect(deletion[1].headers.get('X-CSRF-Token')).toBe(session.csrfToken);
+  });
+  it('keeps the card and reports a failed deletion', async () => {
+    rows = [product];
+    render(<AdminApp/>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Удалить товар «City 42»' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unexpected test endpoint');
+    expect(screen.getByText('City 42')).toBeInTheDocument();
+  });
   it('starts with blank login fields and submits credentials without browser storage', async () => {
     authenticated = false;
     const storageSpy = vi.spyOn(Storage.prototype, 'setItem');
@@ -45,7 +92,7 @@ describe('admin CRM', () => {
     await screen.findByText('Каталог пока пуст');
     const login = fetchMock.mock.calls.find(([url]) => url.endsWith('/login'))!;
     expect(login[1].credentials).toBe('same-origin');
-    expect(JSON.parse(login[1].body)).toEqual({ username: 'test-owner', password: 'Test-only-password!' });
+    expect(JSON.parse(login[1].body)).toEqual({ username: 'test-owner', password: 'Test-only-password!', remember: true });
     expect(storageSpy).not.toHaveBeenCalled(); storageSpy.mockRestore();
   });
   it('saves an incomplete card as a private draft with a CSRF header', async () => {

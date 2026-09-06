@@ -314,6 +314,68 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
             connection.execute("UPDATE sessions SET last_seen=?", (time.time() - 4000,))
         await self.assert_error(await self.client.get("/api/admin/session"), 401)
 
+    async def test_remembered_owner_session_persists_and_survives_cleanup(self):
+        response = await self.client.post("/api/admin/login", json={
+            "username": "test-owner", "password": TEST_PASSWORD, "remember": True,
+        }, headers={"Origin": self.origin})
+        self.assertEqual(response.status, 200, await response.text())
+        cookie = response.cookies[COOKIE_NAME]
+        self.assertEqual(int(cookie["max-age"]), 14 * 86400)
+        self.assertTrue(cookie["httponly"])
+        token = cookie.value
+        store = self.client.app[STORE_KEY]
+        with store.connect() as connection:
+            # Simulate closing the browser for two days, preserving the issued duration.
+            connection.execute("UPDATE sessions SET created_at=created_at-172800, expires_at=expires_at-172800, last_seen=last_seen-172800")
+        await self.login()  # A fresh short login must not prune the remembered device.
+        self.client.session.cookie_jar.clear()
+        self.client.session.cookie_jar.update_cookies({COOKIE_NAME: token})
+        response = await self.client.get("/api/admin/session")
+        self.assertEqual(response.status, 200, await response.text())
+        csrf = (await response.json())["csrfToken"]
+        logout = await self.client.post("/api/admin/logout", headers={"Origin": self.origin, "X-CSRF-Token": csrf})
+        self.assertEqual(logout.status, 200)
+        self.client.session.cookie_jar.update_cookies({COOKIE_NAME: token})
+        await self.assert_error(await self.client.get("/api/admin/session"), 401)
+
+    async def test_remembered_session_still_has_idle_and_absolute_expiry(self):
+        for column, expired in (("last_seen", time.time() - 8 * 86400), ("expires_at", time.time() - 1)):
+            login = await self.client.post("/api/admin/login", json={
+                "username": "test-owner", "password": TEST_PASSWORD, "remember": True,
+            }, headers={"Origin": self.origin})
+            self.assertEqual(login.status, 200)
+            with self.client.app[STORE_KEY].connect() as connection:
+                connection.execute(f"UPDATE sessions SET {column}=?", (expired,))
+            await self.assert_error(await self.client.get("/api/admin/session"), 401)
+
+    async def test_shared_device_login_has_no_persistent_cookie(self):
+        response = await self.client.post("/api/admin/login", json={
+            "username": "test-owner", "password": TEST_PASSWORD, "remember": False,
+        }, headers={"Origin": self.origin})
+        self.assertEqual(response.status, 200)
+        self.assertFalse(response.cookies[COOKIE_NAME]["max-age"])
+        self.assertFalse(response.cookies[COOKIE_NAME]["expires"])
+        await self.assert_error(await self.client.post("/api/admin/login", json={
+            "username": "test-owner", "password": TEST_PASSWORD, "remember": "true",
+        }, headers={"Origin": self.origin}), 400)
+
+    async def test_registration_remember_choice_and_owner_shared_entry(self):
+        for remember in (True, False):
+            response = await self.client.post("/api/account/register", json={
+                "name": "Photo customer", "contact": f"customer-{remember}@example.com",
+                "city": "Сочи", "password": CUSTOMER_PASSWORD, "consent": True, "remember": remember,
+            }, headers={"Origin": self.origin})
+            self.assertEqual(response.status, 200, await response.text())
+            cookie = response.cookies[ACCOUNT_COOKIE]
+            self.assertEqual(cookie["max-age"], str(60 * 86400) if remember else "")
+            account = await self.client.get("/api/account")
+            self.assertEqual((await account.json())["account"]["name"], "Photo customer")
+        owner = await self.client.post("/api/account/login", json={
+            "contact": "test-owner", "password": TEST_PASSWORD, "remember": True,
+        }, headers={"Origin": self.origin})
+        self.assertEqual(owner.status, 200, await owner.text())
+        self.assertEqual(int(owner.cookies[COOKIE_NAME]["max-age"]), 14 * 86400)
+
     async def test_settings_validation_and_inquiry_readiness(self):
         await self.login()
         response = await self.client.put("/api/admin/settings", json={"inquiries_enabled": True}, headers=self.headers)

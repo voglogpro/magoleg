@@ -17,8 +17,28 @@ function fillSignIn(contact: string, password: string) {
 }
 
 describe('customer account', () => {
+  it('restores the owner panel after a reload using the server session', async () => {
+    vi.mocked(fetch).mockResolvedValue(json({ username: 'owner', csrfToken: 'owner-token' }));
+    const storage = vi.spyOn(Storage.prototype, 'setItem');
+    render(<Account account={null} csrfToken="" onChange={vi.fn()} />);
+    expect(await screen.findByRole('link', { name: /Панель управления/ })).toHaveAttribute('href', '/admin');
+    expect(screen.queryByLabelText('Пароль')).not.toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith('/api/admin/session', expect.objectContaining({ credentials: 'same-origin' }));
+    expect(storage).not.toHaveBeenCalled();
+    storage.mockRestore();
+  });
+  it('ends a remembered owner session from the storefront', async () => {
+    vi.mocked(fetch).mockImplementation(async path => path === '/api/admin/session'
+      ? json({ username: 'owner', csrfToken: 'owner-token' }) : json({ ok: true }));
+    render(<Account account={null} csrfToken="" onChange={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Выйти из аккаунта' }));
+    await screen.findByLabelText('Пароль');
+    expect(fetch).toHaveBeenCalledWith('/api/admin/logout', expect.objectContaining({
+      method: 'POST', headers: expect.objectContaining({ 'X-CSRF-Token': 'owner-token' }),
+    }));
+  });
   it('registers a shopper and reports the account to the storefront', async () => {
-    vi.mocked(fetch).mockResolvedValue(json({ role: 'customer', account: profile, csrfToken: 'token' }));
+    vi.mocked(fetch).mockImplementation(async () => json({ role: 'customer', account: profile, csrfToken: 'token' }));
     const onChange = vi.fn();
     render(<Account account={null} csrfToken="" onChange={onChange} />);
     fireEvent.click(screen.getByRole('button', { name: 'Регистрация' }));
@@ -28,13 +48,13 @@ describe('customer account', () => {
     fireEvent.change(screen.getByLabelText(/Пароль/), { target: { value: 'двенадцать-символов' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
     await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
-    const [path, options] = vi.mocked(fetch).mock.calls[0];
+    const [path, options] = vi.mocked(fetch).mock.calls.find(([url]) => url === '/api/account/register')!;
     expect(path).toBe('/api/account/register');
-    expect(JSON.parse(options!.body as string)).toEqual({ name: 'Анна', contact: '+79001234567', city: 'Краснодар', password: 'двенадцать-символов', consent: true });
+    expect(JSON.parse(options!.body as string)).toEqual({ name: 'Анна', contact: '+79001234567', city: 'Краснодар', password: 'двенадцать-символов', consent: true, remember: true });
   });
 
   it('explains a rejected sign-in without making the shopper retype the password', async () => {
-    vi.mocked(fetch).mockResolvedValue(json({ error: 'Неверный логин или пароль.' }, 401));
+    vi.mocked(fetch).mockImplementation(async () => json({ error: 'Неверный логин или пароль.' }, 401));
     const onChange = vi.fn();
     render(<Account account={null} csrfToken="" onChange={onChange} />);
     fillSignIn('+79001234567', 'typed-password');
@@ -45,7 +65,7 @@ describe('customer account', () => {
   });
 
   it('sends the owner to the management panel instead of the shopper view', async () => {
-    vi.mocked(fetch).mockResolvedValue(json({ role: 'owner', username: 'owner', csrfToken: 'token' }));
+    vi.mocked(fetch).mockImplementation(async () => json({ role: 'owner', username: 'owner', csrfToken: 'token' }));
     const open = vi.fn();
     vi.stubGlobal('open', open);
     render(<Account account={null} csrfToken="" onChange={vi.fn()} />);

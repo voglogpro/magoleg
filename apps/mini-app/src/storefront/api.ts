@@ -49,7 +49,22 @@ export async function getSettings(signal?: AbortSignal): Promise<ShopSettings> {
   return settings;
 }
 
-type SignInResult = { role: 'owner' | 'customer'; account?: AccountProfile; csrfToken: string };
+type SignInResult = { role: 'owner' | 'customer'; account?: AccountProfile; username?: string; csrfToken: string };
+export type OwnerSession = { username: string; csrfToken: string };
+
+export async function getOwnerSession(signal?: AbortSignal): Promise<OwnerSession | null> {
+  try {
+    const session = await request<OwnerSession>('/api/admin/session', { signal });
+    return typeof session.username === 'string' && typeof session.csrfToken === 'string' ? session : null;
+  } catch (reason) {
+    if (reason instanceof StoreApiError && [401, 503].includes(reason.status)) return null;
+    throw reason;
+  }
+}
+
+export function signOutOwner(csrfToken: string) {
+  return accountRequest<{ ok: true }>('/api/admin/logout', {}, csrfToken);
+}
 
 async function accountRequest<T>(path: string, body: unknown, csrfToken = ''): Promise<T> {
   try {
@@ -67,12 +82,12 @@ async function accountRequest<T>(path: string, body: unknown, csrfToken = ''): P
 }
 
 /** Shared sign-in: the server decides whether the credentials belong to the shop owner. */
-export function signIn(contact: string, password: string) {
-  return accountRequest<SignInResult>('/api/account/login', { contact, password });
+export function signIn(contact: string, password: string, remember = true) {
+  return accountRequest<SignInResult>('/api/account/login', { contact, password, remember });
 }
 
-export function registerAccount(name: string, contact: string, city: string, password: string) {
-  return accountRequest<SignInResult>('/api/account/register', { name, contact, city, password, consent: true });
+export function registerAccount(name: string, contact: string, city: string, password: string, remember = true) {
+  return accountRequest<SignInResult>('/api/account/register', { name, contact, city, password, consent: true, remember });
 }
 
 export function signOut(csrfToken: string) {

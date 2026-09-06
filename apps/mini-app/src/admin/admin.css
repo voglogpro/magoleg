@@ -63,6 +63,9 @@
 .crm-app input::placeholder, .crm-app textarea::placeholder { color: #999ca6; font-size: 14px; opacity: 1; }
 .crm-app select { padding-right: 30px; }
 .crm-app .crm-product-rows { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--crm-line); }
+.crm-app .crm-row-actions { display: flex; justify-content: flex-end; padding: 0 12px 12px; border-bottom: 1px solid var(--crm-line); }
+.crm-app .crm-row-actions .crm-button { min-height: 44px; }
+.crm-app .crm-editor-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .crm-app .crm-product-row { display: grid; grid-template-columns: 68px minmax(0, 1fr) auto; width: 100%; gap: 14px; align-items: center; min-height: 108px; border: 0; border-bottom: 1px solid var(--crm-line); border-left: 3px solid transparent; padding: 14px 12px; background: transparent; color: var(--crm-text); text-align: left; }
 .crm-app .crm-product-row:hover:not(:disabled), .crm-app .crm-product-row.is-selected { background: #232327; }
 .crm-app .crm-product-row.is-selected { border-left-color: var(--crm-accent); }
@@ -81,6 +84,7 @@
 .crm-app .crm-product-editor { background: var(--crm-panel); border: 1px solid var(--crm-line); padding: 24px; border-radius: 6px; min-width: 0; }
 .crm-app .crm-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .crm-app .crm-editor-head > div { min-width: 0; }
+.crm-app .crm-editor-head { flex-wrap: wrap; }
 .crm-app .crm-editor-head .crm-button { flex-shrink: 0; }
 .crm-app fieldset { display: grid; gap: 18px; border: 0; border-top: 1px solid var(--crm-line); padding: 20px 0 0; margin: 0; min-width: 0; }
 .crm-app legend { font-size: 17px; font-weight: 600; padding: 0 12px 0 0; }

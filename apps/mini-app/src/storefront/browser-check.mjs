@@ -38,6 +38,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.route('**/media/test-2.webp', route => route.fulfill({ path: resolve('public/products/city-dark.webp'), contentType: 'image/webp' }));
   let accountState = { account: null };
   await page.route('**/api/account', route => route.fulfill({ json: accountState }));
+  await page.route('**/api/admin/session', route => route.fulfill({ status: 401, json: { error: 'Войдите в кабинет.' } }));
   await page.route('**/api/account/logout', route => route.fulfill({ json: { ok: true } }));
   await page.route('**/api/account/inquiries', route => route.fulfill({ json: { inquiries: [] } }));
   await page.route('**/api/account/login', async route => {

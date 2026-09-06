@@ -40,6 +40,8 @@ MAX_UPLOAD = 8 * 1024 * 1024
 MAX_PIXELS = 80_000_000
 SESSION_AGE = 8 * 60 * 60
 SESSION_IDLE = 60 * 60
+REMEMBER_SESSION_AGE = 14 * 24 * 60 * 60
+REMEMBER_SESSION_IDLE = 7 * 24 * 60 * 60
 COOKIE_NAME = "gpartner_admin"
 # Shoppers return in weeks, not hours: a short owner session would only teach
 # them to retype a password on a phone, without protecting the shop's data.
@@ -328,7 +330,9 @@ class Store:
         now = time.time()
         with self.connect() as connection:
             row = connection.execute("SELECT * FROM sessions WHERE token_hash=?", (token_hash,)).fetchone()
-            require(row is not None and row["expires_at"] > now and row["last_seen"] > now - SESSION_IDLE,
+            # Duration is server-issued and persisted, so old short sessions keep their policy.
+            idle = REMEMBER_SESSION_IDLE if row and row["expires_at"] - row["created_at"] > SESSION_AGE + 1 else SESSION_IDLE
+            require(row is not None and row["expires_at"] > now and row["last_seen"] > now - idle,
                     "Сессия истекла. Войдите снова.", 401)
             connection.execute("UPDATE sessions SET last_seen=? WHERE token_hash=?", (now, token_hash))
         if request.method not in ("GET", "HEAD", "OPTIONS"):
@@ -359,7 +363,7 @@ class Store:
                     "Обновите страницу и повторите действие.", 403)
         return row
 
-    def open_account_session(self, customer_id: str, payload: dict[str, Any]) -> web.Response:
+    def open_account_session(self, customer_id: str, payload: dict[str, Any], *, remember: bool = True) -> web.Response:
         token, csrf, now = secrets.token_urlsafe(32), secrets.token_urlsafe(32), time.time()
         with self.connect() as connection:
             connection.execute("DELETE FROM customer_sessions WHERE expires_at <= ? OR last_seen <= ?",
@@ -370,10 +374,10 @@ class Store:
                                (customer_id, ACCOUNT_SESSIONS_PER_CUSTOMER - 1))
             connection.execute("INSERT INTO customer_sessions VALUES(?,?,?,?,?,?)",
                                (hashlib.sha256(token.encode()).hexdigest(), customer_id, csrf,
-                                now, now, now + ACCOUNT_SESSION_AGE))
+                                now, now, now + (ACCOUNT_SESSION_AGE if remember else SESSION_AGE)))
         response = web.json_response({**payload, "csrfToken": csrf})
         response.set_cookie(ACCOUNT_COOKIE, token, httponly=True, secure=self.cookie_secure,
-                            samesite="Strict", path="/api", max_age=ACCOUNT_SESSION_AGE)
+                            samesite="Strict", path="/api", max_age=ACCOUNT_SESSION_AGE if remember else None)
         return response
 
     async def matching_password(self, password: str, encoded: str) -> bool:
@@ -477,17 +481,20 @@ async def store_middleware(request: web.Request, handler: Any) -> web.StreamResp
     return response
 
 
-def open_admin_session(store: Store, payload: dict[str, Any]) -> web.Response:
+def open_admin_session(store: Store, payload: dict[str, Any], *, remember: bool = False) -> web.Response:
     token, csrf, now = secrets.token_urlsafe(32), secrets.token_urlsafe(32), time.time()
     with store.connect() as connection:
-        connection.execute("DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ?", (now, now - SESSION_IDLE))
+        connection.execute("""DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ? -
+            CASE WHEN expires_at - created_at > ? THEN ? ELSE ? END""",
+                           (now, now, SESSION_AGE + 1, REMEMBER_SESSION_IDLE, SESSION_IDLE))
         connection.execute("""DELETE FROM sessions WHERE token_hash IN (
             SELECT token_hash FROM sessions ORDER BY created_at DESC LIMIT -1 OFFSET 4)""")
         connection.execute("INSERT INTO sessions VALUES(?,?,?,?,?,?)",
-                           (hashlib.sha256(token.encode()).hexdigest(), store.username, csrf, now, now, now + SESSION_AGE))
+                           (hashlib.sha256(token.encode()).hexdigest(), store.username, csrf, now, now,
+                            now + (REMEMBER_SESSION_AGE if remember else SESSION_AGE)))
     response = web.json_response({**payload, "csrfToken": csrf})
     response.set_cookie(COOKIE_NAME, token, httponly=True, secure=store.cookie_secure,
-                        samesite="Strict", path="/api/admin", max_age=SESSION_AGE)
+                        samesite="Strict", path="/api/admin", max_age=REMEMBER_SESSION_AGE if remember else None)
     return response
 
 
@@ -504,10 +511,12 @@ async def admin_login(request: web.Request) -> web.Response:
     store.rate_limit(request, "login", 8, 900)
     data = await read_json(request)
     username = text_value(data.get("username"), "Логин", 100, 1)
+    remember = data.get("remember", False)
+    require(isinstance(remember, bool), "Некорректная настройка сохранения входа.")
     password = data.get("password")
     require(isinstance(password, str) and 1 <= len(password) <= 256, "Некорректные данные входа.", 401)
     require(await owner_password_ok(store, username, password), "Неверный логин или пароль.", 401)
-    return open_admin_session(store, {"username": store.username})
+    return open_admin_session(store, {"username": store.username}, remember=remember)
 
 
 async def admin_session(request: web.Request) -> web.Response:
@@ -539,7 +548,9 @@ async def account_register(request: web.Request) -> web.Response:
     store = request.app[STORE_KEY]
     store.rate_limit(request, "account-register", 5, 3600)
     data = await read_json(request)
-    require(not (set(data) - {"name", "contact", "city", "password", "consent"}), "Неизвестные поля регистрации.")
+    require(not (set(data) - {"name", "contact", "city", "password", "consent", "remember"}), "Неизвестные поля регистрации.")
+    remember = data.get("remember", True)
+    require(isinstance(remember, bool), "Некорректная настройка сохранения входа.")
     require(data.get("consent") is True, "Нужно согласие на обработку данных для создания аккаунта.")
     name = text_value(data.get("name"), "Имя", 100, 2)
     contact = text_value(data.get("contact"), "Контакт", 150, 5)
@@ -561,7 +572,7 @@ async def account_register(request: web.Request) -> web.Response:
         connection.execute("INSERT INTO customers(id,identity,contact,name,password_hash,created_at,city) VALUES(?,?,?,?,?,?,?)",
                            (customer_id, identity, contact, name, encoded, now_iso(), city))
     return store.open_account_session(customer_id, {"role": "customer",
-                                                    "account": {"name": name, "contact": contact, "city": city}})
+                                                    "account": {"name": name, "contact": contact, "city": city}}, remember=remember)
 
 
 async def account_login(request: web.Request) -> web.Response:
@@ -569,13 +580,15 @@ async def account_login(request: web.Request) -> web.Response:
     store = request.app[STORE_KEY]
     store.rate_limit(request, "account-login", 12, 900)
     data = await read_json(request)
-    require(not (set(data) - {"contact", "password"}), "Неизвестные поля входа.")
+    require(not (set(data) - {"contact", "password", "remember"}), "Неизвестные поля входа.")
+    remember = data.get("remember", True)
+    require(isinstance(remember, bool), "Некорректная настройка сохранения входа.")
     contact = text_value(data.get("contact"), "Логин", 150, 1)
     password = data.get("password")
     require(isinstance(password, str) and 1 <= len(password) <= 256, "Неверный логин или пароль.", 401)
     if store.password_hash and hmac.compare_digest(contact.encode(), store.username.encode()):
         require(await owner_password_ok(store, contact, password), "Неверный логин или пароль.", 401)
-        return open_admin_session(store, {"role": "owner", "username": store.username})
+        return open_admin_session(store, {"role": "owner", "username": store.username}, remember=remember)
     identity = contact_identity(contact)
     with store.connect() as connection:
         row = connection.execute("SELECT id, name, contact, city, password_hash FROM customers WHERE identity=?",
@@ -585,7 +598,7 @@ async def account_login(request: web.Request) -> web.Response:
     assert row is not None  # A matching password proves the lookup found an account.
     return store.open_account_session(row["id"], {"role": "customer",
                                                   "account": {"name": row["name"], "contact": row["contact"],
-                                                              "city": row["city"]}})
+                                                              "city": row["city"]}}, remember=remember)
 
 
 async def account_logout(request: web.Request) -> web.Response:
