@@ -39,15 +39,14 @@ export const plural = (count: number, forms: [string, string, string]) => {
 };
 
 /**
- * Smart picks are ordinary catalogue filters with a shopper-friendly name: some the shop ticks
- * per product, the rest follow from data every product already carries. Empty picks are dropped
- * so the storefront never offers a selection that leads to an empty catalogue.
+ * Smart picks are ordinary catalogue filters with a shopper-friendly name: mostly the ones the
+ * shop ticks per product. Empty picks are dropped so the storefront never offers a selection
+ * that leads to an empty catalogue. Rights requirements stay in the filter panel only — as a
+ * pick they read like a promise about the law, which the shop does not want to make.
  */
 export function smartPicks(products: Product[]): SmartPick[] {
   const picks: Omit<SmartPick, 'count'>[] = [
     ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag } })),
-    { id: 'license-not-required', label: 'Можно без прав', hint: 'Права на такие модели не нужны', filters: { license: 'not-required' } },
-    { id: 'license-required', label: 'Нужны права', hint: 'Мощнее, но с категорией', filters: { license: 'required' } },
     { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'Отправляем от 3 дней', filters: { stock: 'in-stock' } },
   ];
   return picks.map(pick => ({ ...pick, count: filterProducts(products, { ...defaultFilters, ...pick.filters }).length })).filter(pick => pick.count > 0);

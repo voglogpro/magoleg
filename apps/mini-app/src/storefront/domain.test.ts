@@ -41,16 +41,16 @@ describe('smart picks', () => {
   const licensed: Product = { ...product, id: 'two', tags: [], license: 'required', stock_status: 'preorder' };
   it('offers picks the shop ticked and picks the products themselves imply', () => {
     const picks = smartPicks([product, licensed]);
-    expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'license-not-required', 'license-required', 'stock-in-stock']);
-    expect(picks.map(pick => pick.count)).toEqual([1, 1, 1, 1]);
+    expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'stock-in-stock']);
+    expect(picks.map(pick => pick.count)).toEqual([1, 1]);
     expect(picks[0].filters).toEqual({ tag: 'courier' });
   });
   it('hides picks with nothing behind them, including unpublished models', () => {
     expect(smartPicks([{ ...product, published: false }])).toEqual([]);
-    expect(smartPicks([licensed]).map(pick => pick.id)).toEqual(['license-required']);
+    expect(smartPicks([licensed])).toEqual([]);
   });
-  it('never promises a rights-free ride the shop has not verified', () => {
-    expect(smartPicks([{ ...product, license_verified: false }]).map(pick => pick.id)).not.toContain('license-not-required');
+  it('leaves rights requirements to the filter panel instead of naming a pick', () => {
+    expect(smartPicks([product, licensed]).map(pick => pick.id).join()).not.toContain('license');
   });
   it('counts models in readable Russian', () => {
     expect([1, 2, 5, 11, 21, 104].map(count => plural(count, ['модель', 'модели', 'моделей']))).toEqual(['модель', 'модели', 'моделей', 'моделей', 'модель', 'модели']);
