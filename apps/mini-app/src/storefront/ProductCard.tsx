@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
 import { effectiveLicense, money, productImage } from './domain';
-import { categoryLabels, licenseLabels, stockLabels, type Product } from './types';
+import { categoryLabels, licenseLabels, stockLabels, vehicleCategories, type Product } from './types';
 
 export function ProductPhoto({ product, large = false }: { product: Product; large?: boolean }) {
   const [broken, setBroken] = useState(false);
@@ -29,7 +29,7 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
         {product.range_km !== null && <div><dt>Запас хода</dt><dd>до {product.range_km} км</dd></div>}
         {product.power_w !== null && <div><dt>Мощность</dt><dd>{product.power_w} Вт</dd></div>}
       </dl>
-      <p className="sf-license-caption">{licenseLabels[effectiveLicense(product)]}</p>
+      {vehicleCategories.includes(product.category) && <p className="sf-license-caption">{licenseLabels[effectiveLicense(product)]}</p>}
       <strong className="sf-product-price">{money(product.price)}</strong>
       {inCart ? <a className="sf-button sf-button--secondary" href="#cart">В корзине</a> : <button className="sf-button" type="button" disabled={product.stock_status === 'out-of-stock'} onClick={() => onAdd(product.id)}>{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}
       <button className="sf-compare-button" type="button" onClick={() => onCompare(product.id)} aria-pressed={compared}>{compared ? 'В сравнении' : 'Сравнить'}</button>

@@ -37,7 +37,7 @@ export function parseFilters(search: string): Filters {
   const get = (key: string, allowed: string[], fallback: string) => allowed.includes(params.get(key) ?? '') ? params.get(key)! : fallback;
   const amount = (key: string) => /^\d{1,9}(\.\d{1,2})?$/.test(params.get(key) ?? '') ? params.get(key)! : '';
   return {
-    category: get('category', ['all', 'kick-scooter', 'scooter'], 'all') as Filters['category'],
+    category: get('category', ['all', 'kick-scooter', 'scooter', 'e-bike', 'parts', 'accessories'], 'all') as Filters['category'],
     license: get('license', ['all', 'required', 'not-required', 'unknown'], 'all') as Filters['license'],
     stock: get('stock', ['all', 'in-stock', 'preorder', 'out-of-stock'], 'all') as Filters['stock'],
     min: amount('min'), max: amount('max'),

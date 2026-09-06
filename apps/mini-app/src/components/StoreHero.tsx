@@ -14,7 +14,7 @@ export function createHeroTimeline(light: HTMLElement) {
   return timeline;
 }
 
-export function StoreHero({ city, onCatalog, onChoose }: { city: string; onCatalog: () => void; onChoose: () => void }) {
+export function StoreHero({ onCatalog }: { onCatalog: () => void }) {
   const light = useRef<HTMLDivElement>(null);
   const action = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -40,10 +40,10 @@ export function StoreHero({ city, onCatalog, onChoose }: { city: string; onCatal
     <div className="sf-hero-shade" aria-hidden="true" />
     <div className="sf-hero-light-track" aria-hidden="true"><div ref={light} className="sf-hero-light" /></div>
     <div className="sf-hero-copy">
-      <p className="sf-hero-location">{city || 'Большой Сочи'}</p>
+      <p className="sf-hero-location">Доставка по всей России</p>
       <h1 id="sf-hero-title">Магазин <span>электротранспорта</span></h1>
-      <p className="sf-hero-description">Самокаты и электроскутеры<br />для города и работы.</p>
-      <div className="sf-hero-actions"><button ref={action} className="sf-hero-cta" onClick={onCatalog}>Смотреть каталог <ArrowRight size={18} aria-hidden="true" /></button><button className="sf-hero-guide" onClick={onChoose}>Как выбрать</button></div>
+      <p className="sf-hero-description">Самокаты, скутеры и велосипеды<br />для города и работы.</p>
+      <div className="sf-hero-actions"><button ref={action} className="sf-hero-cta" onClick={onCatalog}>Смотреть каталог <ArrowRight size={18} aria-hidden="true" /></button></div>
     </div>
   </section>;
 }

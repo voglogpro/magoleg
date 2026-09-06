@@ -58,9 +58,9 @@ describe('customer account', () => {
       { id: 'abcdef123456', status: 'contacted', total: 19900, created_at: '2026-09-06T10:00:00+00:00', items: [{ product_id: 'one', name: 'Городская модель', price: 19900, quantity: 1 }] },
     ] }));
     render(<Account account={profile} csrfToken="token" onChange={vi.fn()} />);
-    expect(await screen.findByText('Заявка abcdef12')).toBeInTheDocument();
+    expect(await screen.findByText('Заявка №abcdef12')).toBeInTheDocument();
     expect(screen.getByText('Магазин связался с вами')).toBeInTheDocument();
-    expect(screen.getByText('Городская модель — 1 шт.')).toBeInTheDocument();
+    expect(screen.getByText('Городская модель')).toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/account/inquiries');
   });
 

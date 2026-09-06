@@ -1,4 +1,4 @@
-export type Category = 'kick-scooter' | 'scooter';
+export type Category = 'kick-scooter' | 'scooter' | 'e-bike' | 'parts' | 'accessories';
 export type License = 'required' | 'not-required' | 'unknown';
 export type Stock = 'in-stock' | 'preorder' | 'out-of-stock';
 
@@ -23,7 +23,6 @@ export type Product = {
 
 export type ShopSettings = {
   shop_name: string;
-  city: string;
   phone: string;
   telegram: string;
   address: string;
@@ -51,7 +50,7 @@ export type Filters = {
 };
 
 export const defaultSettings: ShopSettings = {
-  shop_name: 'G-Partner', city: 'Большой Сочи', phone: '', telegram: '', address: '', hours: '',
+  shop_name: 'G-Partner', phone: '', telegram: '', address: '', hours: '',
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
 };
 export const defaultFilters: Filters = { category: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
@@ -64,6 +63,11 @@ export type AccountInquiry = {
   created_at: string;
   items: { product_id: string; name: string; price: number | null; quantity: number }[];
 };
-export const categoryLabels = { 'kick-scooter': 'Электросамокаты', scooter: 'Электроскутеры' };
+export const categoryLabels: Record<Category, string> = {
+  'kick-scooter': 'Электросамокаты', scooter: 'Электроскутеры', 'e-bike': 'Электровелосипеды',
+  parts: 'Запчасти', accessories: 'Аксессуары',
+};
+/** Rider requirements only apply to vehicles; parts and accessories never carry them. */
+export const vehicleCategories: Category[] = ['kick-scooter', 'scooter', 'e-bike'];
 export const licenseLabels = { required: 'С правами', 'not-required': 'Без прав', unknown: 'Требования уточняются' };
 export const stockLabels = { 'in-stock': 'В наличии', preorder: 'Под заказ', 'out-of-stock': 'Нет в наличии' };

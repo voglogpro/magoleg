@@ -3,7 +3,7 @@ import { InquiryForm } from './InquiryForm';
 import { type ShopSettings } from './types';
 
 export const infoTitles: Record<string, string> = {
-  about: 'О магазине', city: 'Где мы работаем', delivery: 'Доставка и оплата', contact: 'Контакты', guide: 'Помощь с выбором', privacy: 'Обработка данных',
+  about: 'О магазине', delivery: 'Доставка и оплата', contact: 'Контакты', guide: 'Помощь с выбором', privacy: 'Обработка данных',
 };
 
 export function ContactLinks({ settings }: { settings: ShopSettings }) {
@@ -23,21 +23,15 @@ function Paragraph({ title, text, fallback }: { title: string; text: string; fal
 export function Information({ topic, settings }: { topic: string; settings: ShopSettings }) {
   return <article className="sf-information">
     {topic === 'about' && <>
-      <p className="sf-lead">{settings.shop_name} — магазин электротранспорта{settings.city ? ` в регионе ${settings.city}` : ''}.</p>
-      <p>Здесь можно выбрать электросамокат или электроскутер, сравнить характеристики и передать свой выбор магазину. Фотографии, цены и наличие публикует магазин.</p>
+      <p className="sf-lead">{settings.shop_name} — магазин электротранспорта с доставкой по всей России.</p>
+      <p>Здесь можно выбрать электросамокат, электроскутер или электровелосипед, подобрать запчасти и аксессуары, сравнить характеристики и передать свой выбор магазину. Фотографии, цены и наличие публикует магазин.</p>
       <section className="sf-info-section"><h2>Как подобрать модель</h2><ol><li>Выберите тип транспорта и задайте бюджет в каталоге.</li><li>Добавьте до трёх моделей в сравнение — основные характеристики будут рядом.</li><li>Соберите корзину и оставьте заявку, чтобы уточнить комплектацию, наличие и получение.</li></ol></section>
       <Paragraph title="Информация о продавце" text={[settings.legal_name, settings.legal_details].filter(Boolean).join('\n')} fallback="Реквизиты продавца ещё не опубликованы. До покупки уточните их у магазина." />
       <ContactLinks settings={settings} />
     </>}
-    {topic === 'city' && <>
-      <p className="sf-lead">Регион работы: {settings.city || 'уточняется'}</p>
-      <Paragraph title="Адрес" text={settings.address} fallback="Адрес для посещения пока не опубликован. Не планируйте поездку без подтверждения магазина." />
-      <Paragraph title="Время работы" text={settings.hours} fallback="График работы уточняется." />
-      <Paragraph title="Получение транспорта" text={settings.delivery} fallback="Возможность и условия доставки в ваш район необходимо уточнить перед покупкой." />
-      <ContactLinks settings={settings} />
-    </>}
     {topic === 'delivery' && <>
-      <Paragraph title="Доставка и самовывоз" text={settings.delivery} fallback="Способы получения, сроки и стоимость доставки пока не опубликованы. Магазин должен подтвердить их до покупки." />
+      <p className="sf-lead">Доставка по всей России, от 3 дней.</p>
+      <Paragraph title="Как приходит заказ" text={settings.delivery} fallback="Отправляем транспортными компаниями по России. Срок зависит от региона и начинается от 3 дней после подтверждения заказа. Точный срок и стоимость доставки магазин называет до оплаты." />
       <Paragraph title="Оплата" text={settings.payment} fallback="Онлайн-оплата на сайте не подключена. Заявка не списывает деньги; способ оплаты согласуется с магазином." />
       <Paragraph title="Гарантия и обслуживание" text={settings.warranty} fallback="Условия гарантии и обслуживания уточняются по документам конкретной модели до покупки." />
       <ContactLinks settings={settings} />
@@ -49,7 +43,7 @@ export function Information({ topic, settings }: { topic: string; settings: Shop
       <InquiryForm settings={settings} items={[]} />
     </>}
     {topic === 'contact' && <>
-      <p className="sf-lead">{settings.shop_name}{settings.city ? ` · ${settings.city}` : ''}</p>
+      <p className="sf-lead">{settings.shop_name}</p>
       <ContactLinks settings={settings} />
       {settings.address && <Paragraph title="Адрес" text={settings.address} fallback="" />}
       {settings.hours && <Paragraph title="Время работы" text={settings.hours} fallback="" />}
