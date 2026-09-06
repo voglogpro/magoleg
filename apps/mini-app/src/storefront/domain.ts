@@ -1,4 +1,4 @@
-import { defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, type CartItem, type CityChoice, type Filters, type Product } from './types';
+import { defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagLabels, type CartItem, type CityChoice, type Filters, type Product } from './types';
 
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
@@ -17,6 +17,7 @@ export function filterProducts(products: Product[], filters: Filters) {
   const maximum = filters.max.trim() ? Number(filters.max) : null;
   return products.filter(product => product.published
     && (filters.category === 'all' || product.category === filters.category)
+    && (filters.tag === 'all' || product.tags.includes(filters.tag))
     && (filters.license === 'all' || effectiveLicense(product) === filters.license)
     && (filters.stock === 'all' || product.stock_status === filters.stock)
     && (minimum === null || (product.price !== null && product.price >= minimum))
@@ -38,6 +39,7 @@ export function parseFilters(search: string): Filters {
   const amount = (key: string) => /^\d{1,9}(\.\d{1,2})?$/.test(params.get(key) ?? '') ? params.get(key)! : '';
   return {
     category: get('category', ['all', 'kick-scooter', 'scooter', 'e-bike', 'parts', 'accessories'], 'all') as Filters['category'],
+    tag: get('tag', ['all', ...Object.keys(tagLabels)], 'all') as Filters['tag'],
     license: get('license', ['all', 'required', 'not-required', 'unknown'], 'all') as Filters['license'],
     stock: get('stock', ['all', 'in-stock', 'preorder', 'out-of-stock'], 'all') as Filters['stock'],
     min: amount('min'), max: amount('max'),
@@ -49,6 +51,7 @@ export function catalogHref(patch: Partial<Filters> = {}) {
   const filters = { ...defaultFilters, ...patch };
   const params = new URLSearchParams();
   if (filters.category !== 'all') params.set('category', filters.category);
+  if (filters.tag !== 'all') params.set('tag', filters.tag);
   if (filters.license !== 'all') params.set('license', filters.license);
   if (filters.stock !== 'all') params.set('stock', filters.stock);
   if (filters.min) params.set('min', filters.min);

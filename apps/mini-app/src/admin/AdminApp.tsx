@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { adminRequest, AdminApiError, formatDate, formatPrice, mediaSource, type AdminSession, type Inquiry, type Product, type ShopSettings } from './api';
 import { productDraft, validateProduct, validateUpload, type ProductDraft } from './product-form';
-import { categoryLabels } from '../storefront/types';
+import { badgeLabels, categoryLabels, tagLabels, type ProductTag } from '../storefront/types';
 import './admin.css';
 
 type Request = <T>(path: string, options?: Parameters<typeof adminRequest>[1]) => Promise<T>;
@@ -164,6 +164,14 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <label>Мощность, Вт<input inputMode="numeric" type="number" min="0" max="500000" step="1" value={draft.power_w} onChange={event => update('power_w', event.target.value)}/></label>
           <label>Вес, кг<input inputMode="decimal" type="number" min="0" max="10000" step="0.1" value={draft.weight_kg} onChange={event => update('weight_kg', event.target.value)}/></label>
         </div></fieldset>
+        <fieldset disabled={busy}><legend>Умные подборки и отметки</legend>
+          <p className="crm-help">Подборки собирают товары на главной: покупатель нажимает и видит только подходящие модели.</p>
+          <div className="crm-tag-grid">{(Object.keys(tagLabels) as ProductTag[]).map(tag => <label className="crm-checkbox" key={tag}>
+            <input type="checkbox" checked={draft.tags.includes(tag)} onChange={event => update('tags', event.target.checked ? [...draft.tags, tag] : draft.tags.filter(value => value !== tag))} />
+            <span>{tagLabels[tag]}</span>
+          </label>)}</div>
+          <label>Отметка на карточке<select value={draft.badge} onChange={event => update('badge', event.target.value as Product['badge'])}><option value="">Без отметки</option>{Object.entries(badgeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+        </fieldset>
         <fieldset disabled={busy}><legend>Документы и показ на сайте</legend>
           <label>Водительские права<select value={draft.license} onChange={event => update('license', event.target.value as Product['license'])}><option value="unknown">Не проверено</option><option value="required">С правами</option><option value="not-required">Без прав</option></select></label>
           <label className="crm-checkbox"><input type="checkbox" checked={draft.license_verified} onChange={event => update('license_verified', event.target.checked)}/><span>Я проверил документы модели и требования к водительским правам</span></label>

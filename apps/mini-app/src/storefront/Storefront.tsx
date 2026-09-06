@@ -8,7 +8,7 @@ import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
 import { ProductCard, ProductPhoto } from './ProductCard';
-import { categoryLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, vehicleCategories, type Filters, type Inquiry, type Product } from './types';
+import { categoryLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagHints, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product, type ProductTag } from './types';
 import './storefront.css';
 
 function Empty({ title, children, icon: Icon = PackageOpen, action = true }: {
@@ -22,12 +22,18 @@ function Empty({ title, children, icon: Icon = PackageOpen, action = true }: {
 }
 
 /** Transport type stays visible; price, licence and availability live behind the filter icon. */
-function TypeChips({ current, onPick }: { current: Filters['category']; onPick: (category: Filters['category']) => void }) {
+function TypeChips({ current, onPick, options }: {
+  current: Filters['category']; onPick: (category: Filters['category']) => void;
+  options: [Filters['category'], string][];
+}) {
   return <div className="sf-category-tabs" role="group" aria-label="Тип транспорта">
-    {([['all', 'Все модели'], ...Object.entries(categoryLabels)] as [Filters['category'], string][]).map(([category, label]) =>
+    {options.map(([category, label]) =>
       <button key={category} aria-pressed={current === category} onClick={() => onPick(category)}>{label}</button>)}
   </div>;
 }
+
+const catalogTypes = [['all', 'Все модели'], ...Object.entries(categoryLabels)] as [Filters['category'], string][];
+const homeTypes = vehicleCategories.map(category => [category, categoryLabels[category]]) as [Filters['category'], string][];
 
 export function Storefront() {
   const { products, settings, loading, error, settingsError, retry } = useStoreData();
@@ -49,7 +55,7 @@ export function Storefront() {
   const selectedFavorites = products.filter(product => favorites.includes(product.id));
   const selectedCompare = compare.map(id => products.find(product => product.id === id)).filter((product): product is Product => Boolean(product));
   const cartSummary = cartTotal(cart, products);
-  const activeFilterCount = [filters.category !== 'all', filters.license !== 'all', filters.stock !== 'all', Boolean(filters.min || filters.max)].filter(Boolean).length;
+  const activeFilterCount = [filters.category !== 'all', filters.tag !== 'all', filters.license !== 'all', filters.stock !== 'all', Boolean(filters.min || filters.max)].filter(Boolean).length;
   const isProduct = path.startsWith('product/');
   let productId = '';
   if (isProduct) { try { productId = decodeURIComponent(path.slice(8)); } catch { /* Invalid deep link is rendered as not found. */ } }
@@ -101,6 +107,7 @@ export function Storefront() {
   </div>;
   const catalogState = loading ? <p className="sf-loading" role="status">Загружаем каталог…</p> : error ? <div className="sf-empty" role="alert"><h2>Каталог временно недоступен</h2><p>{error}</p><button className="sf-button" onClick={retry}>Повторить загрузку</button></div> : null;
   const featured = [...products.filter(product => product.featured), ...products.filter(product => !product.featured)].slice(0, 4);
+  const offeredTags = (Object.keys(tagLabels) as ProductTag[]).filter(tag => products.some(product => product.tags.includes(tag)));
   const sections = ['about', 'delivery', 'contact', 'guide'];
 
   return <div className="sf-store">
@@ -129,10 +136,14 @@ export function Storefront() {
           <section className="sf-home-selection" aria-labelledby="sf-choose-title">
             <div className="sf-section-heading"><h2 id="sf-choose-title">Каталог транспорта</h2><a href="#catalog">Все модели <ArrowRight size={16} /></a></div>
             <div className="sf-type-row">
-              <TypeChips current="all" onPick={category => navigate(catalogHref({ category }))} />
+              <TypeChips current="all" options={homeTypes} onPick={category => navigate(catalogHref({ category }))} />
               <a className="sf-filter-icon" href="#catalog?filters=open" aria-label="Фильтры: цена, права, наличие"><SlidersHorizontal size={20} /></a>
             </div>
           </section>
+          {offeredTags.length > 0 && <section className="sf-home-picks" aria-labelledby="sf-picks-title">
+            <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2></div>
+            <div className="sf-pick-grid">{offeredTags.map(tag => <a href={catalogHref({ tag })} key={tag}><strong>{tagLabels[tag]}</strong><span>{tagHints[tag]}</span></a>)}</div>
+          </section>}
           <section className="sf-home-products" aria-labelledby="sf-products-title"><div className="sf-section-heading"><h2 id="sf-products-title">{products.some(product => product.featured) ? 'Выбор магазина' : 'Модели в каталоге'}</h2>{products.length > 0 && <a href="#catalog">Все модели <ArrowRight size={16} /></a>}</div>
             {catalogState || (featured.length ? cards(featured) : <div className="sf-catalog-preparing"><h3>Готовим ассортимент</h3><p>Здесь появятся фотографии, характеристики и цены после публикации товаров магазином.</p><a href="#contact">Контакты и информация о магазине</a></div>)}
           </section>
@@ -142,11 +153,12 @@ export function Storefront() {
 
       {path === 'catalog' && <div className="sf-catalog">
         <div className="sf-type-row">
-          <TypeChips current={filters.category} onPick={category => updateFilters({ category })} />
+          <TypeChips current={filters.category} options={catalogTypes} onPick={category => updateFilters({ category })} />
           <button className="sf-filter-toggle sf-filter-icon" aria-expanded={filtersOpen} aria-controls="sf-filter-panel" aria-label={`Фильтры: цена, права, наличие${activeFilterCount > 0 ? `. Выбрано: ${activeFilterCount}` : ''}`} onClick={() => setFiltersOpen(value => !value)}><SlidersHorizontal size={20} />{activeFilterCount > 0 && <span className="sf-count">{activeFilterCount}</span>}</button>
         </div>
         <div className="sf-catalog-toolbar"><label className="sf-sort"><span className="sf-sr-only">Порядок товаров</span><select value={filters.sort} onChange={event => updateFilters({ sort: event.target.value as Filters['sort'] })}><option value="featured">Выбор магазина</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select></label><div className="sf-view-toggle" aria-label="Вид каталога"><button aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>Плитка</button><button aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>Список</button></div></div>
         <section className="sf-filter-panel" id="sf-filter-panel" hidden={!filtersOpen} aria-label="Фильтры каталога">
+          <div><h2>Умные подборки</h2><div className="sf-filter-options">{([['all', 'Любая'], ...Object.entries(tagLabels)] as [Filters['tag'], string][]).map(([tag, label]) => <button key={tag} aria-pressed={filters.tag === tag} onClick={() => updateFilters({ tag })}>{label}</button>)}</div><p>Подборки отмечает магазин в карточке товара.</p></div>
           <div><h2>Водительские права</h2><div className="sf-filter-options">{([['all', 'Все варианты'], ...Object.entries(licenseLabels)] as string[][]).map(([license, label]) => <button key={license} aria-pressed={filters.license === license} onClick={() => updateFilters({ license: license as Filters['license'] })}>{label}</button>)}</div><p>Категория «Без прав» отображается только для моделей с проверенными магазином документами. Уточняйте требования перед покупкой.</p></div>
           <div><h2>Цена, ₽</h2><div className="sf-price-fields"><label><span>От</span><input type="number" inputMode="decimal" min={0} max={999999999} step="0.01" value={filters.min} onChange={event => updateFilters({ min: event.target.value })} /></label><label><span>До</span><input type="number" inputMode="decimal" min={0} max={999999999} step="0.01" value={filters.max} onChange={event => updateFilters({ max: event.target.value })} /></label></div>{filters.min && filters.max && Number(filters.min) > Number(filters.max) && <p className="sf-error">Цена «От» должна быть не больше цены «До».</p>}<label className="sf-stock-filter">Наличие<select value={filters.stock} onChange={event => updateFilters({ stock: event.target.value as Filters['stock'] })}><option value="all">Любое</option>{Object.entries(stockLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div>
           <div className="sf-filter-panel__actions"><button className="sf-button" onClick={() => setFiltersOpen(false)}>Показать товары</button><button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить фильтры</button></div>
@@ -154,6 +166,7 @@ export function Storefront() {
         <div className="sf-results-heading"><p aria-live="polite">{loading ? 'Загрузка…' : `Найдено моделей: ${filtered.length}`}</p>{activeFilterCount > 0 && <button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить всё</button>}</div>
         {activeFilterCount > 0 && <div className="sf-active-filters" aria-label="Выбранные фильтры">
           {filters.category !== 'all' && <button onClick={() => updateFilters({ category: 'all' })}>{categoryLabels[filters.category]}<X size={14} aria-label="Убрать фильтр" /></button>}
+          {filters.tag !== 'all' && <button onClick={() => updateFilters({ tag: 'all' })}>{tagLabels[filters.tag]}<X size={14} aria-label="Убрать подборку" /></button>}
           {filters.license !== 'all' && <button onClick={() => updateFilters({ license: 'all' })}>{licenseLabels[filters.license]}<X size={14} aria-label="Убрать фильтр" /></button>}
           {filters.stock !== 'all' && <button onClick={() => updateFilters({ stock: 'all' })}>{stockLabels[filters.stock]}<X size={14} aria-label="Убрать фильтр" /></button>}
           {(filters.min || filters.max) && <button onClick={() => updateFilters({ min: '', max: '' })}>{filters.min ? `От ${filters.min} ₽` : ''} {filters.max ? `До ${filters.max} ₽` : ''}<X size={14} aria-label="Убрать цену" /></button>}
@@ -165,6 +178,7 @@ export function Storefront() {
       {isProduct && (catalogState || (currentProduct ? <div className="sf-product-detail">
         <ProductPhoto key={currentProduct.image_url} product={currentProduct} large />
         <div className="sf-product-detail__summary"><p className="sf-product-category">{categoryLabels[currentProduct.category]}</p><p className={`sf-stock sf-stock--${currentProduct.stock_status}`}>{stockLabels[currentProduct.stock_status]}</p><strong className="sf-detail-price">{money(currentProduct.price)}</strong><p className="sf-muted">Наличие, комплектацию и условия получения подтвердит магазин.</p><div className="sf-detail-actions">{cart.some(item => item.product_id === currentProduct.id) ? <a className="sf-button" href="#cart">Перейти в корзину</a> : <button className="sf-button" disabled={currentProduct.stock_status === 'out-of-stock'} onClick={() => addToCart(currentProduct.id)}>{currentProduct.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'Добавить в корзину'}</button>}<button className="sf-button sf-button--secondary" aria-pressed={favorites.includes(currentProduct.id)} onClick={() => toggleFavorite(currentProduct.id)}>{favorites.includes(currentProduct.id) ? 'В избранном' : 'В избранное'}</button><button className="sf-text-button" aria-pressed={compare.includes(currentProduct.id)} onClick={() => toggleCompare(currentProduct.id)}>{compare.includes(currentProduct.id) ? 'Убрать из сравнения' : 'Добавить в сравнение'}</button></div><dl className="sf-detail-specs">{([['Запас хода', currentProduct.range_km, 'км'], ['Максимальная скорость', currentProduct.speed_kmh, 'км/ч'], ['Мощность', currentProduct.power_w, 'Вт'], ['Вес', currentProduct.weight_kg, 'кг']] as const).map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{value === null ? 'Уточняется' : `${value} ${unit}`}</dd></div>)}{vehicleCategories.includes(currentProduct.category) && <div><dt>Водительские права</dt><dd>{licenseLabels[effectiveLicense(currentProduct)]}</dd></div>}</dl><p className="sf-muted">Требования к управлению проверяйте по документам конкретной модели. Запас хода зависит от нагрузки и условий поездки.</p></div>
+        {currentProduct.tags.length > 0 && <ul className="sf-product-tags" aria-label="Подборки магазина">{currentProduct.tags.map(tag => <li key={tag}><a href={catalogHref({ tag })}>{tagLabels[tag]}</a></li>)}</ul>}
         <section className="sf-product-description"><h2>О модели</h2><p className="sf-preserve-lines">{currentProduct.description || 'Описание этой модели готовится. Подробности можно уточнить у магазина.'}</p></section>
         <nav className="sf-product-info-links" aria-label="Условия покупки"><a href="#delivery">Доставка, оплата и гарантия</a><a href="#contact">Связаться с магазином</a></nav>
       </div> : <Empty title="Товар не найден">Возможно, магазин снял модель с публикации. Посмотрите другие варианты в каталоге.</Empty>))}
