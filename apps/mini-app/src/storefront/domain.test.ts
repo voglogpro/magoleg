@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, productImage, sanitizeCart, sanitizeIds, telegramLink } from './domain';
+import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, plural, productImage, sanitizeCart, sanitizeIds, smartPicks, telegramLink } from './domain';
 import { defaultFilters, type Product } from './types';
 
 const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, image_url: '/media/products/one.webp', featured: false, published: true, tags: ['courier'], badge: '', updated_at: '2026-09-06' };
@@ -34,6 +34,26 @@ describe('catalogue filtering', () => {
     expect(parseFilters(catalogHref(filters).split('?')[1])).toEqual(filters);
     expect(parseFilters('category=spaceship&tag=unicorn&license=free&min=-1&max=NaN&sort=code')).toEqual(defaultFilters);
     expect(parseFilters('filters=open')).toEqual(defaultFilters);
+  });
+});
+
+describe('smart picks', () => {
+  const licensed: Product = { ...product, id: 'two', tags: [], license: 'required', stock_status: 'preorder' };
+  it('offers picks the shop ticked and picks the products themselves imply', () => {
+    const picks = smartPicks([product, licensed]);
+    expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'license-not-required', 'license-required', 'stock-in-stock']);
+    expect(picks.map(pick => pick.count)).toEqual([1, 1, 1, 1]);
+    expect(picks[0].filters).toEqual({ tag: 'courier' });
+  });
+  it('hides picks with nothing behind them, including unpublished models', () => {
+    expect(smartPicks([{ ...product, published: false }])).toEqual([]);
+    expect(smartPicks([licensed]).map(pick => pick.id)).toEqual(['license-required']);
+  });
+  it('never promises a rights-free ride the shop has not verified', () => {
+    expect(smartPicks([{ ...product, license_verified: false }]).map(pick => pick.id)).not.toContain('license-not-required');
+  });
+  it('counts models in readable Russian', () => {
+    expect([1, 2, 5, 11, 21, 104].map(count => plural(count, ['модель', 'модели', 'моделей']))).toEqual(['модель', 'модели', 'моделей', 'моделей', 'модель', 'модели']);
   });
 });
 
