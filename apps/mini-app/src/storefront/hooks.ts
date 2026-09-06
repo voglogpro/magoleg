@@ -1,6 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getProducts, getSettings } from './api';
-import { defaultSettings, type ShopSettings, type Product } from './types';
+import { getAccount, getProducts, getSettings } from './api';
+import { defaultSettings, type AccountProfile, type ShopSettings, type Product } from './types';
+
+export function useAccount() {
+  const [account, setAccount] = useState<AccountProfile | null>(null);
+  const [csrfToken, setCsrfToken] = useState('');
+  const [ready, setReady] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const refresh = useCallback(() => setRevision(value => value + 1), []);
+  useEffect(() => {
+    const controller = new AbortController();
+    void getAccount(controller.signal)
+      // A signed-out visitor and an unreachable server look the same here: the
+      // shop stays usable without an account either way.
+      .then(state => { setAccount(state.account); setCsrfToken(state.csrfToken ?? ''); })
+      .catch(() => { if (!controller.signal.aborted) { setAccount(null); setCsrfToken(''); } })
+      .finally(() => { if (!controller.signal.aborted) setReady(true); });
+    return () => controller.abort();
+  }, [revision]);
+  return { account, csrfToken, ready, refresh };
+}
 
 export function useStoreData() {
   const [products, setProducts] = useState<Product[]>([]);

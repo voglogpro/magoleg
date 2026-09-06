@@ -38,6 +38,12 @@ MAX_PIXELS = 20_000_000
 SESSION_AGE = 8 * 60 * 60
 SESSION_IDLE = 60 * 60
 COOKIE_NAME = "gpartner_admin"
+# Shoppers return in weeks, not hours: a short owner session would only teach
+# them to retype a password on a phone, without protecting the shop's data.
+ACCOUNT_COOKIE = "gpartner_account"
+ACCOUNT_SESSION_AGE = 60 * 24 * 60 * 60
+ACCOUNT_SESSION_IDLE = 30 * 24 * 60 * 60
+ACCOUNT_SESSIONS_PER_CUSTOMER = 6
 MEDIA_NAME = re.compile(r"[a-f0-9]{32}\.webp\Z")
 PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
@@ -130,6 +136,16 @@ def valid_phone(value: str) -> bool:
             and value.count("+") <= 1 and "+" not in value[1:])
 
 
+def contact_identity(contact: str) -> str:
+    """Normalized phone, email or Telegram name; empty when the contact is unusable."""
+    if valid_phone(contact):
+        return "".join(character for character in contact if character.isdigit())
+    if (re.fullmatch(r"@?[A-Za-z][A-Za-z0-9_]{4,31}", contact)
+            or re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact)):
+        return contact.removeprefix("@").lower()
+    return ""
+
+
 async def read_json(request: web.Request) -> dict[str, Any]:
     require(request.content_type == "application/json", "Ожидается JSON.", 415)
     if request.content_length is not None:
@@ -172,6 +188,9 @@ class Store:
         self.allowed_origin = origin_of(os.getenv("PUBLIC_ORIGIN", "") or os.getenv("MINI_APP_URL", ""))
         self.hash_lock = asyncio.Semaphore(2)
         self.image_lock = asyncio.Semaphore(2)
+        # Verified when a login names nobody, so a missing account costs the
+        # same time as a wrong password and cannot be told apart.
+        self.dummy_hash = ""
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -214,10 +233,23 @@ class Store:
                     key_hash TEXT PRIMARY KEY, request_hash TEXT NOT NULL,
                     response TEXT NOT NULL, created_at REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS customers (
+                    id TEXT PRIMARY KEY, identity TEXT NOT NULL UNIQUE, contact TEXT NOT NULL,
+                    name TEXT NOT NULL, password_hash TEXT NOT NULL, created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS customer_sessions (
+                    token_hash TEXT PRIMARY KEY, customer_id TEXT NOT NULL, csrf TEXT NOT NULL,
+                    created_at REAL NOT NULL, last_seen REAL NOT NULL, expires_at REAL NOT NULL
+                );
                 CREATE INDEX IF NOT EXISTS products_public ON products(published, updated_at);
                 CREATE INDEX IF NOT EXISTS inquiries_created ON inquiries(created_at);
                 CREATE INDEX IF NOT EXISTS inquiries_status_created ON inquiries(status, created_at, id);
+                CREATE INDEX IF NOT EXISTS customer_sessions_owner ON customer_sessions(customer_id);
             """)
+            # Inquiries predate accounts; older rows stay unlinked and owner-only.
+            if "customer_id" not in {row["name"] for row in connection.execute("PRAGMA table_info(inquiries)")}:
+                connection.execute("ALTER TABLE inquiries ADD COLUMN customer_id TEXT")
+            connection.execute("CREATE INDEX IF NOT EXISTS inquiries_customer ON inquiries(customer_id, created_at)")
             connection.execute("INSERT OR IGNORE INTO settings(id,data) VALUES(1,?)",
                                (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),))
         if os.name != "nt":
@@ -237,6 +269,8 @@ class Store:
                 connection.execute("DELETE FROM sessions")
             connection.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('auth_fingerprint',?)", (fingerprint,))
             connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (time.time(),))
+            connection.execute("DELETE FROM customer_sessions WHERE expires_at <= ?", (time.time(),))
+        self.dummy_hash = await asyncio.to_thread(hash_password, secrets.token_urlsafe(32))
 
     def settings(self, connection: sqlite3.Connection | None = None) -> dict[str, Any]:
         if connection is None:
@@ -288,6 +322,50 @@ class Store:
             csrf = request.headers.get("X-CSRF-Token", "")
             require(hmac.compare_digest(csrf.encode(), row["csrf"].encode()), "Обновите страницу и повторите действие.", 403)
         return row
+
+    def account(self, request: web.Request, required: bool = True, csrf: bool = True) -> sqlite3.Row | None:
+        """Resolve the signed-in customer; ``required`` decides whether absence is an error."""
+        token = request.cookies.get(ACCOUNT_COOKIE, "")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+            require(not required, "Войдите в аккаунт.", 401)
+            return None
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        now = time.time()
+        with self.connect() as connection:
+            row = connection.execute("""SELECT s.token_hash, s.csrf, c.id, c.name, c.contact
+                FROM customer_sessions s JOIN customers c ON c.id = s.customer_id
+                WHERE s.token_hash=? AND s.expires_at > ? AND s.last_seen > ?""",
+                                     (token_hash, now, now - ACCOUNT_SESSION_IDLE)).fetchone()
+            if row is None:
+                require(not required, "Сессия истекла. Войдите снова.", 401)
+                return None
+            connection.execute("UPDATE customer_sessions SET last_seen=? WHERE token_hash=?", (now, token_hash))
+        if csrf and request.method not in ("GET", "HEAD", "OPTIONS"):
+            supplied = request.headers.get("X-CSRF-Token", "")
+            require(hmac.compare_digest(supplied.encode(), row["csrf"].encode()),
+                    "Обновите страницу и повторите действие.", 403)
+        return row
+
+    def open_account_session(self, customer_id: str, payload: dict[str, Any]) -> web.Response:
+        token, csrf, now = secrets.token_urlsafe(32), secrets.token_urlsafe(32), time.time()
+        with self.connect() as connection:
+            connection.execute("DELETE FROM customer_sessions WHERE expires_at <= ? OR last_seen <= ?",
+                               (now, now - ACCOUNT_SESSION_IDLE))
+            connection.execute("""DELETE FROM customer_sessions WHERE token_hash IN (
+                SELECT token_hash FROM customer_sessions WHERE customer_id=?
+                ORDER BY created_at DESC LIMIT -1 OFFSET ?)""",
+                               (customer_id, ACCOUNT_SESSIONS_PER_CUSTOMER - 1))
+            connection.execute("INSERT INTO customer_sessions VALUES(?,?,?,?,?,?)",
+                               (hashlib.sha256(token.encode()).hexdigest(), customer_id, csrf,
+                                now, now, now + ACCOUNT_SESSION_AGE))
+        response = web.json_response({**payload, "csrfToken": csrf})
+        response.set_cookie(ACCOUNT_COOKIE, token, httponly=True, secure=self.cookie_secure,
+                            samesite="Strict", path="/api", max_age=ACCOUNT_SESSION_AGE)
+        return response
+
+    async def matching_password(self, password: str, encoded: str) -> bool:
+        async with self.hash_lock:
+            return await asyncio.to_thread(verify_password, password, encoded or self.dummy_hash)
 
     def product(self, data: dict[str, Any], previous: dict[str, Any] | None = None) -> dict[str, Any]:
         require(not (set(data) - PRODUCT_FIELDS - {"id", "updated_at"}), "Неизвестные поля товара.")
@@ -367,6 +445,27 @@ async def store_middleware(request: web.Request, handler: Any) -> web.StreamResp
     return response
 
 
+def open_admin_session(store: Store, payload: dict[str, Any]) -> web.Response:
+    token, csrf, now = secrets.token_urlsafe(32), secrets.token_urlsafe(32), time.time()
+    with store.connect() as connection:
+        connection.execute("DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ?", (now, now - SESSION_IDLE))
+        connection.execute("""DELETE FROM sessions WHERE token_hash IN (
+            SELECT token_hash FROM sessions ORDER BY created_at DESC LIMIT -1 OFFSET 4)""")
+        connection.execute("INSERT INTO sessions VALUES(?,?,?,?,?,?)",
+                           (hashlib.sha256(token.encode()).hexdigest(), store.username, csrf, now, now, now + SESSION_AGE))
+    response = web.json_response({**payload, "csrfToken": csrf})
+    response.set_cookie(COOKIE_NAME, token, httponly=True, secure=store.cookie_secure,
+                        samesite="Strict", path="/api/admin", max_age=SESSION_AGE)
+    return response
+
+
+async def owner_password_ok(store: Store, username: str, password: str) -> bool:
+    if store.hash_lock.locked():
+        raise APIError(429, "Сейчас выполняется вход. Повторите через несколько секунд.", retry_after=2)
+    matches = await store.matching_password(password, store.password_hash)
+    return matches and hmac.compare_digest(username.encode(), store.username.encode())
+
+
 async def admin_login(request: web.Request) -> web.Response:
     store = request.app[STORE_KEY]
     require(bool(store.password_hash), "Вход в кабинет ещё не настроен.", 503)
@@ -375,23 +474,8 @@ async def admin_login(request: web.Request) -> web.Response:
     username = text_value(data.get("username"), "Логин", 100, 1)
     password = data.get("password")
     require(isinstance(password, str) and 1 <= len(password) <= 256, "Некорректные данные входа.", 401)
-    if store.hash_lock.locked():
-        raise APIError(429, "Сейчас выполняется вход. Повторите через несколько секунд.", retry_after=2)
-    async with store.hash_lock:
-        password_ok = await asyncio.to_thread(verify_password, password, store.password_hash)
-    require(password_ok and hmac.compare_digest(username.encode(), store.username.encode()),
-            "Неверный логин или пароль.", 401)
-    token, csrf, now = secrets.token_urlsafe(32), secrets.token_urlsafe(32), time.time()
-    with store.connect() as connection:
-        connection.execute("DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ?", (now, now - SESSION_IDLE))
-        connection.execute("""DELETE FROM sessions WHERE token_hash IN (
-            SELECT token_hash FROM sessions ORDER BY created_at DESC LIMIT -1 OFFSET 4)""")
-        connection.execute("INSERT INTO sessions VALUES(?,?,?,?,?,?)",
-                           (hashlib.sha256(token.encode()).hexdigest(), store.username, csrf, now, now, now + SESSION_AGE))
-    response = web.json_response({"csrfToken": csrf, "username": store.username})
-    response.set_cookie(COOKIE_NAME, token, httponly=True, secure=store.cookie_secure,
-                        samesite="Strict", path="/api/admin", max_age=SESSION_AGE)
-    return response
+    require(await owner_password_ok(store, username, password), "Неверный логин или пароль.", 401)
+    return open_admin_session(store, {"username": store.username})
 
 
 async def admin_session(request: web.Request) -> web.Response:
@@ -406,6 +490,92 @@ async def admin_logout(request: web.Request) -> web.Response:
     response.del_cookie(COOKIE_NAME, path="/api/admin", secure=request.app[STORE_KEY].cookie_secure,
                         httponly=True, samesite="Strict")
     return response
+
+
+def account_payload(row: sqlite3.Row) -> dict[str, Any]:
+    return {"account": {"name": row["name"], "contact": row["contact"]}}
+
+
+async def account_state(request: web.Request) -> web.Response:
+    row = request.app[STORE_KEY].account(request, required=False)
+    if row is None:
+        return web.json_response({"account": None})
+    return web.json_response({**account_payload(row), "csrfToken": row["csrf"]})
+
+
+async def account_register(request: web.Request) -> web.Response:
+    store = request.app[STORE_KEY]
+    store.rate_limit(request, "account-register", 5, 3600)
+    data = await read_json(request)
+    require(not (set(data) - {"name", "contact", "password", "consent"}), "Неизвестные поля регистрации.")
+    require(data.get("consent") is True, "Нужно согласие на обработку данных для создания аккаунта.")
+    name = text_value(data.get("name"), "Имя", 100, 2)
+    contact = text_value(data.get("contact"), "Контакт", 150, 5)
+    identity = contact_identity(contact)
+    require(bool(identity), "Укажите телефон, email или имя пользователя Telegram.")
+    password = data.get("password")
+    require(isinstance(password, str) and 12 <= len(password) <= 256, "Пароль: от 12 до 256 символов.")
+    store.rate_limit(request, "account-register-contact", 3, 3600, identity=identity)
+    if store.hash_lock.locked():
+        raise APIError(429, "Сейчас выполняется вход. Повторите через несколько секунд.", retry_after=2)
+    async with store.hash_lock:
+        encoded = await asyncio.to_thread(hash_password, password)
+    customer_id = secrets.token_hex(16)
+    with store.connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        taken = connection.execute("SELECT 1 FROM customers WHERE identity=?", (identity,)).fetchone()
+        require(taken is None, "Аккаунт с таким контактом уже существует. Войдите или используйте другой контакт.", 409)
+        connection.execute("INSERT INTO customers VALUES(?,?,?,?,?,?)",
+                           (customer_id, identity, contact, name, encoded, now_iso()))
+    return store.open_account_session(customer_id, {"role": "customer", "account": {"name": name, "contact": contact}})
+
+
+async def account_login(request: web.Request) -> web.Response:
+    """One door for everyone: the server decides whether these are the shop's credentials."""
+    store = request.app[STORE_KEY]
+    store.rate_limit(request, "account-login", 12, 900)
+    data = await read_json(request)
+    require(not (set(data) - {"contact", "password"}), "Неизвестные поля входа.")
+    contact = text_value(data.get("contact"), "Логин", 150, 1)
+    password = data.get("password")
+    require(isinstance(password, str) and 1 <= len(password) <= 256, "Неверный логин или пароль.", 401)
+    if store.password_hash and hmac.compare_digest(contact.encode(), store.username.encode()):
+        require(await owner_password_ok(store, contact, password), "Неверный логин или пароль.", 401)
+        return open_admin_session(store, {"role": "owner", "username": store.username})
+    identity = contact_identity(contact)
+    with store.connect() as connection:
+        row = connection.execute("SELECT id, name, contact, password_hash FROM customers WHERE identity=?",
+                                 (identity,)).fetchone() if identity else None
+    require(await store.matching_password(password, row["password_hash"] if row else ""),
+            "Неверный логин или пароль.", 401)
+    assert row is not None  # A matching password proves the lookup found an account.
+    return store.open_account_session(row["id"], {"role": "customer",
+                                                  "account": {"name": row["name"], "contact": row["contact"]}})
+
+
+async def account_logout(request: web.Request) -> web.Response:
+    store = request.app[STORE_KEY]
+    row = store.account(request, required=False)
+    if row is not None:
+        with store.connect() as connection:
+            connection.execute("DELETE FROM customer_sessions WHERE token_hash=?", (row["token_hash"],))
+    response = web.json_response({"ok": True})
+    response.del_cookie(ACCOUNT_COOKIE, path="/api", secure=store.cookie_secure, httponly=True, samesite="Strict")
+    return response
+
+
+async def account_inquiries(request: web.Request) -> web.Response:
+    """Only inquiries sent while signed in: an account never adopts someone else's history."""
+    store = request.app[STORE_KEY]
+    row = store.account(request)
+    with store.connect() as connection:
+        rows = connection.execute("""SELECT data FROM inquiries WHERE customer_id=?
+            ORDER BY created_at DESC, id LIMIT 100""", (row["id"],)).fetchall()
+    inquiries = []
+    for stored in rows:
+        inquiry = json.loads(stored["data"])
+        inquiries.append({key: inquiry[key] for key in ("id", "status", "total", "created_at", "items")})
+    return web.json_response({"inquiries": inquiries})
 
 
 async def list_products(request: web.Request) -> web.Response:
@@ -584,6 +754,9 @@ async def create_inquiry(request: web.Request) -> web.Response:
                           if valid_phone(contact)
                           else contact.removeprefix("@").lower())
     store.rate_limit(request, "inquiry-contact", 5, 600, identity=normalized_contact)
+    # Linking is a convenience, not a privilege: the middleware already refuses
+    # cross-site writes, so a missing CSRF token must not lose a real inquiry.
+    customer = store.account(request, required=False, csrf=False)
     requested = data.get("items", [])
     require(isinstance(requested, list) and len(requested) <= 30, "В заявке допускается не больше 30 моделей.")
     require(bool(requested) or len(message) >= 10, "Выберите товар или опишите вопрос (от 10 символов).")
@@ -616,8 +789,9 @@ async def create_inquiry(request: web.Request) -> web.Response:
         inquiry = {"id": secrets.token_hex(16), "name": name, "contact": contact, "message": message,
                    "items": items, "total": float(total.quantize(Decimal(".01"))), "status": "new",
                    "created_at": timestamp, "updated_at": timestamp, "consent_at": timestamp}
-        connection.execute("INSERT INTO inquiries(id,data,status,created_at,updated_at) VALUES(?,?,?,?,?)",
-                           (inquiry["id"], json.dumps(inquiry, ensure_ascii=False), "new", timestamp, timestamp))
+        connection.execute("INSERT INTO inquiries(id,data,status,created_at,updated_at,customer_id) VALUES(?,?,?,?,?,?)",
+                           (inquiry["id"], json.dumps(inquiry, ensure_ascii=False), "new", timestamp, timestamp,
+                            customer["id"] if customer is not None else None))
         receipt = {"inquiry": {"id": inquiry["id"], "total": inquiry["total"], "status": "new"}}
         if request_key is not None:
             connection.execute("INSERT INTO inquiry_requests(key_hash,request_hash,response,created_at) VALUES(?,?,?,?)",
@@ -677,6 +851,11 @@ def setup_store(app: web.Application) -> None:
     app.router.add_get("/api/products", list_products)
     app.router.add_get("/api/settings", get_settings)
     app.router.add_post("/api/inquiries", create_inquiry)
+    app.router.add_get("/api/account", account_state)
+    app.router.add_post("/api/account/register", account_register)
+    app.router.add_post("/api/account/login", account_login)
+    app.router.add_post("/api/account/logout", account_logout)
+    app.router.add_get("/api/account/inquiries", account_inquiries)
     app.router.add_post("/api/admin/login", admin_login)
     app.router.add_get("/api/admin/session", admin_session)
     app.router.add_post("/api/admin/logout", admin_logout)

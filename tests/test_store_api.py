@@ -14,9 +14,11 @@ from aiohttp import CookieJar, FormData, web
 from aiohttp.test_utils import TestClient, TestServer
 from PIL import Image, PngImagePlugin
 
-from store_api import COOKIE_NAME, MAX_UPLOAD, STORE_KEY, hash_password, setup_store, valid_phone, verify_password
+from store_api import (ACCOUNT_COOKIE, COOKIE_NAME, MAX_UPLOAD, STORE_KEY, hash_password, setup_store,
+                       valid_phone, verify_password)
 
 TEST_PASSWORD = "isolated-test-password-only"
+CUSTOMER_PASSWORD = "isolated-customer-password"
 
 
 class PasswordTests(unittest.TestCase):
@@ -479,6 +481,93 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
                       "status=invalid", "status=NEW", "page=1&page=2", "other=1"):
             with self.subTest(query=query):
                 await self.assert_error(await self.client.get(f"/api/admin/inquiries?{query}"), 400)
+
+    async def register(self, contact="+7 999 111 22 33", password=CUSTOMER_PASSWORD, name="Customer"):
+        response = await self.client.post("/api/account/register", json={
+            "name": name, "contact": contact, "password": password, "consent": True,
+        }, headers={"Origin": self.origin})
+        return response
+
+    async def test_account_registration_creates_a_session_and_normalizes_the_contact(self):
+        response = await self.register()
+        self.assertEqual(response.status, 200, await response.text())
+        body = await response.json()
+        self.assertEqual(body["role"], "customer")
+        self.assertEqual(body["account"], {"name": "Customer", "contact": "+7 999 111 22 33"})
+        cookie = response.cookies[ACCOUNT_COOKIE]
+        self.assertTrue(cookie["httponly"])
+        self.assertEqual(cookie["samesite"], "Strict")
+        self.assertEqual(cookie["path"], "/api")
+        state = await self.client.get("/api/account")
+        self.assertEqual((await state.json())["account"]["name"], "Customer")
+        # The same number written differently is the same person, not a second account.
+        await self.assert_error(await self.register(contact="+79991112233"), 409)
+        await self.assert_error(await self.register(contact="+7 999 111 22 33", password="short"), 400)
+        await self.assert_error(await self.client.post("/api/account/register", json={
+            "name": "No consent", "contact": "user@example.com", "password": CUSTOMER_PASSWORD,
+        }, headers={"Origin": self.origin}), 400)
+
+    async def test_one_form_signs_in_customers_and_the_owner_separately(self):
+        await self.register()
+        logout = await self.client.post("/api/account/logout", headers={
+            "Origin": self.origin, "X-CSRF-Token": (await (await self.client.get("/api/account")).json())["csrfToken"],
+        })
+        self.assertEqual(logout.status, 200, await logout.text())
+        self.assertIsNone((await (await self.client.get("/api/account")).json())["account"])
+        for password in (CUSTOMER_PASSWORD + "x", TEST_PASSWORD):
+            await self.assert_error(await self.client.post("/api/account/login", json={
+                "contact": "+7 999 111 22 33", "password": password,
+            }, headers={"Origin": self.origin}), 401)
+        await self.assert_error(await self.client.post("/api/account/login", json={
+            "contact": "nobody@example.com", "password": CUSTOMER_PASSWORD,
+        }, headers={"Origin": self.origin}), 401)
+        customer = await self.client.post("/api/account/login", json={
+            "contact": "+79991112233", "password": CUSTOMER_PASSWORD,
+        }, headers={"Origin": self.origin})
+        self.assertEqual((await customer.json())["role"], "customer")
+        # Owner credentials open the CRM through the very same form.
+        owner = await self.client.post("/api/account/login", json={
+            "contact": "test-owner", "password": TEST_PASSWORD,
+        }, headers={"Origin": self.origin})
+        self.assertEqual(owner.status, 200, await owner.text())
+        self.assertEqual((await owner.json())["role"], "owner")
+        self.assertEqual(owner.cookies[COOKIE_NAME]["path"], "/api/admin")
+        self.assertEqual((await (await self.client.get("/api/admin/session")).json())["username"], "test-owner")
+        await self.assert_error(await self.client.post("/api/account/login", json={
+            "contact": "test-owner", "password": CUSTOMER_PASSWORD,
+        }, headers={"Origin": self.origin}), 401)
+
+    async def test_history_holds_only_inquiries_sent_while_signed_in(self):
+        await self.login()
+        product = await self.published_product()
+        await self.enable_inquiries()
+        order = {"name": "Customer", "contact": "+7 999 111 22 33", "message": "Please confirm stock.",
+                 "items": [{"product_id": product["id"], "quantity": 1}], "consent": True}
+        anonymous = await self.client.post("/api/inquiries", json=order, headers={"Origin": self.origin})
+        self.assertEqual(anonymous.status, 201, await anonymous.text())
+        await self.assert_error(await self.client.get("/api/account/inquiries"), 401)
+        await self.register()
+        signed_in = await self.client.post("/api/inquiries", json={**order, "message": "Second question here."},
+                                           headers={"Origin": self.origin})
+        self.assertEqual(signed_in.status, 201, await signed_in.text())
+        history = await self.client.get("/api/account/inquiries")
+        inquiries = (await history.json())["inquiries"]
+        self.assertEqual([inquiry["id"] for inquiry in inquiries], [(await signed_in.json())["inquiry"]["id"]])
+        self.assertEqual(inquiries[0]["items"][0]["name"], product["name"])
+        self.assertNotIn("contact", inquiries[0])
+        # A second person registering with the same details starts with an empty history.
+        await self.client.post("/api/account/logout", headers={
+            "Origin": self.origin, "X-CSRF-Token": (await (await self.client.get("/api/account")).json())["csrfToken"],
+        })
+        await self.register(contact="other@example.com", name="Other")
+        self.assertEqual((await (await self.client.get("/api/account/inquiries")).json())["inquiries"], [])
+
+    async def test_account_session_survives_restart_and_rejects_forged_tokens(self):
+        await self.register()
+        await self.client.close()
+        self.client = await self.make_client()
+        self.client.session.cookie_jar.update_cookies({ACCOUNT_COOKIE: "forged-token-value"})
+        await self.assert_error(await self.client.get("/api/account/inquiries"), 401)
 
 
 if __name__ == "__main__":
