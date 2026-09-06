@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { adminRequest, AdminApiError, formatDate, formatPrice, mediaSource, type AdminSession, type Inquiry, type Product, type ShopSettings } from './api';
-import { productDraft, validateProduct, validateUpload, type ProductDraft } from './product-form';
+import { fitPhoto } from './fit-photo';
+import { productDraft, uploadSizeError, validateProduct, validateUpload, type ProductDraft } from './product-form';
 import { badgeLabels, categoryLabels, tagLabels, type ProductTag } from '../storefront/types';
 import './admin.css';
 
@@ -95,7 +96,10 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
     if (failure) { setFormErrors([failure]); if (fileRef.current) fileRef.current.value = ''; return; }
     setBusy(true); setFormErrors([]); setMessage('');
     try {
-      const body = new FormData(); body.append('file', file);
+      const fitted = await fitPhoto(file);
+      const tooLarge = uploadSizeError(fitted);
+      if (tooLarge) { setFormErrors([tooLarge]); return; }
+      const body = new FormData(); body.append('file', fitted);
       const result = await request<{ image_url: string }>('/upload', { method: 'POST', body });
       update('image_url', result.image_url);
       setMessage('Фото загружено. Сохраните товар, чтобы применить изменение.');
@@ -156,7 +160,7 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <label>Цена, ₽<input inputMode="decimal" type="number" min="0.01" max="100000000" step="0.01" value={draft.price} onChange={event => update('price', event.target.value)} placeholder="Укажите реальную цену"/></label>
         </fieldset>
         <fieldset disabled={busy}><legend>Фотография товара</legend>
-          <div className="crm-photo-editor"><div className="crm-photo-preview">{mediaSource(draft.image_url) ? <img src={mediaSource(draft.image_url)} alt="Фото редактируемого товара"/> : <p>Фотография ещё не загружена</p>}</div><div><label htmlFor="crm-photo-file">{draft.image_url ? 'Заменить фотографию' : 'Загрузить фотографию'}</label><input ref={fileRef} id="crm-photo-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => void upload(event.target.files?.[0])}/><p className="crm-help">JPG, PNG или WebP, до 8 МБ. Транспорт должен целиком помещаться в кадре.</p>{draft.image_url && <button className="crm-button" type="button" onClick={() => update('image_url', '')}>Убрать фото из карточки</button>}</div></div>
+          <div className="crm-photo-editor"><div className="crm-photo-preview">{mediaSource(draft.image_url) ? <img src={mediaSource(draft.image_url)} alt="Фото редактируемого товара"/> : <p>Фотография ещё не загружена</p>}</div><div><label htmlFor="crm-photo-file">{draft.image_url ? 'Заменить фотографию' : 'Загрузить фотографию'}</label><input ref={fileRef} id="crm-photo-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => void upload(event.target.files?.[0])}/><p className="crm-help">JPG, PNG или WebP — фотография с телефона подойдёт, размер подгоняется автоматически. Транспорт должен целиком помещаться в кадре.</p>{draft.image_url && <button className="crm-button" type="button" onClick={() => update('image_url', '')}>Убрать фото из карточки</button>}</div></div>
         </fieldset>
         <fieldset disabled={busy}><legend>Характеристики</legend><p className="crm-help">Заполняйте только подтверждённые данные. Пустые значения не будут показаны как нулевые.</p><div className="crm-fields-two">
           <label>Запас хода, км<input inputMode="decimal" type="number" min="0" max="3000" step="0.1" value={draft.range_km} onChange={event => update('range_km', event.target.value)}/></label>

@@ -20,6 +20,8 @@
 
 Задать секреты `BOT_TOKEN`, `MINI_APP_URL`, `PUBLIC_ORIGIN`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` (или `ADMIN_PASSWORD`). Пароль не хранится в GitHub. `python scripts/admin_password.py` позволяет безопасно получить хеш.
 
+Партию товаров можно завести не вручную: `python scripts/import_catalog.py https://адрес-магазина docs/catalog-kugoo.json` создаёт карточки по JSON-файлу. Карточки приходят без фото и неопубликованными — фотографию и публикацию владелец добавляет в кабинете.
+
 `DATA_DIR=/app/data` — постоянное хранилище BotHost. Проверить сохранение данных после пересборки до загрузки реального ассортимента. `COOKIE_SECURE=true`, HTTPS, порт из `PORT` (по умолчанию 8000). Проверка сервера: `/health`.
 
 Статика собирается в `/opt/magoleg/public`, runtime в `/opt/magoleg/runtime`, чтобы монтирование исходников в `/app` не скрывало готовую сборку.

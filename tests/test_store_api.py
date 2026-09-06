@@ -238,6 +238,19 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         for path in ("/media/store.sqlite3", "/media/%2e%2e%2fstore.sqlite3", "/media/" + "a" * 32 + ".webp"):
             await self.assert_error(await self.client.get(path), 404)
 
+    async def test_upload_fits_a_phone_camera_photo_instead_of_refusing_it(self):
+        await self.login()
+        buffer = io.BytesIO()
+        # 24 megapixels: what a current phone shoots, and more than the old ceiling allowed.
+        Image.new("RGB", (6000, 4000), (200, 60, 10)).save(buffer, "JPEG", quality=60)
+        body = FormData()
+        body.add_field("file", buffer.getvalue(), filename="phone.jpg", content_type="image/jpeg")
+        response = await self.client.post("/api/admin/upload", data=body, headers=self.headers)
+        self.assertEqual(response.status, 201, await response.text())
+        stored = await self.client.get((await response.json())["image_url"])
+        with Image.open(io.BytesIO(await stored.read())) as photo:
+            self.assertEqual(photo.size, (2000, 1333))
+
     async def test_upload_rejects_script_spoofed_mime_small_and_oversized_files(self):
         await self.login()
         tiny = io.BytesIO()

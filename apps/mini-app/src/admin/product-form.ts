@@ -45,7 +45,11 @@ export function validateProduct(draft: ProductDraft, publish: boolean): { errors
 
 export function validateUpload(file: File): string | null {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'Поддерживаются только JPG, PNG и WebP.';
-  if (file.size > 8 * 1024 * 1024) return 'Файл больше 8 МБ. Уменьшите его и загрузите снова.';
   if (!file.size) return 'Этот файл пустой. Выберите другую фотографию.';
   return null;
+}
+
+/** Checked after the browser has fitted the photo, so only a genuinely huge file is refused. */
+export function uploadSizeError(file: File): string | null {
+  return file.size > 8 * 1024 * 1024 ? 'Фотография больше 8 МБ даже после сжатия. Выберите другой файл.' : null;
 }
