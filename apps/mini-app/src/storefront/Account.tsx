@@ -70,6 +70,7 @@ export function Account({ account, csrfToken, city = '', onChange, onCity }: {
   const [town, setTown] = useState(city);
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
+  const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [owner, setOwner] = useState<OwnerSession | null>(null);
@@ -86,12 +87,13 @@ export function Account({ account, csrfToken, city = '', onChange, onCity }: {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (mode === 'register' && !consent) { setError('Подтвердите отдельное согласие на обработку данных.'); return; }
     ownerCheck.current?.abort();
     setBusy(true);
     setError('');
     try {
       const result = mode === 'register'
-        ? await registerAccount(name.trim(), contact.trim(), town.trim(), password, remember)
+        ? await registerAccount(name.trim(), contact.trim(), town.trim(), password, remember, consent)
         : await signIn(contact.trim(), password, remember);
       setPassword('');
       if (result.role === 'owner') {
@@ -164,8 +166,8 @@ export function Account({ account, csrfToken, city = '', onChange, onCity }: {
       </label>
       <label className="sf-remember"><input name="remember" type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} disabled={busy}/><span>Оставаться в системе на этом устройстве</span></label>
       <p className="sf-account-consent">На чужом устройстве снимите отметку. Пароль на сайте не сохраняется.</p>
+      {registering && <label className="sf-consent"><input name="consent" type="checkbox" checked={consent} required disabled={busy} onChange={event => setConsent(event.target.checked)} /><span>Даю <a href="#consent" target="_blank" rel="noopener noreferrer">согласие на обработку данных</a> для создания аккаунта и работы с заявками. <a href="#privacy" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a></span></label>}
       <button className="sf-button" type="submit" disabled={busy}>{busy ? 'Отправляем…' : registering ? 'Создать аккаунт' : 'Войти'}</button>
-      {registering && <p className="sf-account-consent">Создавая аккаунт, вы соглашаетесь на обработку имени и контакта для ответа на обращения. <a href="#privacy">Как мы обрабатываем данные</a></p>}
     </form>
   </Card>;
 }

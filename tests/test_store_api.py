@@ -94,6 +94,29 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 201, await response.text())
         return (await response.json())["image_url"]
 
+    async def test_delivery_estimates_and_documents_round_trip(self):
+        await self.login()
+        update = {"delivery_origin": "Тестовый склад", "delivery_schedule": "Москва; 3; 5; По тарифу ТК",
+                  "return_address": "Тестовый адрес возврата", "offer_document": "Тестовая редакция договора"}
+        response = await self.client.put("/api/admin/settings", json=update, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        public = await self.client.get("/api/settings")
+        saved = (await public.json())["settings"]
+        for key, value in update.items():
+            self.assertEqual(saved[key], value)
+        for schedule in ("Москва; 5; 3; ТК", "Москва; 1; 91; ТК", "Москва; 1; 2;",
+                         "Москва; 1; 2; ТК\nмосква; 3; 4; ТК", "Москва; завтра; 5; ТК"):
+            response = await self.client.put("/api/admin/settings", json={"delivery_schedule": schedule}, headers=self.headers)
+            self.assertEqual(response.status, 400, await response.text())
+        response = await self.client.put("/api/admin/settings", json={"delivery_origin": ""}, headers=self.headers)
+        self.assertEqual(response.status, 400)
+
+    async def test_teen_theme_requires_explicit_product_tag(self):
+        await self.login()
+        response = await self.client.post("/api/admin/products", json={"name": "Тестовая серия", "tags": ["teen"]}, headers=self.headers)
+        self.assertEqual(response.status, 201, await response.text())
+        self.assertEqual((await response.json())["product"]["tags"], ["teen"])
+
     async def published_product(self, **changes):
         image_url = await self.upload()
         values = {"name": "Real scooter", "description": "Verified model information.",
@@ -247,7 +270,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
             **self.headers, "Content-Type": "application/json",
         })
         await self.assert_error(response, 400)
-        response = await self.client.post("/api/admin/products", json={"name": "a" * 70000}, headers=self.headers)
+        response = await self.client.post("/api/admin/products", json={"name": "a" * (256 * 1024 + 1)}, headers=self.headers)
         await self.assert_error(response, 413)
         response = await self.client.post("/api/admin/products", json=[], headers=self.headers)
         await self.assert_error(response, 400)

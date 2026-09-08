@@ -1,4 +1,4 @@
-import { categoryLabels, defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type CityChoice, type Filters, type Product, type ProductTag, type SmartPick } from './types';
+import { activePickTags, categoryLabels, defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type CityChoice, type Filters, type Product, type SmartPick } from './types';
 
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
@@ -66,24 +66,18 @@ export const plural = (count: number, forms: [string, string, string]) => {
 
 /**
  * Smart picks are ordinary catalogue filters with a shopper-friendly name: mostly the ones the
- * shop ticks per product. Empty picks are dropped so the storefront never offers a selection
- * that leads to an empty catalogue. Rights requirements stay in the filter panel only — as a
+ * shop ticks per product. All four requested themes stay visible; empty themes say they are
+ * coming soon rather than implying stock. Rights requirements stay in the filter panel only — as a
  * pick they read like a promise about the law, which the shop does not want to make.
  *
  * Every pick opens the catalogue ranked by value. Its tile carries a drawn icon rather than a
  * product photo: the tile names an audience, and a photo of one model would misrepresent it.
  */
 export function smartPicks(products: Product[]): SmartPick[] {
-  const picks: Omit<SmartPick, 'count'>[] = [
-    ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag, sort: 'value' as const } })),
-    { id: 'budget-50000', label: 'До 50 000 ₽', hint: 'Подборка по бюджету', filters: { max: '50000', sort: 'value' as const } },
-  ];
-  const offered: SmartPick[] = [];
-  for (const pick of picks) {
-    const count = filterProducts(products, { ...defaultFilters, ...pick.filters }).length;
-    if (count) offered.push({ ...pick, count });
-  }
-  return offered;
+  return activePickTags.map(tag => ({
+    id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag, sort: 'value' },
+    count: filterProducts(products, { ...defaultFilters, tag }).length,
+  }));
 }
 
 export function parseFilters(search: string): Filters {

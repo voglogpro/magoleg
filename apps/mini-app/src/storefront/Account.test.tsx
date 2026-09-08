@@ -46,6 +46,10 @@ describe('customer account', () => {
     fireEvent.change(screen.getByLabelText('Телефон, email или @Telegram'), { target: { value: '+79001234567' } });
     fireEvent.change(screen.getByLabelText('Ваш город'), { target: { value: 'Краснодар' } });
     fireEvent.change(screen.getByLabelText(/Пароль/), { target: { value: 'двенадцать-символов' } });
+    expect(screen.getByRole('checkbox', { name: /Даю/ })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/api/account/register'))).toBe(false);
+    fireEvent.click(screen.getByRole('checkbox', { name: /Даю/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
     await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
     const [path, options] = vi.mocked(fetch).mock.calls.find(([url]) => url === '/api/account/register')!;

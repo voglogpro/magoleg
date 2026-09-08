@@ -32,7 +32,7 @@ from aiohttp import web
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 LOGGER = logging.getLogger("gshop.store")
-MAX_JSON = 64 * 1024
+MAX_JSON = 256 * 1024
 MAX_UPLOAD = 8 * 1024 * 1024
 # Phone cameras shoot 48-50 MP; the shop should not have to shrink a photo by hand, so the
 # ceiling only has to stay under Pillow's decompression-bomb guard. Big files are decoded at a
@@ -57,10 +57,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "telegram": "", "address": "", "hours": "", "delivery": "",
     "payment": "", "legal_name": "", "legal_details": "", "warranty": "",
     "inquiries_enabled": False,
+    "delivery_origin": "", "delivery_schedule": "", "return_address": "",
+    "privacy_document": "", "consent_document": "", "offer_document": "", "returns_document": "",
 }
 PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "atv", "parts", "accessories")
 # Shop-picked audiences a shopper can browse by; the owner ticks them per product.
-PRODUCT_TAGS = ("waterproof", "heavy-rider", "two-up", "courier", "women", "beginner")
+PRODUCT_TAGS = ("waterproof", "heavy-rider", "two-up", "courier", "women", "beginner", "teen")
 PRODUCT_BADGES = ("hit", "best-price", "value")
 # A card carries a small gallery; the first photo is the cover shown in catalogue listings.
 MAX_PHOTOS = 8
@@ -742,8 +744,24 @@ async def save_settings(request: web.Request) -> web.Response:
         if key == "inquiries_enabled":
             settings[key] = boolean_value(value, "Приём заявок")
         else:
-            maximum = 8000 if key in ("legal_details", "delivery", "payment", "warranty") else 500
+            maximum = 12000 if key.endswith("_document") else 8000 if key in ("legal_details", "delivery", "payment", "warranty", "delivery_schedule") else 500
             settings[key] = text_value(value, key, maximum, 1 if key == "shop_name" else 0)
+    if settings["delivery_schedule"]:
+        require(bool(settings["delivery_origin"]), "Укажите фактический город и адрес отправления для оценок доставки.")
+        seen_cities: set[str] = set()
+        for number, line in enumerate(settings["delivery_schedule"].splitlines(), 1):
+            if not line.strip():
+                continue
+            parts = [part.strip() for part in line.split(";")]
+            require(len(parts) == 4, f"Доставка, строка {number}: нужны город; срок от; срок до; стоимость.")
+            city, lower, upper, cost = parts
+            require(2 <= len(city) <= 80 and bool(re.fullmatch(r"[0-9]{1,2}", lower))
+                    and bool(re.fullmatch(r"[0-9]{1,2}", upper)) and 1 <= len(cost) <= 150,
+                    f"Доставка, строка {number}: проверьте город, сроки и стоимость.")
+            require(1 <= int(lower) <= int(upper) <= 90, f"Доставка, строка {number}: сроки от 1 до 90 дней, по возрастанию.")
+            city_key = " ".join(city.lower().replace("ё", "е").split())
+            require(city_key not in seen_cities, f"Доставка: город {city} указан дважды.")
+            seen_cities.add(city_key)
     if settings["phone"]:
         require(valid_phone(settings["phone"]), "Укажите корректный телефон магазина (от 7 до 15 цифр).")
     if settings["telegram"]:

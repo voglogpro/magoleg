@@ -53,26 +53,26 @@ describe('smart picks', () => {
   const licensed: Product = { ...product, id: 'two', tags: [], license: 'required', stock_status: 'preorder' };
   it('offers picks the shop ticked and picks the products themselves imply', () => {
     const picks = smartPicks([product, licensed]);
-    expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'budget-50000']);
-    expect(picks.map(pick => pick.count)).toEqual([1, 2]);
-    expect(picks[0].filters).toEqual({ tag: 'courier', sort: 'value' });
+    expect(picks.map(pick => pick.label)).toEqual(['Усиленные', 'Легкие', 'Для курьеров', 'Подростковая серия']);
+    expect(picks.map(pick => pick.count)).toEqual([0, 0, 1, 0]);
+    expect(picks[2].filters).toEqual({ tag: 'courier', sort: 'value' });
   });
-  it('hides picks with nothing behind them, including unpublished models', () => {
-    expect(smartPicks([{ ...product, published: false }])).toEqual([]);
-    expect(smartPicks([{ ...licensed, price: 50001 }])).toEqual([]);
+  it('keeps four themes but never counts unpublished or unrelated products', () => {
+    expect(smartPicks([{ ...product, published: false }]).map(pick => pick.count)).toEqual([0, 0, 0, 0]);
+    expect(smartPicks([licensed]).every(pick => pick.count === 0)).toBe(true);
   });
-  it('opens the budget pick with an inclusive price ceiling and excludes unknown prices', () => {
+  it('requires an explicit teen tag; budget and beginner tags never imply age suitability', () => {
     const items = [
-      { ...licensed, id: 'limit', price: 50000 },
-      { ...licensed, id: 'expensive', price: 50001 },
-      { ...licensed, id: 'unknown', price: null },
+      { ...licensed, id: 'teen', tags: ['teen'] as Product['tags'] },
+      { ...licensed, id: 'beginner', tags: ['beginner'] as Product['tags'], price: 10000 },
+      { ...licensed, id: 'cheap', price: 5000 },
     ];
-    const pick = smartPicks(items).find(pick => pick.id === 'budget-50000')!;
+    const pick = smartPicks(items).find(pick => pick.id === 'tag-teen')!;
     expect(pick.count).toBe(1);
-    expect(pick.label).toBe('До 50 000 ₽');
+    expect(pick.label).toBe('Подростковая серия');
     const filters = parseFilters(catalogHref(pick.filters).split('?')[1]);
-    expect(filterProducts(items, filters).map(item => item.id)).toEqual(['limit']);
-    expect(smartPicks(items).some(pick => pick.id === 'stock-in-stock')).toBe(false);
+    expect(filterProducts(items, filters).map(item => item.id)).toEqual(['teen']);
+    expect(smartPicks(items).some(pick => ['stock-in-stock', 'budget-50000'].includes(pick.id))).toBe(false);
   });
   it('leaves rights requirements to the filter panel instead of naming a pick', () => {
     expect(smartPicks([product, licensed]).map(pick => pick.id).join()).not.toContain('license');

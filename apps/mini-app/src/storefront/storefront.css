@@ -78,12 +78,33 @@
 .sf-store .sf-page-heading h1 { overflow-wrap: anywhere; }
 .sf-store .sf-page-product .sf-page-heading h1 { -webkit-user-select: text; user-select: text; }
 .sf-store .sf-home-content { padding: 24px 16px 12px; }
-.sf-store .sf-shop-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 14px 0; list-style: none; border-block: 1px solid var(--sf-line); }
-.sf-store .sf-shop-benefits li { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 0 8px; text-align: center; font-size: 13px; line-height: 1.4; }
-.sf-store .sf-shop-benefits li + li { border-left: 1px solid var(--sf-line); }
-.sf-store .sf-shop-benefits strong { color: var(--sf-text); font-weight: 600; }
-.sf-store .sf-shop-benefits span { color: var(--sf-muted); }
-@media (min-width: 700px) { .sf-store .sf-shop-benefits li { flex-direction: row; justify-content: center; gap: 6px; font-size: 15px; } }
+.sf-store .sf-document-draft { padding: 16px; border-left: 3px solid var(--sf-orange); background: var(--sf-surface); }
+.sf-store .sf-document-draft p { margin-top: 8px; color: var(--sf-muted); }
+.sf-store .sf-document-body { line-height: 1.75; margin-block: 24px; overflow-wrap: anywhere; }
+.sf-store .sf-delivery-calculator { display: grid; gap: 18px; padding: 20px; border: 1px solid var(--sf-line); border-radius: 6px; background: var(--sf-surface); }
+.sf-store .sf-delivery-calculator form { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.sf-store .sf-delivery-calculator label { display: grid; flex: 1 1 210px; gap: 8px; min-width: 0; font-size: 14px; }
+.sf-store .sf-delivery-calculator input { width: 100%; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid #55555d; border-radius: 4px; background: var(--sf-bg); color: var(--sf-text); font: inherit; font-size: 16px; }
+.sf-store .sf-delivery-result { padding: 16px; border: 1px solid var(--sf-line); border-radius: 4px; }
+.sf-store .sf-delivery-result h3 { font-size: 20px; margin-bottom: 8px; }
+.sf-store .sf-delivery-result p + p { margin-top: 10px; }
+.sf-store .sf-delivery-methods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.sf-store .sf-delivery-methods > div { padding: 16px; background: var(--sf-surface); border: 1px solid var(--sf-line); border-radius: 4px; }
+.sf-store .sf-delivery-methods h3 { font-size: 16px; margin-bottom: 8px; }
+@media (max-width: 699px) { .sf-store .sf-delivery-methods { grid-template-columns: minmax(0,1fr); } .sf-store .sf-delivery-calculator { padding: 16px; } }
+.sf-store .sf-shop-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid #a54d20; border-radius: 8px; background: #101114; }
+.sf-store .sf-benefit { display: flex; min-width: 0; flex-direction: column; border-radius: 6px; }
+.sf-store .sf-benefit + .sf-benefit { border-left: 1px solid var(--sf-line); }
+.sf-store .sf-benefit-art { display: block; width: 100%; aspect-ratio: 1.25; background: url('/brand/shop-benefits-triptych-v1.png') left center / 300% auto no-repeat; }
+.sf-store .sf-benefit--warranty .sf-benefit-art { background-position: center; }
+.sf-store .sf-benefit--supply .sf-benefit-art { background-position: right center; }
+.sf-store .sf-benefit-copy { display: flex; flex: 1; flex-direction: column; padding: 0 10px 14px; gap: 10px; }
+.sf-store .sf-benefit h2 { font-family: Montserrat, Inter, sans-serif; font-size: clamp(14px, 2vw, 26px); line-height: 1.2; letter-spacing: -.02em; font-weight: 800; }
+.sf-store .sf-benefit p { display: grid; gap: 2px; color: var(--sf-muted); font-size: 12px; line-height: 1.45; }
+.sf-store .sf-benefit-link { display: flex; gap: 4px; align-items: center; justify-content: space-between; margin-top: auto; color: #ff984e; font-size: 12px; line-height: 1.4; }
+.sf-store .sf-benefit-link svg { flex-shrink: 0; }
+.sf-store .sf-benefit:hover { background-color: #1a1715; }
+@media (min-width: 700px) { .sf-store .sf-benefit-art { aspect-ratio: 1.7; } .sf-store .sf-benefit-copy { padding: 0 24px 22px; } .sf-store .sf-benefit p { font-size: 16px; } .sf-store .sf-benefit-link { font-size: 14px; } }
 .sf-store .sf-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
 .sf-store .sf-section-heading h2 { font-size: clamp(19px, 3.9vw, 25px); }
 .sf-store .sf-section-heading > a { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; min-height: 44px; color: #ff984e; font-size: 13px; white-space: nowrap; }

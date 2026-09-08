@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { popularCities, type CityChoice } from './types';
 
-export function CityDatalist() {
-  return <datalist id="sf-cities">{popularCities.map(city => <option value={city} key={city} />)}</datalist>;
+export function CityDatalist({ id = 'sf-cities' }: { id?: string }) {
+  return <datalist id={id}>{popularCities.map(city => <option value={city} key={city} />)}</datalist>;
 }
 
 /** The shop ships nationwide, so the destination is asked once and then remembered. */

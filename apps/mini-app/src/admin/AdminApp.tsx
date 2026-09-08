@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { adminRequest, AdminApiError, formatDate, formatPrice, mediaSource, type AdminSession, type Inquiry, type Product, type ShopSettings } from './api';
 import { fitPhoto } from './fit-photo';
 import { productDraft, uploadSizeError, validateProduct, validateUpload, type ProductDraft } from './product-form';
-import { badgeLabels, categoryLabels, tagLabels, type ProductTag } from '../storefront/types';
+import { activePickLabels as tagLabels, badgeLabels, categoryLabels, defaultSettings, type ProductTag } from '../storefront/types';
 import './admin.css';
 
 type Request = <T>(path: string, options?: Parameters<typeof adminRequest>[1]) => Promise<T>;
@@ -239,7 +239,7 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError('');
-    try { const result = await request<{ settings: ShopSettings }>('/settings', { signal }); setSettings(result.settings); setOriginal(JSON.stringify(result.settings)); }
+    try { const result = await request<{ settings: ShopSettings }>('/settings', { signal }); const merged = { ...defaultSettings, ...result.settings }; setSettings(merged); setOriginal(JSON.stringify(merged)); }
     catch (cause) { if (!(cause instanceof Error && cause.name === 'AbortError')) setError(errorText(cause)); }
     finally { if (!signal?.aborted) setLoading(false); }
   }, [request]);
@@ -266,15 +266,22 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
         <label>Telegram<input maxLength={100} placeholder="@username" value={settings.telegram} onChange={event => update('telegram', event.target.value)}/></label>
       </div><label>Адрес магазина<input maxLength={500} autoComplete="street-address" placeholder="Укажите, если доступно посещение или самовывоз" value={settings.address} onChange={event => update('address', event.target.value)}/></label><label>Часы работы<input maxLength={200} placeholder="Укажите дни и время" value={settings.hours} onChange={event => update('hours', event.target.value)}/></label></fieldset>
       <fieldset disabled={busy}><legend>Условия покупки</legend>
+        <label>Город и адрес отправления<input maxLength={500} value={settings.delivery_origin} onChange={event => update('delivery_origin', event.target.value)} placeholder="Фактический склад отправления" /></label>
+        <label>Оценки доставки по городам<textarea rows={5} maxLength={8000} value={settings.delivery_schedule} onChange={event => update('delivery_schedule', event.target.value)} placeholder="Город; дней от; дней до; стоимость" /></label>
+        <p className="crm-help">Одна строка на город. Четыре поля через точку с запятой: город; минимальный срок; максимальный срок; стоимость или «По тарифу ТК». Срок — целое число от 1 до 90 календарных дней после передачи перевозчику. Публикуйте только проверенные оценки. Это не подключение API СДЭК.</p>
         <label>Доставка и получение<textarea rows={4} maxLength={6000} placeholder="Территория, способы, стоимость и сроки доставки" value={settings.delivery} onChange={event => update('delivery', event.target.value)}/></label>
         <label>Оплата<textarea rows={3} maxLength={6000} placeholder="Реальные способы оплаты и порядок подтверждения заказа" value={settings.payment} onChange={event => update('payment', event.target.value)}/></label>
         <label>Гарантия и возврат<textarea rows={4} maxLength={6000} placeholder="Подтверждённые условия обслуживания, гарантии и возврата" value={settings.warranty} onChange={event => update('warranty', event.target.value)}/></label>
       </fieldset>
       <fieldset disabled={busy}><legend>Продавец и приём заявок</legend><p className="crm-help">Эти сведения публикуются в информации о магазине. Не добавляйте персональные данные, которые не предназначены для общего доступа.</p>
+        <label>Адрес для возврата товаров<input maxLength={500} value={settings.return_address} onChange={event => update('return_address', event.target.value)} /></label>
         <label>Юридическое наименование продавца<input maxLength={500} placeholder="ИП или организация" value={settings.legal_name} onChange={event => update('legal_name', event.target.value)}/></label>
         <label>Реквизиты и информация для покупателя<textarea rows={5} maxLength={8000} placeholder="Реквизиты продавца, регистрационные данные и условия обработки обращений" value={settings.legal_details} onChange={event => update('legal_details', event.target.value)}/></label>
         <label className="crm-checkbox"><input type="checkbox" checked={settings.inquiries_enabled} onChange={event => update('inquiries_enabled', event.target.checked)}/><span>Принимать заявки с сайта</span></label>
         <p className="crm-help">Включайте после заполнения документов, контактов и условий. Заявка не списывает деньги и не является онлайн-оплатой.</p>
+      </fieldset>
+      <fieldset disabled={busy}><legend>Документы сайта</legend><p className="crm-help">На сайте есть отдельные страницы. Ниже можно опубликовать утверждённые юристом редакции обычным текстом. Пока поле пустое, показывается базовый проект с предупреждением. Заполните реальные реквизиты и условия перед запуском оплаты и кредита.</p>
+        {([['privacy_document', 'Политика конфиденциальности'], ['consent_document', 'Согласие на обработку данных'], ['offer_document', 'Публичная оферта'], ['returns_document', 'Возврат товаров и денег']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={7} maxLength={12000} value={settings[key]} onChange={event => update(key, event.target.value)} /></label>)}
       </fieldset>
       <button className="crm-button crm-button--primary" disabled={busy} type="submit">{busy ? 'Сохраняем…' : 'Сохранить информацию'}</button>
     </form>}

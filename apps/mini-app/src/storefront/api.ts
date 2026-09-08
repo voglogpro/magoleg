@@ -86,8 +86,8 @@ export function signIn(contact: string, password: string, remember = true) {
   return accountRequest<SignInResult>('/api/account/login', { contact, password, remember });
 }
 
-export function registerAccount(name: string, contact: string, city: string, password: string, remember = true) {
-  return accountRequest<SignInResult>('/api/account/register', { name, contact, city, password, consent: true, remember });
+export function registerAccount(name: string, contact: string, city: string, password: string, remember = true, consent = false) {
+  return accountRequest<SignInResult>('/api/account/register', { name, contact, city, password, consent, remember });
 }
 
 export function signOut(csrfToken: string) {

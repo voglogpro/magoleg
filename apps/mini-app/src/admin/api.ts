@@ -23,19 +23,7 @@ export type Product = {
   updated_at: string;
 };
 
-export type ShopSettings = {
-  shop_name: string;
-  phone: string;
-  telegram: string;
-  address: string;
-  hours: string;
-  delivery: string;
-  payment: string;
-  legal_name: string;
-  legal_details: string;
-  warranty: string;
-  inquiries_enabled: boolean;
-};
+export type { ShopSettings } from '../storefront/types';
 
 export type Inquiry = {
   id: string;

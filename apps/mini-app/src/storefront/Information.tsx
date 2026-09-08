@@ -1,9 +1,12 @@
 import { phoneLink, telegramLink } from './domain';
 import { InquiryForm } from './InquiryForm';
 import { type ShopSettings } from './types';
+import { Delivery } from './Delivery';
+import { LegalDocument, legalTopics } from './LegalDocuments';
 
 export const infoTitles: Record<string, string> = {
-  about: 'О магазине', delivery: 'Доставка и оплата', contact: 'Контакты', guide: 'Помощь с выбором', privacy: 'Обработка данных',
+  about: 'О магазине', delivery: 'Доставка и оплата', contact: 'Контакты', guide: 'Помощь с выбором',
+  privacy: 'Политика конфиденциальности', consent: 'Согласие на обработку персональных данных', offer: 'Публичная оферта', returns: 'Возврат товаров и денег', warranty: 'Гарантия', supply: 'Прямые поставки',
 };
 
 export function ContactLinks({ settings }: { settings: ShopSettings }) {
@@ -20,7 +23,8 @@ function Paragraph({ title, text, fallback }: { title: string; text: string; fal
   return <section className="sf-info-section"><h2>{title}</h2><p className="sf-preserve-lines">{text || fallback}</p></section>;
 }
 
-export function Information({ topic, settings }: { topic: string; settings: ShopSettings }) {
+export function Information({ topic, settings, city = '', onCity }: { topic: string; settings: ShopSettings; city?: string; onCity?: (city: string) => void }) {
+  if (Object.hasOwn(legalTopics, topic)) return <article className="sf-information"><LegalDocument topic={topic as keyof typeof legalTopics} settings={settings} /><ContactLinks settings={settings} /><div className="sf-info-bottom"><a className="sf-button" href="#catalog">Перейти в каталог</a></div></article>;
   return <article className="sf-information">
     {topic === 'about' && <>
       <p className="sf-lead">{settings.shop_name} — магазин электротранспорта с доставкой по всей России.</p>
@@ -30,12 +34,11 @@ export function Information({ topic, settings }: { topic: string; settings: Shop
       <ContactLinks settings={settings} />
     </>}
     {topic === 'delivery' && <>
-      <p className="sf-lead">Доставка по всей России, от 3 дней.</p>
-      <Paragraph title="Как приходит заказ" text={settings.delivery} fallback="Отправляем транспортными компаниями по России. Срок зависит от региона и начинается от 3 дней после подтверждения заказа. Точный срок и стоимость доставки магазин называет до оплаты." />
-      <Paragraph title="Оплата" text={settings.payment} fallback="Онлайн-оплата на сайте не подключена. Заявка не списывает деньги; способ оплаты согласуется с магазином." />
-      <Paragraph title="Гарантия и обслуживание" text={settings.warranty} fallback="Условия гарантии и обслуживания уточняются по документам конкретной модели до покупки." />
+      <Delivery settings={settings} city={city} onCity={onCity} />
       <ContactLinks settings={settings} />
     </>}
+    {topic === 'warranty' && <><p className="sf-lead">Гарантия 12 месяцев на все товары магазина.</p><Paragraph title="Как получить обслуживание" text={settings.warranty} fallback="Сохраните документы о покупке и обратитесь в магазин с названием модели и описанием неисправности. Порядок проверки, передачи техники и обслуживания согласуется с продавцом. Подробные условия отражаются в гарантийных документах и не ограничивают права, предоставленные законом." /><a className="sf-text-button" href="#returns">Возврат товара и денег →</a><ContactLinks settings={settings} /></>}
+    {topic === 'supply' && <><p className="sf-lead">Прямые поставки — без посредников и переплат.</p><p>Магазин самостоятельно организует закупку и публикует актуальные модели в каталоге. Перед покупкой уточните комплектацию, документы и наличие конкретного товара. Стоимость техники и доставки сообщается отдельно до оплаты.</p><p>Фотографии блока поставок — фирменные иллюстрации, не фотографии собственного автопарка или склада.</p><ContactLinks settings={settings} /></>}
     {topic === 'guide' && <>
       <p className="sf-lead">Расскажите, где и как вы будете ездить.</p>
       <p>Для первого сравнения достаточно маршрута, расстояния за день, бюджета и места хранения. Если на маршруте есть подъёмы или нужно перевозить груз, укажите это в обращении.</p>
@@ -48,14 +51,6 @@ export function Information({ topic, settings }: { topic: string; settings: Shop
       {settings.address && <Paragraph title="Адрес" text={settings.address} fallback="" />}
       {settings.hours && <Paragraph title="Время работы" text={settings.hours} fallback="" />}
       <InquiryForm settings={settings} items={[]} />
-    </>}
-    {topic === 'privacy' && <>
-      <p className="sf-lead">Какие данные используются на сайте</p>
-      <Paragraph title="Информация о продавце" text={[settings.legal_name, settings.legal_details].filter(Boolean).join('\n')} fallback="Реквизиты продавца ещё не опубликованы. Не отправляйте персональные данные до уточнения информации о продавце." />
-      <section className="sf-info-section"><h2>Обращение в магазин</h2><p>При отправке заявки сайт передаёт магазину указанное вами имя, контакт, сообщение и выбранные товары. Они используются для обработки обращения и ответа. Не указывайте паспортные, банковские или другие лишние данные.</p></section>
-      <section className="sf-info-section"><h2>Аккаунт покупателя</h2><p>Аккаунт необязателен. Если вы его создаёте, магазин хранит указанное имя, контакт и зашифрованный пароль, а также связывает с аккаунтом заявки, отправленные после входа, — чтобы вы видели их историю. Заявки, отправленные без входа, в историю аккаунта не попадают. Для удаления аккаунта напишите магазину по опубликованным контактам.</p></section>
-      <section className="sf-info-section"><h2>Корзина и избранное</h2><p>Выбранные товары, количество, избранное и сравнение сохраняются локально в вашем браузере. Эти данные можно удалить через кнопки на соответствующих страницах или настройки браузера. До отправки заявки корзина не передаётся как обращение магазину.</p></section>
-      <section className="sf-info-section"><h2>Вопросы об обработке данных</h2><p>Для уточнения обработки, исправления или удаления данных обращения используйте опубликованные контакты продавца и укажите номер заявки, если он есть.</p><ContactLinks settings={settings} /></section>
     </>}
     <div className="sf-info-bottom"><a className="sf-button" href="#catalog">Перейти в каталог</a></div>
   </article>;

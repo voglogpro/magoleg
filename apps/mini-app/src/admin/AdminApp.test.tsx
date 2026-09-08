@@ -4,7 +4,7 @@ import { AdminApp } from './AdminApp';
 import type { Inquiry, Product, ShopSettings } from './api';
 
 const session = { username: 'test-owner', csrfToken: 'test-csrf-token' };
-const settings: ShopSettings = { shop_name: 'Test shop', phone: '', telegram: '', address: '', hours: '', delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false };
+const settings: ShopSettings = { shop_name: 'Test shop', phone: '', telegram: '', address: '', hours: '', delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false, delivery_origin: '', delivery_schedule: '', return_address: '', privacy_document: '', consent_document: '', offer_document: '', returns_document: '' };
 const product: Product = { id: 'test-product', name: 'City 42', description: 'A genuine model description.', category: 'scooter', license: 'unknown', license_verified: false, price: 42000, stock_status: 'preorder', range_km: null, speed_kmh: null, power_w: null, weight_kg: null, cargo_l: null, image_url: '/media/test.webp', images: ['/media/test.webp'], published: false, featured: false, tags: ['courier'], badge: 'hit', updated_at: '2026-09-06T12:00:00Z' };
 let authenticated = true;
 let rows: Product[] = [];
@@ -32,6 +32,20 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('admin CRM', () => {
+  it('saves delivery estimates and separate legal documents with CSRF', async () => {
+    render(<AdminApp/>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Магазин и документы' }));
+    fireEvent.change(await screen.findByLabelText('Город и адрес отправления'), { target: { value: 'Тестовый склад' } });
+    fireEvent.change(screen.getByLabelText('Оценки доставки по городам'), { target: { value: 'Казань; 4; 7; по тарифам ТК' } });
+    fireEvent.change(screen.getByLabelText('Адрес для возврата товаров'), { target: { value: 'Тестовый адрес возврата' } });
+    fireEvent.change(screen.getByLabelText('Политика конфиденциальности'), { target: { value: 'Тестовая редакция политики' } });
+    fireEvent.change(screen.getByLabelText('Согласие на обработку данных'), { target: { value: 'Отдельное согласие' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить информацию' }));
+    await screen.findByText('Информация магазина сохранена и доступна на сайте.');
+    const save = fetchMock.mock.calls.find(([url, options]) => url.endsWith('/settings') && options.method === 'PUT')!;
+    expect(save[1].headers.get('X-CSRF-Token')).toBe(session.csrfToken);
+    expect(JSON.parse(save[1].body)).toMatchObject({ delivery_origin: 'Тестовый склад', delivery_schedule: 'Казань; 4; 7; по тарифам ТК', return_address: 'Тестовый адрес возврата', privacy_document: 'Тестовая редакция политики', consent_document: 'Отдельное согласие' });
+  });
   it('restores a saved session without asking for the password again', async () => {
     render(<AdminApp/>);
     await screen.findByText('Каталог пока пуст');
@@ -160,7 +174,8 @@ describe('admin CRM', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Магазин и документы' }));
     fireEvent.change(await screen.findByLabelText('Название магазина'), { target: { value: 'Updated shop' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить информацию' }));
-    expect(await screen.findByText('Информация магазина сохранена и доступна на сайте.')).toHaveFocus();
+    const notice = await screen.findByText('Информация магазина сохранена и доступна на сайте.');
+    await waitFor(() => expect(notice).toHaveFocus());
   });
   it('updates an inquiry status using the server API', async () => {
     const inquiry: Inquiry = { id: 'inquiry-1', name: 'Test customer', contact: 'test@example.com', city: 'Казань', message: 'Please call back.', items: [{ product_id: product.id, name: product.name, price: 42000, quantity: 1, image_url: product.image_url }], total: 42000, status: 'new', created_at: '2026-09-06T12:00:00Z', updated_at: '2026-09-06T12:00:00Z' };
