@@ -3,6 +3,14 @@ import { formatPrice, mediaSource } from './api';
 import { productDraft, uploadSizeError, validateProduct, validateUpload } from './product-form';
 
 describe('admin publication validation', () => {
+  it('accepts an ATV draft and keeps documentary requirements unverified by default', () => {
+    const result = validateProduct({ ...productDraft(), name: 'Quad 42', category: 'atv' }, false);
+    expect(result.errors).toEqual([]);
+    expect(result.payload.category).toBe('atv');
+    expect(result.payload.license).toBe('unknown');
+    expect(result.payload.license_verified).toBe(false);
+    expect(validateProduct({ ...productDraft(), name: 'Quad 42', category: 'atv', license: 'not-required' }, false).errors).toHaveLength(1);
+  });
   it('keeps unknown numeric specifications empty rather than zero', () => {
     const result = validateProduct({ ...productDraft(), name: 'City 42' }, false);
     expect(result.errors).toEqual([]);

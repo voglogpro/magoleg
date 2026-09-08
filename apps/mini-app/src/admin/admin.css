@@ -104,7 +104,11 @@
 .crm-app .crm-photo-editor .crm-button { margin-top: 14px; font-size: 13px; }
 .crm-app .crm-checkbox { flex-direction: row; align-items: center; min-height: 44px; gap: 12px; font-weight: 400; line-height: 1.5; cursor: pointer; }
 .crm-app .crm-checkbox input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--crm-accent); margin: 0; }
-.crm-app .crm-editor-actions { display: flex; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--crm-line); padding-top: 22px; }
+.crm-app .crm-editor-actions { position: sticky; top: 8px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--crm-line); border-radius: 5px; background: var(--crm-panel); box-shadow: 0 5px 15px #0003; }
+.crm-app .crm-save-state { color: var(--crm-muted); font-size: 12px; line-height: 1.4; }
+.crm-app .crm-product-editor :is(input, select, textarea, button, .crm-form-errors) { scroll-margin-block: 160px; }
+.crm-app .crm-tag-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; }
+.crm-app .crm-tag-grid .crm-checkbox { font-size: 13px; gap: 8px; }
 .crm-app .crm-settings-form { max-width: 850px; gap: 30px; }
 .crm-app .crm-settings-form > .crm-button { justify-self: start; }
 .crm-app .crm-inquiry-filter { max-width: 260px; margin-bottom: 24px; }
@@ -141,14 +145,16 @@
   .crm-app .crm-header-actions { width: 100%; }
   .crm-app .crm-username { flex: 1; font-size: 12px; }
   .crm-app .crm-header-actions .crm-button { font-size: 12px; padding: 9px 10px; }
-  .crm-app .crm-tabs { padding: 0 16px; gap: 22px; }
-  .crm-app .crm-tabs button { font-size: 14px; }
+  .crm-app .crm-tabs { padding: 0 16px; gap: 14px; }
+  .crm-app .crm-tabs button { flex-shrink: 1; min-width: 0; font-size: 14px; text-align: left; }
   .crm-app .crm-main { padding: 24px 16px calc(45px + env(safe-area-inset-bottom, 0px)); }
   .crm-app .crm-section-head { margin-bottom: 22px; }
   .crm-app .crm-products-layout--editing { grid-template-columns: minmax(0, 1fr); }
   .crm-app .crm-products-layout--editing > .crm-products-list { display: none; }
   .crm-app .crm-product-editor { padding: 18px 14px; }
   .crm-app .crm-editor-actions .crm-button { flex: 1 1 170px; }
+  .crm-app .crm-editor-actions { top: 0; padding: 10px; gap: 8px; }
+  .crm-app .crm-save-state { flex-basis: 100%; }
   .crm-app .crm-editor-actions .crm-button--danger { margin-left: 0; }
   .crm-app .crm-product-tools { grid-template-columns: minmax(0, 1fr); }
   .crm-app .crm-inquiry { padding: 18px 14px; }

@@ -1,4 +1,4 @@
-export type Category = 'kick-scooter' | 'scooter' | 'e-bike' | 'parts' | 'accessories';
+export type Category = 'kick-scooter' | 'scooter' | 'e-bike' | 'atv' | 'parts' | 'accessories';
 export type ProductTag = 'waterproof' | 'heavy-rider' | 'two-up' | 'courier' | 'women' | 'beginner';
 export type ProductBadge = '' | 'hit' | 'best-price' | 'value';
 export type License = 'required' | 'not-required' | 'unknown';
@@ -76,7 +76,7 @@ export type AccountInquiry = {
 };
 export const categoryLabels: Record<Category, string> = {
   'kick-scooter': 'Электросамокаты', scooter: 'Электроскутеры', 'e-bike': 'Электровелосипеды',
-  parts: 'Запчасти', accessories: 'Аксессуары',
+  atv: 'Квадроциклы', parts: 'Запчасти', accessories: 'Аксессуары',
 };
 /** Smart picks: the shop ticks them per product, shoppers browse by them. */
 export const tagLabels: Record<ProductTag, string> = {
@@ -93,6 +93,6 @@ export const badgeLabels: Record<Exclude<ProductBadge, ''>, string> = {
   hit: 'Хит продаж', 'best-price': 'Лучшая цена', value: 'Цена-качество',
 };
 /** Rider requirements only apply to vehicles; parts and accessories never carry them. */
-export const vehicleCategories: Category[] = ['kick-scooter', 'scooter', 'e-bike'];
+export const vehicleCategories: Category[] = ['kick-scooter', 'scooter', 'e-bike', 'atv'];
 export const licenseLabels = { required: 'С правами', 'not-required': 'Без прав', unknown: 'Требования уточняются' };
 export const stockLabels = { 'in-stock': 'В наличии', preorder: 'Под заказ', 'out-of-stock': 'Нет в наличии' };

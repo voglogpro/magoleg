@@ -1,4 +1,4 @@
-import { defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type CityChoice, type Filters, type Product, type ProductTag, type SmartPick } from './types';
+import { categoryLabels, defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type CityChoice, type Filters, type Product, type ProductTag, type SmartPick } from './types';
 
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
@@ -76,7 +76,7 @@ export const plural = (count: number, forms: [string, string, string]) => {
 export function smartPicks(products: Product[]): SmartPick[] {
   const picks: Omit<SmartPick, 'count'>[] = [
     ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag, sort: 'value' as const } })),
-    { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'Отправляем от 3 дней', filters: { stock: 'in-stock', sort: 'value' as const } },
+    { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'По данным магазина', filters: { stock: 'in-stock', sort: 'value' as const } },
   ];
   const offered: SmartPick[] = [];
   for (const pick of picks) {
@@ -91,7 +91,7 @@ export function parseFilters(search: string): Filters {
   const get = (key: string, allowed: string[], fallback: string) => allowed.includes(params.get(key) ?? '') ? params.get(key)! : fallback;
   const amount = (key: string) => /^\d{1,9}(\.\d{1,2})?$/.test(params.get(key) ?? '') ? params.get(key)! : '';
   return {
-    category: get('category', ['all', 'kick-scooter', 'scooter', 'e-bike', 'parts', 'accessories'], 'all') as Filters['category'],
+    category: get('category', ['all', ...Object.keys(categoryLabels)], 'all') as Filters['category'],
     tag: get('tag', ['all', ...Object.keys(tagLabels)], 'all') as Filters['tag'],
     license: get('license', ['all', 'required', 'not-required', 'unknown'], 'all') as Filters['license'],
     stock: get('stock', ['all', 'in-stock', 'preorder', 'out-of-stock'], 'all') as Filters['stock'],

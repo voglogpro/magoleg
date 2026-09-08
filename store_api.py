@@ -58,7 +58,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "payment": "", "legal_name": "", "legal_details": "", "warranty": "",
     "inquiries_enabled": False,
 }
-PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "parts", "accessories")
+PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "atv", "parts", "accessories")
 # Shop-picked audiences a shopper can browse by; the owner ticks them per product.
 PRODUCT_TAGS = ("waterproof", "heavy-rider", "two-up", "courier", "women", "beginner")
 PRODUCT_BADGES = ("hit", "best-price", "value")

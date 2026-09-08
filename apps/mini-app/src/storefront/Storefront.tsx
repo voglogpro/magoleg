@@ -40,34 +40,14 @@ const pickIcons: Record<string, LucideIcon> = {
 
 /** A pick is a plain catalogue link, so the shopper can narrow it further with the usual filters. */
 function PickCards({ picks, layout }: { picks: SmartPick[]; layout: 'row' | 'grid' }) {
-  const rail = useRef<HTMLDivElement>(null);
-  const [pageable, setPageable] = useState(false);
-  // Arrows appear only while the row really overflows, so a desktop never shows a dead control.
-  useEffect(() => {
-    const track = rail.current;
-    if (!track || typeof ResizeObserver === 'undefined') return;
-    const measure = () => setPageable(track.scrollWidth - track.clientWidth > 4);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(track);
-    return () => observer.disconnect();
-  }, [picks.length]);
-  const scrollBy = (direction: 1 | -1) => {
-    const card = rail.current?.firstElementChild as HTMLElement | undefined;
-    rail.current?.scrollBy({ left: direction * ((card?.offsetWidth ?? 220) + 12), behavior: 'smooth' });
-  };
   return <div className={`sf-pick-rail sf-pick-rail--${layout}`}>
-    <div className="sf-pick-track" ref={rail}>{picks.map(pick => {
+    <div className="sf-pick-track">{picks.map(pick => {
       const Icon = pickIcons[pick.id] ?? Sparkles;
       return <a className="sf-pick-card" href={catalogHref(pick.filters)} key={pick.id}>
         <span className="sf-pick-art" aria-hidden="true"><span><Icon size={26} strokeWidth={1.7} /></span></span>
         <strong>{pick.label}</strong><span>{pick.hint}</span><em>{pick.count} {plural(pick.count, ['модель', 'модели', 'моделей'])}</em>
       </a>;
     })}</div>
-    {layout === 'row' && pageable && <div className="sf-pick-arrows sf-desktop-only">
-      <button aria-label="Предыдущие подборки" onClick={() => scrollBy(-1)}><ArrowLeft size={18} /></button>
-      <button aria-label="Следующие подборки" onClick={() => scrollBy(1)}><ArrowRight size={18} /></button>
-    </div>}
   </div>;
 }
 
@@ -173,7 +153,7 @@ export function Storefront() {
         <div className="sf-home-content">
           {picks.length > 0 && <section className="sf-home-picks" aria-labelledby="sf-picks-title">
             <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2><a href="#picks">Все подборки <ArrowRight size={16} /></a></div>
-            <PickCards picks={picks} layout="row" />
+            <PickCards picks={picks.slice(0, 4)} layout="grid" />
           </section>}
           <section className="sf-home-products" aria-labelledby="sf-products-title"><div className="sf-section-heading"><h2 id="sf-products-title">{products.some(product => product.featured) ? 'Выбор магазина' : 'Модели в каталоге'}</h2>{products.length > 0 && <a href="#catalog">Все модели <ArrowRight size={16} /></a>}</div>
             {catalogState || (featured.length ? cards(featured) : <div className="sf-catalog-preparing"><h3>Готовим ассортимент</h3><p>Здесь появятся фотографии, характеристики и цены после публикации товаров магазином.</p><a href="#contact">Контакты и информация о магазине</a></div>)}
@@ -202,7 +182,7 @@ export function Storefront() {
           <div><h2>Цена, ₽</h2><div className="sf-price-fields"><label><span>От</span><input type="number" inputMode="decimal" min={0} max={999999999} step="0.01" value={filters.min} onChange={event => updateFilters({ min: event.target.value })} /></label><label><span>До</span><input type="number" inputMode="decimal" min={0} max={999999999} step="0.01" value={filters.max} onChange={event => updateFilters({ max: event.target.value })} /></label></div>{filters.min && filters.max && Number(filters.min) > Number(filters.max) && <p className="sf-error">Цена «От» должна быть не больше цены «До».</p>}<label className="sf-stock-filter">Наличие<select value={filters.stock} onChange={event => updateFilters({ stock: event.target.value as Filters['stock'] })}><option value="all">Любое</option>{Object.entries(stockLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div>
           <div className="sf-filter-panel__actions"><button className="sf-button" onClick={() => setFiltersOpen(false)}>Показать товары</button><button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить фильтры</button></div>
         </section>
-        <div className="sf-results-heading"><p aria-live="polite">{loading ? 'Загрузка…' : `Найдено моделей: ${filtered.length}`}</p>{activeFilterCount > 0 && <button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить всё</button>}</div>
+        <div className="sf-results-heading"><p aria-live="polite">{loading ? 'Загрузка…' : `Найдено моделей: ${filtered.length}`}</p><label className="sf-quick-stock"><input type="checkbox" checked={filters.stock === 'in-stock'} onChange={event => updateFilters({ stock: event.target.checked ? 'in-stock' : 'all' })} />В наличии</label>{activeFilterCount > 0 && <button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить всё</button>}</div>
         {activeFilterCount > 0 && <div className="sf-active-filters" aria-label="Выбранные фильтры">
           {filters.category !== 'all' && <button onClick={() => updateFilters({ category: 'all' })}>{categoryLabels[filters.category]}<X size={14} aria-label="Убрать фильтр" /></button>}
           {filters.tag !== 'all' && <button onClick={() => updateFilters({ tag: 'all' })}>{tagLabels[filters.tag]}<X size={14} aria-label="Убрать подборку" /></button>}

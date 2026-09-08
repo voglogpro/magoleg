@@ -87,7 +87,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.locator('.sf-results-heading button').click();
   await page.goto(`${base}/#catalog?category=scooter`);
   await page.waitForSelector('.sf-catalog');
-  check(await page.locator('.sf-catalog .sf-category-tabs button').count() === 6, `${width}: every catalogue category is offered`);
+  check(await page.locator('.sf-catalog .sf-category-tabs button').count() === 7, `${width}: every catalogue category including ATVs is offered`);
   check(await countIs('.sf-product-card', 2), `${width}: transport category works`);
   await page.locator('.sf-filter-toggle').click();
   check(await page.locator('.sf-filter-panel > div').first().locator('.sf-filter-options button').count() === 7, `${width}: every smart pick is filterable`);
@@ -98,6 +98,17 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.locator('.sf-filter-toggle .sf-count').innerText() === '2', `${width}: filter icon counts hidden filters`);
   await page.locator('.sf-results-heading button').click();
   check(await countIs('.sf-product-card', 4), `${width}: reset all`);
+  await page.locator('.sf-quick-stock input').check();
+  check(await countIs('.sf-product-card', 2), `${width}: quick availability filter`);
+  await page.reload();
+  await page.waitForSelector('.sf-product-card');
+  check(await page.locator('.sf-quick-stock input').isChecked(), `${width}: availability filter survives reload in URL`);
+  await page.locator('.sf-quick-stock input').uncheck();
+  check(await countIs('.sf-product-card', 4), `${width}: availability filter resets`);
+  await page.locator('.sf-category-tabs button').filter({ hasText: 'Квадроциклы' }).click();
+  check(await countIs('.sf-product-card', 0), `${width}: empty ATV category never substitutes unrelated vehicles`);
+  check(await page.locator('.sf-empty').isVisible(), `${width}: useful empty-category response`);
+  await page.locator('.sf-results-heading button').click();
   await page.goto(`${base}/#catalog?filters=open`);
   await page.waitForSelector('.sf-product-card');
   check(await page.locator('.sf-filter-panel').isVisible(), `${width}: home filter icon opens the panel`);

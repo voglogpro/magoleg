@@ -211,6 +211,34 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         }, headers=self.headers)
         self.assertEqual(response.status, 201)
 
+    async def test_atv_category_persists_for_admin_and_public_catalog_without_license_claim(self):
+        await self.login()
+        response = await self.client.post("/api/admin/products", json={
+            "name": "Quad draft", "category": "atv",
+        }, headers=self.headers)
+        self.assertEqual(response.status, 201, await response.text())
+        draft = (await response.json())["product"]
+        self.assertEqual(draft["category"], "atv")
+        self.assertEqual(draft["license"], "unknown")
+        self.assertFalse(draft["license_verified"])
+        listing = await self.client.get("/api/admin/products")
+        self.assertEqual((await listing.json())["products"][0]["category"], "atv")
+        image_url = await self.upload()
+        response = await self.client.put(f"/api/admin/products/{draft['id']}", json={
+            "description": "Documented quad specifications.", "image_url": image_url,
+            "price": 75000, "published": True,
+        }, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        public = await self.client.get("/api/products")
+        product = (await public.json())["products"][0]
+        self.assertEqual(product["category"], "atv")
+        self.assertEqual(product["license"], "unknown")
+        self.assertFalse(product["license_verified"])
+        unchecked = await self.client.put(f"/api/admin/products/{draft['id']}", json={
+            "license": "not-required",
+        }, headers=self.headers)
+        await self.assert_error(unchecked, 400)
+
     async def test_json_format_and_body_limits(self):
         await self.login()
         response = await self.client.post("/api/admin/products", data="{}", headers=self.headers)

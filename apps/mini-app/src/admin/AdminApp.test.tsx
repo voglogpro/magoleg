@@ -79,6 +79,25 @@ describe('admin CRM', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Unexpected test endpoint');
     expect(screen.getByText('City 42')).toBeInTheDocument();
   });
+  it('reports a product load failure without claiming that the catalogue is empty', async () => {
+    const normal = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, options: RequestInit) => url.endsWith('/products')
+      ? Promise.resolve(response({ error: 'Каталог временно недоступен.' }, 503)) : normal(url, options));
+    render(<AdminApp/>);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Каталог временно недоступен.');
+    expect(screen.queryByText('Каталог пока пуст')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить загрузку' })).toBeEnabled();
+  });
+  it('clearly labels unpublishing and keeps the published model when it is cancelled', async () => {
+    rows = [{ ...product, published: true }];
+    vi.mocked(window.confirm).mockReturnValue(false);
+    render(<AdminApp/>);
+    fireEvent.click(await screen.findByRole('button', { name: /City 42.*На сайте/ }));
+    expect(screen.getByRole('button', { name: 'Сохранить публикацию' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Снять с сайта' }));
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Снять товар с публикации'));
+    expect(fetchMock.mock.calls.some(([, options]) => options.method === 'PUT')).toBe(false);
+  });
   it('starts with blank login fields and submits credentials without browser storage', async () => {
     authenticated = false;
     const storageSpy = vi.spyOn(Storage.prototype, 'setItem');
@@ -132,7 +151,16 @@ describe('admin CRM', () => {
     fireEvent.click(await screen.findByLabelText('Принимать заявки с сайта'));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить информацию' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('укажите продавца, реквизиты');
+    expect(screen.getByRole('alert')).toHaveFocus();
     expect(fetchMock.mock.calls.filter(([url, options]) => url.endsWith('/settings') && options.method === 'PUT')).toHaveLength(0);
+  });
+  it('returns focus to the saved settings confirmation instead of leaving it above the viewport', async () => {
+    render(<AdminApp/>);
+    await screen.findByText('Каталог пока пуст');
+    fireEvent.click(screen.getByRole('button', { name: 'Магазин и документы' }));
+    fireEvent.change(await screen.findByLabelText('Название магазина'), { target: { value: 'Updated shop' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить информацию' }));
+    expect(await screen.findByText('Информация магазина сохранена и доступна на сайте.')).toHaveFocus();
   });
   it('updates an inquiry status using the server API', async () => {
     const inquiry: Inquiry = { id: 'inquiry-1', name: 'Test customer', contact: 'test@example.com', city: 'Казань', message: 'Please call back.', items: [{ product_id: product.id, name: product.name, price: 42000, quantity: 1, image_url: product.image_url }], total: 42000, status: 'new', created_at: '2026-09-06T12:00:00Z', updated_at: '2026-09-06T12:00:00Z' };

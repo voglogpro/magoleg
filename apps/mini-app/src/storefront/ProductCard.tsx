@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Heart } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart } from 'lucide-react';
 import { effectiveLicense, money, productImage } from './domain';
 import { badgeLabels, categoryLabels, licenseLabels, stockLabels, vehicleCategories, type Product } from './types';
 
@@ -50,6 +50,9 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
   onFavorite: (id: string) => void; onCompare: (id: string) => void; onAdd: (id: string) => void;
 }) {
   const href = `#product/${encodeURIComponent(product.id)}`;
+  // The category is already printed above the title; keep the full model name in details and accessibility text.
+  const title = product.name.replace(/^(Электросамокат|Электроскутер|Электровелосипед|Электропитбайк|Квадроцикл)\s+/i, '');
+  const license = effectiveLicense(product);
   return <article className="sf-product-card">
     <div className="sf-product-card__visual">
       <a href={href} aria-label={`Подробнее: ${product.name}`}><ProductPhoto product={product} /></a>
@@ -58,16 +61,18 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
     </div>
     <div className="sf-product-card__body">
       <p className="sf-product-category">{categoryLabels[product.category]}</p>
-      <h3><a href={href}>{product.name}</a></h3>
+      <h3><a href={href} title={product.name} aria-label={product.name}>{title}</a></h3>
       <p className={`sf-stock sf-stock--${product.stock_status}`}>{stockLabels[product.stock_status]}</p>
       <dl className="sf-card-specs">
-        {product.range_km !== null && <div><dt>Запас хода</dt><dd>до {product.range_km} км</dd></div>}
+        {product.range_km !== null && <div><dt>Пробег</dt><dd>до {product.range_km} км</dd></div>}
         {product.power_w !== null && <div><dt>Мощность</dt><dd>{product.power_w} Вт</dd></div>}
       </dl>
-      {vehicleCategories.includes(product.category) && <p className="sf-license-caption">{licenseLabels[effectiveLicense(product)]}</p>}
+      {vehicleCategories.includes(product.category) && <p className="sf-license-caption" title={licenseLabels[license]}>{license === 'unknown' ? 'Права: уточняйте' : licenseLabels[license]}</p>}
       <strong className="sf-product-price">{money(product.price)}</strong>
+      <div className="sf-card-actions">
       {inCart ? <a className="sf-button sf-button--secondary" href="#cart">В корзине</a> : <button className="sf-button" type="button" disabled={product.stock_status === 'out-of-stock'} onClick={() => onAdd(product.id)}>{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}
-      <button className="sf-compare-button" type="button" onClick={() => onCompare(product.id)} aria-pressed={compared}>{compared ? 'В сравнении' : 'Сравнить'}</button>
+      <button className="sf-compare-button" type="button" onClick={() => onCompare(product.id)} aria-pressed={compared} aria-label={`${compared ? 'Убрать из сравнения' : 'Сравнить'}: ${product.name}`} title={compared ? 'Убрать из сравнения' : 'Сравнить'}><ArrowLeftRight size={19} aria-hidden="true" /></button>
+      </div>
     </div>
   </article>;
 }

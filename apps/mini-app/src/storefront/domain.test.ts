@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, plural, productImage, sanitizeCart, sanitizeIds, smartPicks, telegramLink } from './domain';
-import { defaultFilters, type Product } from './types';
+import { categoryLabels, defaultFilters, vehicleCategories, type Category, type Product } from './types';
 
 const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/products/one.webp', images: ['/media/products/one.webp'], featured: false, published: true, tags: ['courier'], badge: '', updated_at: '2026-09-06' };
 
 describe('catalogue filtering', () => {
+  it('round-trips every category offered by the shared public and admin labels', () => {
+    for (const category of Object.keys(categoryLabels) as Category[]) {
+      expect(parseFilters(catalogHref({ category }).split('?')[1]).category).toBe(category);
+    }
+  });
+  it('filters ATVs as vehicles without implying a verified driving-rights classification', () => {
+    const atv: Product = { ...product, id: 'quad', category: 'atv', license: 'unknown', license_verified: false };
+    expect(categoryLabels.atv).toBe('Квадроциклы');
+    expect(vehicleCategories).toContain('atv');
+    expect(filterProducts([product, atv], { ...defaultFilters, category: 'atv' })).toEqual([atv]);
+    expect(filterProducts([atv], { ...defaultFilters, category: 'atv', license: 'not-required' })).toEqual([]);
+  });
   it('never presents an unverified rights classification as confirmed', () => {
     const unchecked = { ...product, id: 'unchecked', license_verified: false };
     expect(effectiveLicense(unchecked)).toBe('unknown');

@@ -22,7 +22,7 @@ const output = resolve('test-results/kugoo-photos');
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 try {
-  for (const width of [320, 390, 1440]) {
+  for (const width of [320, 390, 768, 1440]) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -41,9 +41,32 @@ try {
     });
     await page.goto(base);
     await page.locator('.sf-city-options button').first().click();
+    await page.waitForSelector('.sf-home-picks .sf-pick-card');
+    const picks = await page.locator('.sf-home-picks .sf-pick-card').evaluateAll(nodes => nodes.map(node => {
+      const rect = node.getBoundingClientRect(); return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom };
+    }));
+    assert.equal(picks.length, 4, 'Four useful selections for the four real product fixtures');
+    if (width < 700) {
+      assert.equal(picks[0].y, picks[1].y, 'First row has two tiles');
+      assert.equal(picks[2].y, picks[3].y, 'Second row has two tiles');
+      assert.ok(picks[2].y >= picks[0].bottom, 'Rows never overlap');
+      assert.ok(picks.every(pick => pick.x >= 0 && pick.right <= width), 'All picks are visible without horizontal scrolling');
+    }
+    await page.locator('.sf-home-picks').screenshot({ path: `${output}/picks-${width}.png` });
     await page.goto(`${base}/#catalog`);
     await page.waitForSelector('.sf-product-card');
     assert.equal(await page.locator('.sf-product-card').count(), 4);
+    const dimensions = await page.locator('.sf-product-card').evaluateAll(nodes => nodes.map(node => ({
+      width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height,
+      body: node.querySelector('.sf-product-card__body').getBoundingClientRect().height,
+    })));
+    assert.ok(dimensions.every(card => card.body < 310), 'Product summaries remain compact without full descriptions');
+    if (width >= 1150) assert.ok(dimensions.every(card => card.width < 260), 'Desktop marketplace-sized cards');
+    for (const button of await page.locator('.sf-card-actions > *').all()) {
+      const bounds = await button.boundingBox();
+      assert.ok(bounds.width >= 44 && bounds.height >= 44, 'Accessible compact card actions');
+    }
+    console.log(JSON.stringify({ width, cards: dimensions }));
     for (const photo of await page.locator('.sf-product-card .sf-product-photo img').all()) {
       await photo.scrollIntoViewIfNeeded();
       await photo.evaluate(image => image.decode());
