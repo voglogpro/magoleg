@@ -53,13 +53,26 @@ describe('smart picks', () => {
   const licensed: Product = { ...product, id: 'two', tags: [], license: 'required', stock_status: 'preorder' };
   it('offers picks the shop ticked and picks the products themselves imply', () => {
     const picks = smartPicks([product, licensed]);
-    expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'stock-in-stock']);
-    expect(picks.map(pick => pick.count)).toEqual([1, 1]);
+    expect(picks.map(pick => pick.id)).toEqual(['tag-courier', 'budget-50000']);
+    expect(picks.map(pick => pick.count)).toEqual([1, 2]);
     expect(picks[0].filters).toEqual({ tag: 'courier', sort: 'value' });
   });
   it('hides picks with nothing behind them, including unpublished models', () => {
     expect(smartPicks([{ ...product, published: false }])).toEqual([]);
-    expect(smartPicks([licensed])).toEqual([]);
+    expect(smartPicks([{ ...licensed, price: 50001 }])).toEqual([]);
+  });
+  it('opens the budget pick with an inclusive price ceiling and excludes unknown prices', () => {
+    const items = [
+      { ...licensed, id: 'limit', price: 50000 },
+      { ...licensed, id: 'expensive', price: 50001 },
+      { ...licensed, id: 'unknown', price: null },
+    ];
+    const pick = smartPicks(items).find(pick => pick.id === 'budget-50000')!;
+    expect(pick.count).toBe(1);
+    expect(pick.label).toBe('До 50 000 ₽');
+    const filters = parseFilters(catalogHref(pick.filters).split('?')[1]);
+    expect(filterProducts(items, filters).map(item => item.id)).toEqual(['limit']);
+    expect(smartPicks(items).some(pick => pick.id === 'stock-in-stock')).toBe(false);
   });
   it('leaves rights requirements to the filter panel instead of naming a pick', () => {
     expect(smartPicks([product, licensed]).map(pick => pick.id).join()).not.toContain('license');

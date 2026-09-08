@@ -76,7 +76,7 @@ export const plural = (count: number, forms: [string, string, string]) => {
 export function smartPicks(products: Product[]): SmartPick[] {
   const picks: Omit<SmartPick, 'count'>[] = [
     ...(Object.keys(tagLabels) as ProductTag[]).map(tag => ({ id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag, sort: 'value' as const } })),
-    { id: 'stock-in-stock', label: 'В наличии сейчас', hint: 'По данным магазина', filters: { stock: 'in-stock', sort: 'value' as const } },
+    { id: 'budget-50000', label: 'До 50 000 ₽', hint: 'Подборка по бюджету', filters: { max: '50000', sort: 'value' as const } },
   ];
   const offered: SmartPick[] = [];
   for (const pick of picks) {

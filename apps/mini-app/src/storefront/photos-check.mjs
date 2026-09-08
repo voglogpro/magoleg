@@ -42,6 +42,15 @@ try {
     await page.goto(base);
     await page.locator('.sf-city-options button').first().click();
     await page.waitForSelector('.sf-home-picks .sf-pick-card');
+    const benefits = page.locator('.sf-shop-benefits');
+    assert.equal(await benefits.locator('li').count(), 3);
+    assert.equal((await benefits.innerText()).replace(/\s+/g, ' ').trim(), 'Доставка от 3-х дней Гарантия 12 месяцев Прямые поставки');
+    const benefitBounds = await benefits.boundingBox();
+    const pickBounds = await page.locator('.sf-home-picks').boundingBox();
+    assert.ok(benefitBounds.y + benefitBounds.height <= pickBounds.y, 'Store promises sit above the smart picks without overlap');
+    assert.ok(await benefits.evaluate(node => node.scrollWidth <= node.clientWidth), 'Benefits fit on narrow screens');
+    assert.equal(await page.locator('.sf-home-picks a').filter({ hasText: 'В наличии сейчас' }).count(), 0);
+    await benefits.screenshot({ path: `${output}/benefits-${width}.png` });
     const picks = await page.locator('.sf-home-picks .sf-pick-card').evaluateAll(nodes => nodes.map(node => {
       const rect = node.getBoundingClientRect(); return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom };
     }));

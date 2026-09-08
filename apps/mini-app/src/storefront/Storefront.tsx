@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, CloudRain, Dumbbell, Feather, Heart, Home, Menu, Package, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Sparkles, Sprout, Trash2, Truck, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, CloudRain, Dumbbell, Feather, Heart, Home, Menu, Package, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Sparkles, Sprout, Trash2, Wallet, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { Account } from './Account';
 import { CityBar, CityPicker } from './CityPicker';
 import { StoreHero } from '../components/StoreHero';
@@ -35,7 +35,7 @@ function TypeChips({ current, onPick, options }: {
 /** Each pick gets a drawn icon of its own: a tile names an audience, not one model in stock. */
 const pickIcons: Record<string, LucideIcon> = {
   'tag-waterproof': CloudRain, 'tag-heavy-rider': Dumbbell, 'tag-two-up': Users,
-  'tag-courier': Package, 'tag-women': Feather, 'tag-beginner': Sprout, 'stock-in-stock': Truck,
+  'tag-courier': Package, 'tag-women': Feather, 'tag-beginner': Sprout, 'budget-50000': Wallet,
 };
 
 /** A pick is a plain catalogue link, so the shopper can narrow it further with the usual filters. */
@@ -151,6 +151,11 @@ export function Storefront() {
       {path === 'home' && <>
         <StoreHero onCatalog={() => navigate('#catalog')} />
         <div className="sf-home-content">
+          <ul className="sf-shop-benefits" aria-label="Преимущества магазина">
+            <li><strong>Доставка</strong><span>от 3-х дней</span></li>
+            <li><strong>Гарантия</strong><span>12 месяцев</span></li>
+            <li><strong>Прямые</strong><span>поставки</span></li>
+          </ul>
           {picks.length > 0 && <section className="sf-home-picks" aria-labelledby="sf-picks-title">
             <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2><a href="#picks">Все подборки <ArrowRight size={16} /></a></div>
             <PickCards picks={picks.slice(0, 4)} layout="grid" />

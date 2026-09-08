@@ -77,12 +77,12 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.waitForSelector('.sf-pick-card');
   check(await countIs('.sf-pick-card', 3), `${width}: the picks page offers every selection that has models`);
   check(await page.evaluate(() => [...document.querySelectorAll('.sf-pick-card')].every(link => !link.href.includes('license'))), `${width}: rights are a filter, not a pick`);
-  const inStock = page.locator('.sf-pick-card').filter({ hasText: 'В наличии сейчас' });
-  check((await inStock.innerText()).includes('2 модели'), `${width}: a pick counts its models`);
+  const budgetPick = page.locator('.sf-pick-card').filter({ hasText: 'До 50 000 ₽' });
+  check((await budgetPick.innerText()).includes('2 модели'), `${width}: a pick counts its models`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: picks no overflow`);
   await page.screenshot({ path: `${output}/picks-${width}.png`, fullPage: true });
-  await inStock.click();
-  await page.waitForURL(/stock=in-stock/);
+  await budgetPick.click();
+  await page.waitForURL(/max=50000/);
   check(await countIs('.sf-product-card', 2), `${width}: a pick the products imply filters the catalogue`);
   await page.locator('.sf-results-heading button').click();
   await page.goto(`${base}/#catalog?category=scooter`);

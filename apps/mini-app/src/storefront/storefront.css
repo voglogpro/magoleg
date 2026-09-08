@@ -78,6 +78,12 @@
 .sf-store .sf-page-heading h1 { overflow-wrap: anywhere; }
 .sf-store .sf-page-product .sf-page-heading h1 { -webkit-user-select: text; user-select: text; }
 .sf-store .sf-home-content { padding: 24px 16px 12px; }
+.sf-store .sf-shop-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 14px 0; list-style: none; border-block: 1px solid var(--sf-line); }
+.sf-store .sf-shop-benefits li { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 0 8px; text-align: center; font-size: 13px; line-height: 1.4; }
+.sf-store .sf-shop-benefits li + li { border-left: 1px solid var(--sf-line); }
+.sf-store .sf-shop-benefits strong { color: var(--sf-text); font-weight: 600; }
+.sf-store .sf-shop-benefits span { color: var(--sf-muted); }
+@media (min-width: 700px) { .sf-store .sf-shop-benefits li { flex-direction: row; justify-content: center; gap: 6px; font-size: 15px; } }
 .sf-store .sf-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
 .sf-store .sf-section-heading h2 { font-size: clamp(19px, 3.9vw, 25px); }
 .sf-store .sf-section-heading > a { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; min-height: 44px; color: #ff984e; font-size: 13px; white-space: nowrap; }
@@ -88,7 +94,7 @@
 .sf-store .sf-filter-icon[aria-expanded=true] { border-color: var(--sf-orange); color: #ff984e; background: #242429; }
 .sf-store .sf-filter-icon .sf-count { position: absolute; top: -6px; right: -6px; }
 .sf-store .sf-home-picks { margin-top: 30px; }
-/* Picks are swiped on a phone and paged with arrows on a desktop; the same card serves both. */
+/* Four home picks form two rows on a phone and a single row on desktop. */
 .sf-store .sf-pick-rail { position: relative; }
 .sf-store .sf-pick-track { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sf-store .sf-pick-card { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--sf-line); border-radius: 6px; background: var(--sf-surface); }
