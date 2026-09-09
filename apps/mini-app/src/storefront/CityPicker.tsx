@@ -90,7 +90,7 @@ export function CityBar({ city, onOpen }: { city: CityChoice; onOpen: () => void
   return <div className="sf-city-bar">
     <MapPin size={16} aria-hidden="true" />
     {city.name
-      ? <p>Доставка в город <strong>{city.name}</strong></p>
+      ? <p><span className="sf-city-bar__prefix">Доставка в город </span><strong>{city.name}</strong></p>
       : <p>Город доставки не выбран</p>}
     {zone && <p className="sf-city-bar__term"><Truck size={14} aria-hidden="true" />{zoneTerm(zone)}</p>}
     <button className="sf-text-button" type="button" onClick={onOpen}>{city.name ? 'Изменить' : 'Указать город'}</button>

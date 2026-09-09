@@ -11,6 +11,8 @@ import '@fontsource/inter/latin-700.css';
 import '@fontsource/inter/cyrillic-800.css';
 import '@fontsource/inter/latin-800.css';
 import '@fontsource/montserrat/cyrillic-700.css';
+import '@fontsource/montserrat/cyrillic-600.css';
+import '@fontsource/montserrat/latin-600.css';
 import '@fontsource/montserrat/latin-700.css';
 import '@fontsource/montserrat/cyrillic-800.css';
 import '@fontsource/montserrat/latin-800.css';

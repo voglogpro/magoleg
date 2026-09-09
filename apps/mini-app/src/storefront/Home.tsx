@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { ArrowLeftRight, ArrowRight, Bike, Bell, Cog, Gauge, Heart, MousePointerClick, Puzzle, ShoppingBag, Sparkles, Truck, Zap, type LucideIcon } from 'lucide-react';
 import { StoreHero } from '../components/StoreHero';
 import { ShopBenefits } from '../components/ShopBenefits';
+import { ProductPhoto } from './ProductCard';
 import { PickCards } from './PickCards';
 import { catalogHref, categorySummary, money, plural, telegramLink } from './domain';
 import { categoryLabels, type Category, type Product, type ShopSettings, type SmartPick } from './types';
@@ -25,9 +26,10 @@ export function CategoryTiles({ products }: { products: Product[] }) {
     <ul className="sf-cat-grid">
       {rows.map((row, index) => {
         const Icon = categoryIcons[row.category];
+        const photo = products.find(product => product.category === row.category && product.image_url);
         return <li key={row.category} style={{ '--sf-step': index } as CSSProperties}>
           <a className="sf-cat-tile" href={catalogHref({ category: row.category })}>
-            <span className="sf-cat-tile__icon" aria-hidden="true"><Icon size={22} strokeWidth={1.8} /></span>
+            <span className="sf-cat-tile__art" aria-hidden="true">{photo ? <ProductPhoto product={photo} /> : <span className="sf-cat-tile__icon"><Icon size={32} strokeWidth={1.5} /></span>}</span>
             <strong>{categoryLabels[row.category]}</strong>
             <span className="sf-cat-tile__count">{row.count} {plural(row.count, ['модель', 'модели', 'моделей'])}</span>
             {row.from !== null && <span className="sf-cat-tile__price">от {money(row.from)}</span>}
