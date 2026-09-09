@@ -2,8 +2,29 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { adminRequest, AdminApiError, formatDate, formatPrice, mediaSource, type AdminSession, type Inquiry, type Product, type ShopSettings } from './api';
 import { fitPhoto } from './fit-photo';
 import { productDraft, uploadSizeError, validateProduct, validateUpload, type ProductDraft } from './product-form';
-import { activePickLabels as tagLabels, badgeLabels, categoryLabels, defaultSettings, type ProductTag } from '../storefront/types';
+import { activePickLabels as tagLabels, badgeLabels, categoryLabels, defaultSettings, type PaymentStatus, type ProductTag } from '../storefront/types';
+import { paymentStatusLabels } from '../storefront/Payment';
 import './admin.css';
+
+const paymentFields = [
+  ['payment_card', 'Картой онлайн'], ['payment_installment', 'Рассрочка и кредит'],
+  ['payment_invoice', 'Счёт для организаций'], ['payment_on_delivery', 'Оплата при получении'],
+] as const;
+
+/** Что владелец должен заполнить, прежде чем объявлять оплату рабочей. Совпадает с проверкой сервера. */
+export function paymentChecklist(settings: ShopSettings) {
+  const digits = settings.phone.replace(/\D/g, '');
+  return [
+    { label: 'Юридическое наименование и реквизиты продавца', done: Boolean(settings.legal_name.trim() && settings.legal_details.trim()) },
+    { label: 'Телефон или Telegram для обращений', done: Boolean((digits.length >= 7 && digits.length <= 15) || settings.telegram.trim()) },
+    { label: 'Адрес для возврата товаров', done: Boolean(settings.return_address.trim()) },
+    { label: 'Платёжный сервис для оплаты картой', done: Boolean(settings.payment_provider.trim()) },
+    { label: 'Публичная оферта в утверждённой редакции', done: Boolean(settings.offer_document.trim()) },
+    { label: 'Политика конфиденциальности и согласие', done: Boolean(settings.privacy_document.trim() && settings.consent_document.trim()) },
+    { label: 'Порядок возврата товаров и денег', done: Boolean(settings.returns_document.trim()) },
+    { label: 'Порядок выдачи кассового чека', done: Boolean(settings.payment_receipt.trim()) },
+  ];
+}
 
 type Request = <T>(path: string, options?: Parameters<typeof adminRequest>[1]) => Promise<T>;
 type PanelProps = { request: Request; onDirty: (value: boolean) => void; onBusy: (value: boolean) => void };
@@ -264,13 +285,12 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
         <label>Название магазина<input required maxLength={100} value={settings.shop_name} onChange={event => update('shop_name', event.target.value)}/></label>
         <label>Телефон<input type="tel" autoComplete="tel" maxLength={32} placeholder="Номер для покупателей" value={settings.phone} onChange={event => update('phone', event.target.value)}/></label>
         <label>Telegram<input maxLength={100} placeholder="@username" value={settings.telegram} onChange={event => update('telegram', event.target.value)}/></label>
-      </div><label>Адрес магазина<input maxLength={500} autoComplete="street-address" placeholder="Укажите, если доступно посещение или самовывоз" value={settings.address} onChange={event => update('address', event.target.value)}/></label><label>Часы работы<input maxLength={200} placeholder="Укажите дни и время" value={settings.hours} onChange={event => update('hours', event.target.value)}/></label></fieldset>
+      </div><label>Адрес магазина<input maxLength={500} autoComplete="street-address" placeholder="Адрес офиса или склада для документов" value={settings.address} onChange={event => update('address', event.target.value)}/></label><label>Часы работы<input maxLength={200} placeholder="Укажите дни и время" value={settings.hours} onChange={event => update('hours', event.target.value)}/></label></fieldset>
       <fieldset disabled={busy}><legend>Условия покупки</legend>
         <label>Город и адрес отправления<input maxLength={500} value={settings.delivery_origin} onChange={event => update('delivery_origin', event.target.value)} placeholder="Фактический склад отправления" /></label>
         <label>Оценки доставки по городам<textarea rows={5} maxLength={8000} value={settings.delivery_schedule} onChange={event => update('delivery_schedule', event.target.value)} placeholder="Город; дней от; дней до; стоимость" /></label>
         <p className="crm-help">Одна строка на город. Четыре поля через точку с запятой: город; минимальный срок; максимальный срок; стоимость или «По тарифу ТК». Срок — целое число от 1 до 90 календарных дней после передачи перевозчику. Публикуйте только проверенные оценки. Это не подключение API СДЭК.</p>
         <label>Доставка и получение<textarea rows={4} maxLength={6000} placeholder="Территория, способы, стоимость и сроки доставки" value={settings.delivery} onChange={event => update('delivery', event.target.value)}/></label>
-        <label>Оплата<textarea rows={3} maxLength={6000} placeholder="Реальные способы оплаты и порядок подтверждения заказа" value={settings.payment} onChange={event => update('payment', event.target.value)}/></label>
         <label>Гарантия и возврат<textarea rows={4} maxLength={6000} placeholder="Подтверждённые условия обслуживания, гарантии и возврата" value={settings.warranty} onChange={event => update('warranty', event.target.value)}/></label>
       </fieldset>
       <fieldset disabled={busy}><legend>Продавец и приём заявок</legend><p className="crm-help">Эти сведения публикуются в информации о магазине. Не добавляйте персональные данные, которые не предназначены для общего доступа.</p>
@@ -279,6 +299,27 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
         <label>Реквизиты и информация для покупателя<textarea rows={5} maxLength={8000} placeholder="Реквизиты продавца, регистрационные данные и условия обработки обращений" value={settings.legal_details} onChange={event => update('legal_details', event.target.value)}/></label>
         <label className="crm-checkbox"><input type="checkbox" checked={settings.inquiries_enabled} onChange={event => update('inquiries_enabled', event.target.checked)}/><span>Принимать заявки с сайта</span></label>
         <p className="crm-help">Включайте после заполнения документов, контактов и условий. Заявка не списывает деньги и не является онлайн-оплатой.</p>
+      </fieldset>
+      <fieldset disabled={busy}><legend>Оплата</legend>
+        <p className="crm-help">Раздел «Оплата и документы» на сайте показывает только то, что отмечено здесь. «Доступно» означает, что магазин действительно принимает деньги этим способом: включайте после договора с платёжным сервисом или банком.</p>
+        <div className="crm-fields-two">
+          {paymentFields.map(([key, label]) => <label key={key}>{label}
+            <select value={settings[key]} onChange={event => update(key, event.target.value as PaymentStatus)}>
+              {(['off', 'preparing', 'on'] as const).map(status => <option value={status} key={status}>{paymentStatusLabels[status]}</option>)}
+            </select>
+          </label>)}
+          <label>Платёжный сервис<input maxLength={200} placeholder="Например, ЮKassa или Т-Бизнес" value={settings.payment_provider} onChange={event => update('payment_provider', event.target.value)} /></label>
+          <label>Банк-партнёр рассрочки<input maxLength={200} placeholder="Кто оформляет рассрочку и кредит" value={settings.payment_installment_partner} onChange={event => update('payment_installment_partner', event.target.value)} /></label>
+        </div>
+        <label>Чек и документы покупателю<textarea rows={3} maxLength={8000} placeholder="Как выдаётся кассовый чек и какие документы получает покупатель" value={settings.payment_receipt} onChange={event => update('payment_receipt', event.target.value)} /></label>
+        <label>Порядок оплаты — свободный текст<textarea rows={3} maxLength={6000} placeholder="Дополнительные условия расчёта, которые увидит покупатель" value={settings.payment} onChange={event => update('payment', event.target.value)}/></label>
+        <div className="crm-checklist">
+          <h3>Готовность к приёму денег</h3>
+          <ul>{paymentChecklist(settings).map(item => <li key={item.label} className={item.done ? 'crm-checklist__done' : ''}>
+            <span aria-hidden="true">{item.done ? '✓' : '•'}</span><span>{item.label}</span><b>{item.done ? 'заполнено' : 'нужно заполнить'}</b>
+          </li>)}</ul>
+          <p className="crm-help">Договор эквайринга, онлайн-касса по 54-ФЗ и юридическая проверка документов выполняются вне сайта. Сервер не разрешит отметить способ «Доступно», пока обязательные поля пустые.</p>
+        </div>
       </fieldset>
       <fieldset disabled={busy}><legend>Документы сайта</legend><p className="crm-help">На сайте есть отдельные страницы. Ниже можно опубликовать утверждённые юристом редакции обычным текстом. Пока поле пустое, показывается базовый проект с предупреждением. Заполните реальные реквизиты и условия перед запуском оплаты и кредита.</p>
         {([['privacy_document', 'Политика конфиденциальности'], ['consent_document', 'Согласие на обработку данных'], ['offer_document', 'Публичная оферта'], ['returns_document', 'Возврат товаров и денег']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={7} maxLength={12000} value={settings[key]} onChange={event => update(key, event.target.value)} /></label>)}

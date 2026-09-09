@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AdminApp } from './AdminApp';
 import type { Inquiry, Product, ShopSettings } from './api';
+import { defaultSettings } from '../storefront/types';
 
 const session = { username: 'test-owner', csrfToken: 'test-csrf-token' };
-const settings: ShopSettings = { shop_name: 'Test shop', phone: '', telegram: '', address: '', hours: '', delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false, delivery_origin: '', delivery_schedule: '', return_address: '', privacy_document: '', consent_document: '', offer_document: '', returns_document: '' };
+const settings: ShopSettings = { ...defaultSettings, shop_name: 'Test shop' };
 const product: Product = { id: 'test-product', name: 'City 42', description: 'A genuine model description.', category: 'scooter', license: 'unknown', license_verified: false, price: 42000, stock_status: 'preorder', range_km: null, speed_kmh: null, power_w: null, weight_kg: null, cargo_l: null, image_url: '/media/test.webp', images: ['/media/test.webp'], published: false, featured: false, tags: ['courier'], badge: 'hit', updated_at: '2026-09-06T12:00:00Z' };
 let authenticated = true;
 let rows: Product[] = [];

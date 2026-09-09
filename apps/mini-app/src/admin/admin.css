@@ -169,3 +169,15 @@
   .crm-app .crm-product-thumb { width: 50px; height: 58px; grid-row: 1 / span 2; }
   .crm-app .crm-product-row .crm-badge { grid-column: 2; justify-self: start; }
 }
+
+/* Готовность к приёму денег: что уже заполнено, а что мешает включить оплату. */
+.crm-app .crm-checklist { margin-top: 6px; padding: 16px; border: 1px solid var(--crm-line); border-radius: 6px; background: #191a1d; }
+.crm-app .crm-checklist h3 { font: 650 15px/1.4 Inter, sans-serif; margin-bottom: 12px; }
+.crm-app .crm-checklist ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.crm-app .crm-checklist li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: baseline; gap: 10px; font-size: 14px; line-height: 1.5; color: var(--crm-muted); }
+.crm-app .crm-checklist li > span:first-child { color: #7d7f89; font-weight: 700; }
+.crm-app .crm-checklist li b { font-size: 12px; font-weight: 600; color: #f0b184; white-space: nowrap; }
+.crm-app .crm-checklist__done { color: var(--crm-text); }
+.crm-app .crm-checklist__done > span:first-child { color: #8fd4a5; }
+.crm-app .crm-checklist__done b { color: #8fd4a5; }
+@media (max-width: 560px) { .crm-app .crm-checklist li { grid-template-columns: 18px minmax(0, 1fr); } .crm-app .crm-checklist li b { grid-column: 2; } }

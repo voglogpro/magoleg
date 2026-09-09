@@ -8,7 +8,9 @@ const base = process.env.STOREFRONT_QA_URL || 'http://127.0.0.1:5192';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(base).hostname));
 const output = resolve('test-results/delivery-documents');
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch();
+/** CHROMIUM_PATH позволяет запустить проверку на предустановленном браузере окружения. */
+const launchOptions = { headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) };
+const browser = await chromium.launch(launchOptions);
 try {
   for (const width of [320, 390, 768, 1440]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
@@ -19,6 +21,8 @@ try {
       delivery_schedule: 'Казань; 4; 7; по тарифам перевозчика',
       legal_name: 'Тестовый продавец', legal_details: 'Тестовые данные браузерной проверки',
       phone: '+7 (900) 123-45-67', inquiries_enabled: false,
+      payment_card: 'preparing', payment_installment: 'preparing', payment_invoice: 'preparing',
+      payment_on_delivery: 'off', payment_provider: '', payment_installment_partner: '', payment_receipt: '',
     };
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname;
@@ -26,13 +30,28 @@ try {
       return route.fulfill({ json: path === '/api/settings' ? { settings } : path === '/api/products' ? { products: [] } : { account: null } });
     });
     await page.goto(base);
+    // Один тап по городу сохраняет выбор и не уводит страницу вниз.
+    await page.evaluate(() => scrollTo(0, 0));
     await page.locator('.sf-city-options button').first().click();
+    assert.equal(await page.locator('.sf-city-dialog').count(), 0, 'Первое нажатие закрывает выбор города');
+    assert.match(await page.locator('.sf-city-bar').innerText(), /Москва/);
+    assert.equal(await page.evaluate(() => Math.round(scrollY)), 0, 'Страница остаётся на месте после выбора города');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'static');
     await page.locator('.sf-shop-benefits a[href="#delivery"]').click();
     await page.waitForURL(/#delivery$/);
     await page.getByLabel('Город получения').fill('  Казань  ');
     await page.getByRole('button', { name: 'Показать сроки' }).click();
     assert.match(await page.locator('.sf-delivery-result').innerText(), /Казань: 4–7 дн/);
+    assert.match(await page.locator('.sf-delivery-result').innerText(), /Точная оценка магазина/);
+    // Города без отдельной строки получают оценку своего федерального округа.
+    await page.getByLabel('Город получения').fill('Владивосток');
+    await page.getByRole('button', { name: 'Показать сроки' }).click();
+    assert.match(await page.locator('.sf-delivery-result').innerText(), /Владивосток: 2–3 недели/);
     assert.match(await page.locator('.sf-delivery-result').innerText(), /не онлайн-расчёт СДЭК/);
+    assert.equal(await page.locator('.sf-zone-grid .sf-zone-card').count(), 7);
+    assert.doesNotMatch(await page.locator('main').innerText(), /Самовывоз/);
+    await page.getByLabel('Город получения').fill('Казань');
+    await page.getByRole('button', { name: 'Показать сроки' }).click();
     await page.reload();
     await page.waitForSelector('.sf-delivery-result');
     assert.equal(await page.getByLabel('Город получения').inputValue(), 'Казань');
@@ -54,6 +73,16 @@ try {
     }
     await page.getByText(/Возврат товара не прекращает кредитный договор автоматически/).waitFor();
     await page.screenshot({ path: `${output}/returns-${width}.png`, fullPage: true });
+    // Зона оплаты: неподключённый способ никогда не выглядит рабочим.
+    await page.goto(`${base}/#payment`);
+    await page.locator('.sf-pay-grid').waitFor();
+    const payment = await page.locator('main').innerText();
+    assert.match(payment, /Готовим подключение/);
+    assert.doesNotMatch(payment, /(^|\n)Доступно(\n|$)/);
+    assert.match(payment, /никогда не просит номер карты/);
+    assert.equal(await page.locator('.sf-steps li').count(), 4);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: оплата помещается`);
+    await page.screenshot({ path: `${output}/payment-${width}.png`, fullPage: true });
     for (const topic of ['warranty', 'supply']) {
       await page.goto(`${base}/#home`);
       await page.locator(`.sf-shop-benefits a[href="#${topic}"]`).click();
@@ -70,6 +99,6 @@ try {
     assert.match(await page.locator('.sf-document-body').innerText(), /<img src=x/);
     assert.deepEqual(errors, []);
     await page.close();
-    console.log(`${width}px: delivery, city persistence, seven page links, document drafts and safe custom text PASS`);
+    console.log(`${width}px: округа доставки, один тап по городу, оплата, документы и безопасный пользовательский текст PASS`);
   }
 } finally { await browser.close(); }

@@ -1,4 +1,4 @@
-import { defaultSettings, type AccountInquiry, type AccountProfile, type Inquiry, type InquiryPayload, type Product, type ShopSettings } from './types';
+import { defaultSettings, paymentStatusFields, paymentStatuses, type AccountInquiry, type AccountProfile, type Inquiry, type InquiryPayload, type Product, type ShopSettings } from './types';
 
 export class StoreApiError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
@@ -41,11 +41,14 @@ export async function getProducts(signal?: AbortSignal) {
 export async function getSettings(signal?: AbortSignal): Promise<ShopSettings> {
   const data = await request<{ settings: Partial<ShopSettings> }>('/api/settings', { signal });
   if (!data.settings || typeof data.settings !== 'object') throw new StoreApiError('Информация о магазине временно недоступна.', 502);
-  const settings = { ...defaultSettings };
-  for (const key of Object.keys(settings) as (keyof ShopSettings)[]) {
-    if (key === 'inquiries_enabled') settings[key] = data.settings[key] === true;
-    else if (typeof data.settings[key] === 'string') settings[key] = data.settings[key];
-  }
+  const raw = data.settings as Record<string, unknown>;
+  const settings: ShopSettings = {
+    ...defaultSettings,
+    ...Object.fromEntries(Object.keys(defaultSettings).filter(key => typeof raw[key] === 'string').map(key => [key, raw[key]])),
+    inquiries_enabled: raw.inquiries_enabled === true,
+  };
+  // Незнакомый статус оплаты трактуется как «не подключено»: витрина не обещает лишнего.
+  for (const key of paymentStatusFields) if (!paymentStatuses.includes(settings[key])) settings[key] = 'off';
   return settings;
 }
 

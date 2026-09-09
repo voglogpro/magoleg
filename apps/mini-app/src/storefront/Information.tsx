@@ -2,10 +2,11 @@ import { phoneLink, telegramLink } from './domain';
 import { InquiryForm } from './InquiryForm';
 import { type ShopSettings } from './types';
 import { Delivery } from './Delivery';
+import { Payment } from './Payment';
 import { LegalDocument, legalTopics } from './LegalDocuments';
 
 export const infoTitles: Record<string, string> = {
-  about: 'О магазине', delivery: 'Доставка и оплата', contact: 'Контакты', guide: 'Помощь с выбором',
+  about: 'О магазине', delivery: 'Доставка по России', payment: 'Оплата и документы', contact: 'Контакты', guide: 'Помощь с выбором',
   privacy: 'Политика конфиденциальности', consent: 'Согласие на обработку персональных данных', offer: 'Публичная оферта', returns: 'Возврат товаров и денег', warranty: 'Гарантия', supply: 'Прямые поставки',
 };
 
@@ -35,6 +36,10 @@ export function Information({ topic, settings, city = '', onCity }: { topic: str
     </>}
     {topic === 'delivery' && <>
       <Delivery settings={settings} city={city} onCity={onCity} />
+      <ContactLinks settings={settings} />
+    </>}
+    {topic === 'payment' && <>
+      <Payment settings={settings} />
       <ContactLinks settings={settings} />
     </>}
     {topic === 'warranty' && <><p className="sf-lead">Гарантия 12 месяцев на все товары магазина.</p><Paragraph title="Как получить обслуживание" text={settings.warranty} fallback="Сохраните документы о покупке и обратитесь в магазин с названием модели и описанием неисправности. Порядок проверки, передачи техники и обслуживания согласуется с продавцом. Подробные условия отражаются в гарантийных документах и не ограничивают права, предоставленные законом." /><a className="sf-text-button" href="#returns">Возврат товара и денег →</a><ContactLinks settings={settings} /></>}
