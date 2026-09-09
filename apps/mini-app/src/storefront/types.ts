@@ -27,10 +27,16 @@ export type Product = {
   updated_at: string;
 };
 
+/** Способ расчёта объявляется рабочим только после подтверждения владельцем в CRM. */
+export type PaymentStatus = 'off' | 'preparing' | 'on';
+export const paymentStatuses: PaymentStatus[] = ['off', 'preparing', 'on'];
+export const paymentStatusFields = ['payment_card', 'payment_installment', 'payment_invoice', 'payment_on_delivery'] as const;
+
 export type ShopSettings = {
   shop_name: string;
   phone: string;
   telegram: string;
+  telegram_channel: string;
   address: string;
   hours: string;
   delivery: string;
@@ -46,6 +52,13 @@ export type ShopSettings = {
   consent_document: string;
   offer_document: string;
   returns_document: string;
+  payment_card: PaymentStatus;
+  payment_installment: PaymentStatus;
+  payment_invoice: PaymentStatus;
+  payment_on_delivery: PaymentStatus;
+  payment_provider: string;
+  payment_installment_partner: string;
+  payment_receipt: string;
 };
 
 export type CartItem = { product_id: string; quantity: number };
@@ -64,10 +77,12 @@ export type Filters = {
 };
 
 export const defaultSettings: ShopSettings = {
-  shop_name: 'G-Partner', phone: '', telegram: '', address: '', hours: '',
+  shop_name: 'G-Partner', phone: '', telegram: '', telegram_channel: '', address: '', hours: '',
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
   delivery_origin: '', delivery_schedule: '', return_address: '',
   privacy_document: '', consent_document: '', offer_document: '', returns_document: '',
+  payment_card: 'preparing', payment_installment: 'preparing', payment_invoice: 'preparing',
+  payment_on_delivery: 'off', payment_provider: '', payment_installment_partner: '', payment_receipt: '',
 };
 export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
 

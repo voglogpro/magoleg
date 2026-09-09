@@ -20,7 +20,9 @@ const products = cards.map(({ photo_files, ...card }, index) => {
 });
 const output = resolve('test-results/kugoo-photos');
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+/** CHROMIUM_PATH позволяет запустить проверку на предустановленном браузере окружения. */
+const launchOptions = { headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) };
+const browser = await chromium.launch(launchOptions);
 try {
   for (const width of [320, 390, 768, 1440]) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });

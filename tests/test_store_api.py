@@ -111,6 +111,32 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.put("/api/admin/settings", json={"delivery_origin": ""}, headers=self.headers)
         self.assertEqual(response.status, 400)
 
+    async def test_payment_cannot_be_announced_before_the_seller_is_identified(self):
+        await self.login()
+        public = await self.client.get("/api/settings")
+        defaults = (await public.json())["settings"]
+        self.assertEqual(defaults["payment_card"], "preparing")
+        self.assertEqual(defaults["payment_on_delivery"], "off")
+        for values in ({"payment_card": "yes"}, {"payment_invoice": ""}, {"payment_on_delivery": "включено"}):
+            response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
+            await self.assert_error(response, 400)
+        # Реквизиты, контакт, адрес возврата и платёжный сервис — до объявления «Доступно».
+        response = await self.client.put("/api/admin/settings", json={"payment_card": "on"}, headers=self.headers)
+        await self.assert_error(response, 400)
+        response = await self.client.put("/api/admin/settings", json={
+            "legal_name": "Тестовый продавец", "legal_details": "Тестовые реквизиты",
+            "phone": "+79001234567", "return_address": "Тестовый адрес возврата",
+            "payment_card": "on", "payment_provider": "Тестовый платёжный сервис",
+            "payment_receipt": "Чек направляется покупателю.",
+        }, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        saved = (await (await self.client.get("/api/settings")).json())["settings"]
+        self.assertEqual(saved["payment_card"], "on")
+        self.assertEqual(saved["payment_provider"], "Тестовый платёжный сервис")
+        # Рассрочка без банка-партнёра остаётся необъявленной.
+        response = await self.client.put("/api/admin/settings", json={"payment_installment": "on"}, headers=self.headers)
+        await self.assert_error(response, 400)
+
     async def test_teen_theme_requires_explicit_product_tag(self):
         await self.login()
         response = await self.client.post("/api/admin/products", json={"name": "Тестовая серия", "tags": ["teen"]}, headers=self.headers)
@@ -431,12 +457,19 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.login()
         response = await self.client.put("/api/admin/settings", json={"inquiries_enabled": True}, headers=self.headers)
         await self.assert_error(response, 400)
-        for values in ({"telegram": "javascript:alert(1)"}, {"phone": "<script>"}, {"unknown": "x"}, {"city": "Сочи"}, {"shop_name": ""}):
+        for values in ({"telegram": "javascript:alert(1)"}, {"phone": "<script>"}, {"unknown": "x"},
+                       {"city": "Сочи"}, {"shop_name": ""}, {"telegram_channel": "не канал"}):
             response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
             await self.assert_error(response, 400)
         await self.enable_inquiries()
         response = await self.client.get("/api/settings")
         self.assertEqual((await response.json())["settings"]["telegram"], "@test_store")
+        # Канал со скидками нормализуется так же, как контактный Telegram.
+        response = await self.client.put("/api/admin/settings",
+                                         json={"telegram_channel": "https://t.me/test_channel"}, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        saved = (await (await self.client.get("/api/settings")).json())["settings"]
+        self.assertEqual(saved["telegram_channel"], "@test_channel")
 
     async def test_punctuation_phone_cannot_enable_inquiries_or_be_customer_contact(self):
         await self.login()

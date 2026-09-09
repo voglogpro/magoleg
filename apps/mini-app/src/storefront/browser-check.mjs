@@ -7,7 +7,9 @@ import { resolve } from 'node:path';
 const base = process.env.STOREFRONT_QA_URL || 'http://127.0.0.1:5181';
 const output = resolve(process.env.STOREFRONT_QA_OUTPUT || 'test-results/storefront');
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+/** CHROMIUM_PATH позволяет запустить проверку на предустановленном браузере окружения. */
+const launchOptions = { headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) };
+const browser = await chromium.launch(launchOptions);
 const settings = { shop_name: 'G-Partner', phone: '+7 (900) 123-45-67', telegram: '@gpartner_shop', address: 'Тестовый адрес для автоматической проверки', hours: '10:00–18:00', delivery: 'Самовывоз и доставка по согласованию.', payment: 'После подтверждения магазина.', legal_name: 'Тестовый продавец', legal_details: 'Тестовые реквизиты, не опубликованы на реальном сайте.', warranty: 'По документам модели.', inquiries_enabled: true };
 const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/test.webp', images: ['/media/test.webp', '/media/test-2.webp'], featured: true, published: true, tags: [], badge: '', updated_at: '2026-09-06' };
 const products = [
@@ -70,6 +72,17 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.locator('.sf-home-picks .sf-pick-art svg').count() === 4, `${width}: every pick carries its own icon`);
   check(await page.locator('.sf-home-picks .sf-pick-art img').count() === 0, `${width}: a pick tile never borrows a product photo`);
   check(await page.locator('.sf-badge').first().innerText() === 'Хит продаж', `${width}: the shop badge rides on the card`);
+  // Воронка главной: категории → товары → подборки → шаги покупки → канал со скидками.
+  check(await page.locator('.sf-cat-tile').count() === 2, `${width}: home opens with the published transport types`);
+  check(/от\s*19\s*900/.test(await page.locator('.sf-cat-tile').first().innerText()), `${width}: a type tile carries its lowest real price`);
+  check(await page.locator('.sf-funnel > li').count() === 5, `${width}: the buying funnel is spelled out`);
+  check(await page.evaluate(() => {
+    const order = ['.sf-home-categories', '.sf-home-products', '.sf-home-picks', '.sf-home-funnel'];
+    const tops = order.map(selector => document.querySelector(selector)?.getBoundingClientRect().top ?? NaN);
+    return tops.every((top, index) => index === 0 || top > tops[index - 1]);
+  }), `${width}: the funnel keeps its order on the page`);
+  check(await page.locator('.sf-continue').count() === 0, `${width}: nothing chosen yet, so no resume block`);
+  check(await page.locator('.sf-promo').count() === 0, `${width}: no channel published, no subscribe invitation`);
   await page.locator('.sf-pick-card').first().click();
   await page.waitForURL(/tag=.*sort=value|sort=value.*tag=/);
   check(await countIs('.sf-product-card', 1), `${width}: a smart pick narrows the catalogue`);
