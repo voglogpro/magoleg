@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, CloudRain, Dumbbell, Feather, Heart, Home, Menu, Package, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Sparkles, Sprout, Trash2, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, Home as HomeIcon, Menu, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Trash2, UserRound, X, type LucideIcon } from 'lucide-react';
 import { Account } from './Account';
 import { CityBar, CityPicker } from './CityPicker';
-import { StoreHero } from '../components/StoreHero';
-import { ShopBenefits } from '../components/ShopBenefits';
+import { Home } from './Home';
+import { PickCards } from './PickCards';
 import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, sanitizeCart, sanitizeCity, sanitizeIds, smartPicks } from './domain';
 import { findDeliveryZone, zoneTerm } from './delivery-zones';
 import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
 import { ProductCard, ProductGallery, ProductPhoto } from './ProductCard';
-import { activePickLabels, categoryLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product, type SmartPick } from './types';
+import { activePickLabels, categoryLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product } from './types';
 import './storefront.css';
 
 function Empty({ title, children, icon: Icon = PackageOpen, action = true }: {
@@ -31,25 +31,6 @@ function TypeChips({ current, onPick, options }: {
   return <div className="sf-category-tabs" role="group" aria-label="Тип транспорта">
     {options.map(([category, label]) =>
       <button key={category} aria-pressed={current === category} onClick={() => onPick(category)}>{label}</button>)}
-  </div>;
-}
-
-/** Each pick gets a drawn icon of its own: a tile names an audience, not one model in stock. */
-const pickIcons: Record<string, LucideIcon> = {
-  'tag-waterproof': CloudRain, 'tag-heavy-rider': Dumbbell, 'tag-two-up': Users,
-  'tag-courier': Package, 'tag-women': Feather, 'tag-beginner': Sprout, 'tag-teen': Sprout,
-};
-
-/** A pick is a plain catalogue link, so the shopper can narrow it further with the usual filters. */
-function PickCards({ picks, layout }: { picks: SmartPick[]; layout: 'row' | 'grid' }) {
-  return <div className={`sf-pick-rail sf-pick-rail--${layout}`}>
-    <div className="sf-pick-track">{picks.map(pick => {
-      const Icon = pickIcons[pick.id] ?? Sparkles;
-      return <a className="sf-pick-card" href={catalogHref(pick.filters)} key={pick.id}>
-        <span className="sf-pick-art" aria-hidden="true"><span><Icon size={26} strokeWidth={1.7} /></span></span>
-        <strong>{pick.label}</strong><span>{pick.hint}</span><em>{pick.count ? `${pick.count} ${plural(pick.count, ['модель', 'модели', 'моделей'])}` : 'Скоро в каталоге'}</em>
-      </a>;
-    })}</div>
   </div>;
 }
 
@@ -151,20 +132,9 @@ export function Storefront() {
     <main id="sf-content" className={`sf-main sf-page-${isProduct ? 'product' : path}`} tabIndex={-1} ref={contentRef}>
       {path !== 'home' && <div className="sf-page-heading"><a href={isProduct ? '#catalog' : '#home'} className="sf-back" aria-label={isProduct ? 'Вернуться в каталог' : 'На главную'}><ArrowLeft size={20} /><span>{isProduct ? 'Каталог' : 'Главная'}</span></a><h1>{title}</h1></div>}
       {settingsError && <div className="sf-settings-error" role="status"><span>{settingsError}</span><button onClick={retry} disabled={loading}>Обновить</button></div>}
-      {path === 'home' && <>
-        <StoreHero onCatalog={() => navigate('#catalog')} />
-        <div className="sf-home-content">
-          <ShopBenefits />
-          {picks.length > 0 && <section className="sf-home-picks" aria-labelledby="sf-picks-title">
-            <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2><a href="#picks">Все подборки <ArrowRight size={16} /></a></div>
-            <PickCards picks={picks.slice(0, 4)} layout="grid" />
-          </section>}
-          <section className="sf-home-products" aria-labelledby="sf-products-title"><div className="sf-section-heading"><h2 id="sf-products-title">{products.some(product => product.featured) ? 'Выбор магазина' : 'Модели в каталоге'}</h2>{products.length > 0 && <a href="#catalog">Все модели <ArrowRight size={16} /></a>}</div>
-            {catalogState || (featured.length ? cards(featured) : <div className="sf-catalog-preparing"><h3>Готовим ассортимент</h3><p>Здесь появятся фотографии, характеристики и цены после публикации товаров магазином.</p><a href="#contact">Контакты и информация о магазине</a></div>)}
-          </section>
-          <nav className="sf-store-links" aria-label="Информация для покупателя"><a href="#delivery"><strong>Доставка по России</strong><span>Сроки по округам, от 3 дней</span></a><a href="#payment"><strong>Оплата и документы</strong><span>Способы расчёта и порядок заказа</span></a><a href="#about"><strong>О магазине</strong><span>Информация и реквизиты</span></a><a href="#guide"><strong>Помощь с выбором</strong><span>Подберём под ваши задачи</span></a></nav>
-        </div>
-      </>}
+      {path === 'home' && <Home products={products} settings={settings} picks={picks} featured={featured}
+        chosen={{ favorites: favorites.length, compare: compare.length, cart: cartCount }}
+        catalogState={catalogState} cards={cards} onCatalog={() => navigate('#catalog')} />}
 
       {path === 'picks' && <div className="sf-picks-page">
         {catalogState || (picks.length ? <>
@@ -224,7 +194,7 @@ export function Storefront() {
     </main>
     <footer className="sf-footer"><div><span>{settings.shop_name} · доставка по России</span><nav aria-label="Дополнительная информация"><a href="#about">О магазине</a><a href="#delivery">Доставка</a><a href="#payment">Оплата</a><a href="#warranty">Гарантия</a><a href="#privacy">Политика конфиденциальности</a><a href="#consent">Согласие на обработку данных</a><a href="#offer">Публичная оферта</a><a href="#returns">Возврат товаров и денег</a><a href="#contact">Контакты</a></nav></div></footer>
     <nav className="sf-bottom-nav" aria-label="Основная навигация">{[
-      { path: 'home', label: 'Главная', icon: Home }, { path: 'catalog', label: 'Каталог', icon: Search }, { path: 'cart', label: 'Корзина', icon: ShoppingBag }, { path: 'compare', label: 'Сравнить', icon: ArrowLeftRight }, { path: 'profile', label: 'Профиль', icon: UserRound },
+      { path: 'home', label: 'Главная', icon: HomeIcon }, { path: 'catalog', label: 'Каталог', icon: Search }, { path: 'cart', label: 'Корзина', icon: ShoppingBag }, { path: 'compare', label: 'Сравнить', icon: ArrowLeftRight }, { path: 'profile', label: 'Профиль', icon: UserRound },
     ].map(item => <a key={item.path} href={`#${item.path}`} aria-current={path === item.path || (item.path === 'catalog' && isProduct) ? 'page' : undefined}><item.icon size={21} aria-hidden="true" /><span>{item.label}</span></a>)}</nav>
     {(cityOpen || (!city.asked && !loading)) && <CityPicker city={city} onChoose={chooseCity} onClose={() => { setCity({ ...city, asked: true }); setCityOpen(false); }} />}
     {notice && <div className="sf-toast" role="status"><span>{notice}</span><button aria-label="Закрыть уведомление" onClick={() => setNotice('')}><X size={18} /></button></div>}

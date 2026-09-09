@@ -54,7 +54,7 @@ PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
 DEFAULT_SETTINGS: dict[str, Any] = {
     "shop_name": "G-Partner", "phone": "",
-    "telegram": "", "address": "", "hours": "", "delivery": "",
+    "telegram": "", "telegram_channel": "", "address": "", "hours": "", "delivery": "",
     "payment": "", "legal_name": "", "legal_details": "", "warranty": "",
     "inquiries_enabled": False,
     "delivery_origin": "", "delivery_schedule": "", "return_address": "",
@@ -795,10 +795,12 @@ async def save_settings(request: web.Request) -> web.Response:
             seen_cities.add(city_key)
     if settings["phone"]:
         require(valid_phone(settings["phone"]), "Укажите корректный телефон магазина (от 7 до 15 цифр).")
-    if settings["telegram"]:
-        handle = settings["telegram"].removeprefix("https://t.me/").removeprefix("@").rstrip("/")
-        require(bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{4,31}", handle)), "Telegram: укажите @username или ссылку https://t.me/username.")
-        settings["telegram"] = f"@{handle}"
+    for field, title in (("telegram", "Telegram"), ("telegram_channel", "Telegram-канал")):
+        if settings[field]:
+            handle = settings[field].removeprefix("https://t.me/").removeprefix("@").rstrip("/")
+            require(bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{4,31}", handle)),
+                    f"{title}: укажите @username или ссылку https://t.me/username.")
+            settings[field] = f"@{handle}"
     require(not settings["inquiries_enabled"] or settings_ready(settings),
             "Для приёма заявок заполните название продавца, реквизиты и телефон или Telegram.")
     if any(settings[field] == "on" for field in PAYMENT_STATUS_FIELDS):

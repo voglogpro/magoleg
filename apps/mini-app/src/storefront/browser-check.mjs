@@ -72,6 +72,17 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.locator('.sf-home-picks .sf-pick-art svg').count() === 4, `${width}: every pick carries its own icon`);
   check(await page.locator('.sf-home-picks .sf-pick-art img').count() === 0, `${width}: a pick tile never borrows a product photo`);
   check(await page.locator('.sf-badge').first().innerText() === 'Хит продаж', `${width}: the shop badge rides on the card`);
+  // Воронка главной: категории → товары → подборки → шаги покупки → канал со скидками.
+  check(await page.locator('.sf-cat-tile').count() === 2, `${width}: home opens with the published transport types`);
+  check(/от\s*19\s*900/.test(await page.locator('.sf-cat-tile').first().innerText()), `${width}: a type tile carries its lowest real price`);
+  check(await page.locator('.sf-funnel > li').count() === 5, `${width}: the buying funnel is spelled out`);
+  check(await page.evaluate(() => {
+    const order = ['.sf-home-categories', '.sf-home-products', '.sf-home-picks', '.sf-home-funnel'];
+    const tops = order.map(selector => document.querySelector(selector)?.getBoundingClientRect().top ?? NaN);
+    return tops.every((top, index) => index === 0 || top > tops[index - 1]);
+  }), `${width}: the funnel keeps its order on the page`);
+  check(await page.locator('.sf-continue').count() === 0, `${width}: nothing chosen yet, so no resume block`);
+  check(await page.locator('.sf-promo').count() === 0, `${width}: no channel published, no subscribe invitation`);
   await page.locator('.sf-pick-card').first().click();
   await page.waitForURL(/tag=.*sort=value|sort=value.*tag=/);
   check(await countIs('.sf-product-card', 1), `${width}: a smart pick narrows the catalogue`);

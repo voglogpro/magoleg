@@ -36,6 +36,7 @@ export type ShopSettings = {
   shop_name: string;
   phone: string;
   telegram: string;
+  telegram_channel: string;
   address: string;
   hours: string;
   delivery: string;
@@ -76,7 +77,7 @@ export type Filters = {
 };
 
 export const defaultSettings: ShopSettings = {
-  shop_name: 'G-Partner', phone: '', telegram: '', address: '', hours: '',
+  shop_name: 'G-Partner', phone: '', telegram: '', telegram_channel: '', address: '', hours: '',
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
   delivery_origin: '', delivery_schedule: '', return_address: '',
   privacy_document: '', consent_document: '', offer_document: '', returns_document: '',

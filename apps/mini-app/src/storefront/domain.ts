@@ -1,4 +1,4 @@
-import { activePickTags, categoryLabels, defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type CityChoice, type Filters, type Product, type SmartPick } from './types';
+import { activePickTags, categoryLabels, defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type Category, type CityChoice, type Filters, type Product, type SmartPick } from './types';
 
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
@@ -78,6 +78,19 @@ export function smartPicks(products: Product[]): SmartPick[] {
     id: `tag-${tag}`, label: tagLabels[tag], hint: tagHints[tag], filters: { tag, sort: 'value' },
     count: filterProducts(products, { ...defaultFilters, tag }).length,
   }));
+}
+
+/**
+ * Первый шаг воронки: покупатель выбирает тип транспорта. Пустые категории не показываются —
+ * плитка без товаров ведёт в пустой каталог. Цена «от» берётся только из опубликованных цен.
+ */
+export function categorySummary(products: Product[]) {
+  return (Object.keys(categoryLabels) as Category[]).flatMap(category => {
+    const items = products.filter(product => product.published && product.category === category);
+    if (!items.length) return [];
+    const prices = items.map(product => product.price).filter((price): price is number => price !== null);
+    return [{ category, label: categoryLabels[category], count: items.length, from: prices.length ? Math.min(...prices) : null }];
+  });
 }
 
 export function parseFilters(search: string): Filters {

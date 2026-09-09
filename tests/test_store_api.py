@@ -457,12 +457,19 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.login()
         response = await self.client.put("/api/admin/settings", json={"inquiries_enabled": True}, headers=self.headers)
         await self.assert_error(response, 400)
-        for values in ({"telegram": "javascript:alert(1)"}, {"phone": "<script>"}, {"unknown": "x"}, {"city": "Сочи"}, {"shop_name": ""}):
+        for values in ({"telegram": "javascript:alert(1)"}, {"phone": "<script>"}, {"unknown": "x"},
+                       {"city": "Сочи"}, {"shop_name": ""}, {"telegram_channel": "не канал"}):
             response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
             await self.assert_error(response, 400)
         await self.enable_inquiries()
         response = await self.client.get("/api/settings")
         self.assertEqual((await response.json())["settings"]["telegram"], "@test_store")
+        # Канал со скидками нормализуется так же, как контактный Telegram.
+        response = await self.client.put("/api/admin/settings",
+                                         json={"telegram_channel": "https://t.me/test_channel"}, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        saved = (await (await self.client.get("/api/settings")).json())["settings"]
+        self.assertEqual(saved["telegram_channel"], "@test_channel")
 
     async def test_punctuation_phone_cannot_enable_inquiries_or_be_customer_contact(self):
         await self.login()
