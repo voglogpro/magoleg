@@ -68,21 +68,24 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.locator('.sf-search').count() === 0, `${width}: no catalogue search field`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
   check(await page.locator('.sf-home-selection').count() === 0, `${width}: home no longer repeats the catalogue tab`);
-  check(await page.locator('.sf-home-picks .sf-pick-card').count() === 4, `${width}: four named themes lead the home page`);
-  check(await page.locator('.sf-home-picks .sf-pick-art svg').count() === 4, `${width}: every pick carries its own icon`);
-  check(await page.locator('.sf-home-picks .sf-pick-art img').count() === 0, `${width}: a pick tile never borrows a product photo`);
+  check(await page.locator('.sf-home-picks').count() === 0, `${width}: selections live in their own menu page`);
+  check(await page.locator('.sf-cat-tile img').count() === 0, `${width}: transport links do not repeat product photos`);
+  check(await page.locator('.sf-product-card__visual > .sf-stock').count() === 0, `${width}: no stock band above product photos`);
+  check(await page.locator('.sf-stock-light--in-stock').count() > 0, `${width}: stock indicator accompanies model names`);
   check(await page.locator('.sf-badge').first().innerText() === 'Хит продаж', `${width}: the shop badge rides on the card`);
-  // Воронка главной: категории → товары → подборки → шаги покупки → канал со скидками.
+  // Compact homepage: benefits → transport links → models → catalogue action.
   check(await page.locator('.sf-cat-tile').count() === 2, `${width}: home opens with the published transport types`);
   check(/от\s*19\s*900/.test(await page.locator('.sf-cat-tile').first().innerText()), `${width}: a type tile carries its lowest real price`);
-  check(await page.locator('.sf-funnel > li').count() === 5, `${width}: the buying funnel is spelled out`);
+  check(await page.locator('.sf-funnel').count() === 0, `${width}: no instructional buying steps on home`);
   check(await page.evaluate(() => {
-    const order = ['.sf-home-categories', '.sf-home-products', '.sf-home-picks', '.sf-home-funnel'];
+    const order = ['.sf-shop-benefits', '.sf-home-categories', '.sf-home-products', '.sf-home-catalog-cta'];
     const tops = order.map(selector => document.querySelector(selector)?.getBoundingClientRect().top ?? NaN);
     return tops.every((top, index) => index === 0 || top > tops[index - 1]);
   }), `${width}: the funnel keeps its order on the page`);
   check(await page.locator('.sf-continue').count() === 0, `${width}: nothing chosen yet, so no resume block`);
   check(await page.locator('.sf-promo').count() === 0, `${width}: no channel published, no subscribe invitation`);
+  await page.locator(width < 900 ? '.sf-mobile-shortcuts a[href="#picks"]' : '.sf-desktop-nav a[href="#picks"]').click();
+  await page.waitForSelector('.sf-pick-card');
   await page.locator('.sf-pick-card').first().click();
   await page.waitForURL(/tag=.*sort=value|sort=value.*tag=/);
   check(await countIs('.sf-product-card', 1), `${width}: a smart pick narrows the catalogue`);

@@ -55,7 +55,6 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
   const license = effectiveLicense(product);
   return <article className="sf-product-card">
     <div className="sf-product-card__visual">
-      <p className={`sf-stock sf-stock--${product.stock_status}`}>{stockLabels[product.stock_status]}</p>
       <a href={href} aria-label={`Подробнее: ${product.name}`}><ProductPhoto product={product} /></a>
       {product.badge && <span className={`sf-badge sf-badge--${product.badge}`}>{badgeLabels[product.badge]}</span>}
       <button className="sf-icon-button sf-favorite" type="button" onClick={() => onFavorite(product.id)} aria-label={`${favorite ? 'Убрать' : 'Добавить'} «${product.name}» ${favorite ? 'из избранного' : 'в избранное'}`} aria-pressed={favorite}><Heart size={20} fill={favorite ? 'currentColor' : 'none'} /></button>
@@ -63,7 +62,7 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
     </div>
     <div className="sf-product-card__body">
       <p className="sf-product-category">{categoryLabels[product.category]}</p>
-      <h3><a href={href} title={product.name} aria-label={product.name}>{title}</a></h3>
+      <div className="sf-product-title-row"><h3><a href={href} title={product.name} aria-label={product.name}>{title}</a></h3><span className={`sf-stock-light sf-stock-light--${product.stock_status}`} title={stockLabels[product.stock_status]}><span className="sf-sr-only">{stockLabels[product.stock_status]}</span></span></div>
       <dl className="sf-card-specs">
         {product.range_km !== null && <div><dt>Пробег</dt><dd>до {product.range_km} км</dd></div>}
         {product.power_w !== null && <div><dt>Мощность</dt><dd>{product.power_w} Вт</dd></div>}

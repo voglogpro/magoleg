@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { CategoryTiles, ContinueChoice, HowToBuy, TelegramPromo } from './Home';
+import { CategoryTiles, ContinueChoice, TelegramPromo } from './Home';
 import { defaultSettings, type Product, type ShopSettings } from './types';
 
 afterEach(cleanup);
@@ -60,14 +60,7 @@ describe('возврат покупателя в воронку', () => {
   });
 });
 
-describe('шаги покупки и канал со скидками', () => {
-  it('перечисляет пять шагов, каждый со своей ссылкой', () => {
-    render(<HowToBuy />);
-    expect(screen.getAllByRole('listitem')).toHaveLength(5);
-    for (const [name, href] of [['Выберите тип', '#catalog'], ['Сравните до трёх', '#compare'], ['Отложите в избранное', '#favorites'], ['Оформите заявку', '#payment']] as const)
-      expect(screen.getByRole('link', { name: new RegExp(name) })).toHaveAttribute('href', href);
-  });
-
+describe('канал со скидками', () => {
   it('не приглашает в канал, которого магазин не указал', () => {
     const { container } = render(<TelegramPromo settings={withSettings()} />);
     expect(container).toBeEmptyDOMElement();

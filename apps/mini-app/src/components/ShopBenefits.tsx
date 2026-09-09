@@ -1,16 +1,16 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ShieldCheck, Truck, PackageCheck } from 'lucide-react';
 
-/** Artwork is decorative; promises and destinations remain accessible, selectable HTML. */
+/** Compact benefits below the hero; the whole cell remains an accessible link. */
 export function ShopBenefits() {
   const benefits = [
-    { id: 'delivery', title: 'Быстрая доставка', lines: ['От 3-х дней', 'по всей России'], href: '#delivery', action: 'Сроки до вашего города' },
-    { id: 'warranty', title: 'Гарантия', lines: ['12 месяцев', 'на все товары'], href: '#warranty', action: 'Условия гарантии' },
-    { id: 'supply', title: 'Прямые поставки', lines: ['Без посредников', 'и переплат'], href: '#supply', action: 'О наших поставках' },
+    { id: 'delivery', title: 'Быстрая доставка', lines: ['От 3-х дней', 'по всей России'], href: '#delivery' },
+    { id: 'warranty', title: 'Гарантия', lines: ['12 месяцев', 'на все товары'], href: '#warranty' },
+    { id: 'supply', title: 'Прямые поставки', lines: ['Без посредников', 'и переплат'], href: '#supply' },
   ];
   return <section className="sf-shop-benefits" aria-label="Преимущества магазина">
     {benefits.map(benefit => <a className={`sf-benefit sf-benefit--${benefit.id}`} key={benefit.id} href={benefit.href}>
-      <span className="sf-benefit-art" aria-hidden="true" />
-      <div className="sf-benefit-copy"><h2>{benefit.title}</h2><p>{benefit.lines.map(line => <span key={line}>{line}</span>)}</p><span className="sf-benefit-link">{benefit.action}<ArrowUpRight size={16} aria-hidden="true" /></span></div>
+      <span className="sf-benefit-icon" aria-hidden="true">{benefit.id === 'delivery' ? <Truck size={20} strokeWidth={1.5} /> : benefit.id === 'warranty' ? <ShieldCheck size={20} strokeWidth={1.5} /> : <PackageCheck size={20} strokeWidth={1.5} />}</span>
+      <div className="sf-benefit-copy"><h2>{benefit.title}</h2><p>{benefit.lines.join(' ')}</p></div>
     </a>)}
   </section>;
 }

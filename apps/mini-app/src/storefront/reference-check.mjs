@@ -18,7 +18,7 @@ try {
   const settings = await settingsResponse.json();
   const first = products.products.find(product => /M2\+/i.test(product.name)) || products.products[0];
   assert(first, 'A published product is needed for visual review');
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
     await context.route('**/api/**', async route => {
       if (route.request().method() !== 'GET') return route.abort();
@@ -40,7 +40,7 @@ try {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base, { waitUntil: 'networkidle' });
-    for (const route of ['home', 'catalog', 'cart']) {
+    for (const route of ['home', 'catalog', 'picks', 'delivery', 'cart']) {
       await page.evaluate(route => { location.hash = route; }, route);
       await page.locator(`.sf-page-${route}`).waitFor();
       await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.images].map(img => img.decode().catch(() => {}))); window.scrollTo(0, 0); });
@@ -53,7 +53,7 @@ try {
       }
     }
     assert.deepEqual(errors, [], `${width}: runtime errors`);
-    console.log(`${width}: home, catalog, cart, quantities, overflow and runtime OK`);
+    console.log(`${width}: home, catalog, picks, delivery, cart, quantities, overflow and runtime OK`);
     await context.close();
   }
 } finally { await browser.close(); }
