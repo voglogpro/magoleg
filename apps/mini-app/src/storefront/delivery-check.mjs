@@ -63,7 +63,7 @@ try {
     await page.getByRole('button', { name: 'Показать сроки' }).click();
     assert.match(await page.locator('.sf-delivery-result').innerText(), /срок и стоимость уточняются/);
     assert.doesNotMatch(await page.locator('.sf-delivery-result').innerText(), /4–7/);
-    assert.equal(await page.locator('a[href="https://www.cdek.ru/ru/calculate/"]').getAttribute('target'), '_blank');
+    assert.equal(await page.locator('a[href="https://www.cdek.ru/ru/calculate/"]').count(), 0);
     // Подвал несёт только обязательные документы и строку реквизитов продавца.
     assert.equal(await page.locator('footer nav a').count(), 3);
     assert.match(await page.locator('.sf-footer__legal').innerText(), /ИНН 231518680513.+ОГРНИП 326237500411962/s);

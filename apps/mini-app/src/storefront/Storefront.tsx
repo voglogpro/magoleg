@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, Home as HomeIcon, Menu, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Trash2, UserRound, X, type LucideIcon } from 'lucide-react';
 import { Account } from './Account';
+import { Cart } from './Cart';
 import { CityBar, CityPicker } from './CityPicker';
 import { Home } from './Home';
 import { PickCards } from './PickCards';
-import { cargoLabel, cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, powerLabel, powerTotal, sanitizeCart, sanitizeCity, sanitizeIds, smartPicks } from './domain';
-import { findDeliveryZone, zoneTerm } from './delivery-zones';
+import { cargoLabel, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, powerLabel, powerTotal, sanitizeCart, sanitizeCity, sanitizeIds, smartPicks } from './domain';
 import { sellerLine } from './legal-texts';
 import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
@@ -13,6 +13,8 @@ import { InquiryConfirmation, InquiryForm } from './InquiryForm';
 import { ProductCard, ProductGallery, ProductPhoto } from './ProductCard';
 import { activePickLabels, categoryLabels, driveLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product } from './types';
 import './storefront.css';
+import './reference-theme.css';
+import './cart.css';
 
 function Empty({ title, children, icon: Icon = PackageOpen, action = true }: {
   title: string; children: ReactNode; icon?: LucideIcon; action?: boolean;
@@ -56,8 +58,6 @@ export function Storefront() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const selectedFavorites = products.filter(product => favorites.includes(product.id));
   const selectedCompare = compare.map(id => products.find(product => product.id === id)).filter((product): product is Product => Boolean(product));
-  const cartSummary = cartTotal(cart, products);
-  const cartZone = city.name ? findDeliveryZone(city.name) : null;
   const activeFilterCount = [filters.category !== 'all', filters.tag !== 'all', filters.license !== 'all', filters.stock !== 'all', Boolean(filters.min || filters.max)].filter(Boolean).length;
   const isProduct = path.startsWith('product/');
   let productId = '';
@@ -112,7 +112,7 @@ export function Storefront() {
   const featured = [...products.filter(product => product.featured), ...products.filter(product => !product.featured)].slice(0, 4);
   const picks = smartPicks(products);
 
-  return <div className="sf-store">
+  return <div className={`sf-store${path === 'cart' ? ' sf-store--cart' : ''}`}>
     <a className="sf-skip" href="#sf-content" onClick={event => { event.preventDefault(); contentRef.current?.focus(); }}>Перейти к содержимому</a>
     <header className="sf-header">
       <div className="sf-header__inner">
@@ -129,10 +129,11 @@ export function Storefront() {
     </header>
 
     <CityBar city={city} onOpen={() => setCityOpen(true)} />
+    {path === 'home' && <nav className="sf-mobile-shortcuts" aria-label="Быстрый переход"><a href="#catalog">Каталог</a><a href="#picks">Подборки</a><a href="#delivery">Доставка</a><a href="#about">О магазине</a></nav>}
     <main id="sf-content" className={`sf-main sf-page-${isProduct ? 'product' : path}`} tabIndex={-1} ref={contentRef}>
-      {path !== 'home' && <div className="sf-page-heading"><a href={isProduct ? '#catalog' : '#home'} className="sf-back" aria-label={isProduct ? 'Вернуться в каталог' : 'На главную'}><ArrowLeft size={20} /><span>{isProduct ? 'Каталог' : 'Главная'}</span></a><h1>{title}</h1></div>}
+      {path !== 'home' && <div className="sf-page-heading"><a href={isProduct ? '#catalog' : '#home'} className="sf-back" aria-label={isProduct ? 'Вернуться в каталог' : 'На главную'}><ArrowLeft size={20} /><span>{isProduct ? 'Каталог' : 'Главная'}</span></a><h1>{title}</h1>{path === 'cart' && cart.length > 0 && <button className="sf-icon-button sf-cart-clear" aria-label="Очистить корзину" onClick={() => { setCart([]); setNotice('Корзина очищена.'); }}><Trash2 size={22} /></button>}</div>}
       {settingsError && <div className="sf-settings-error" role="status"><span>{settingsError}</span><button onClick={retry} disabled={loading}>Обновить</button></div>}
-      {path === 'home' && <Home products={products} settings={settings} picks={picks} featured={featured}
+      {path === 'home' && <Home products={products} settings={settings} featured={featured}
         chosen={{ favorites: favorites.length, compare: compare.length, cart: cartCount }}
         catalogState={catalogState} cards={cards} onCatalog={() => navigate('#catalog')} />}
 
@@ -187,10 +188,9 @@ export function Storefront() {
           ['Цена', (product: Product) => money(product.price)], ['Наличие', (product: Product) => stockLabels[product.stock_status]], ['Тип', (product: Product) => categoryLabels[product.category]], ['Права', (product: Product) => vehicleCategories.includes(product.category) ? licenseLabels[effectiveLicense(product)] : 'Не требуются'], ['Запас хода', (product: Product) => product.range_km === null ? 'Уточняется' : `до ${product.range_km} км`], ['Скорость', (product: Product) => product.speed_kmh === null ? 'Уточняется' : `${product.speed_kmh} км/ч`], ['Мощность', (product: Product) => product.power_w === null ? 'Уточняется' : powerLabel(product)], ['Привод', (product: Product) => driveLabels[product.drive]], ['Вес устройства', (product: Product) => product.weight_kg === null ? 'Уточняется' : `${product.weight_kg} кг`], ['Грузоподъёмность', (product: Product) => product.payload_kg === null ? 'Уточняется' : `${product.payload_kg} кг`], ['Багажник', (product: Product) => cargoLabel(product.cargo_l)],
         ] as [string, (product: Product) => string][]).map(([label, getValue]) => <tr key={label}><th scope="row">{label}</th>{selectedCompare.map(product => <td key={product.id}>{getValue(product)}</td>)}</tr>)}<tr><th scope="row">Выбрать</th>{selectedCompare.map(product => <td key={product.id}>{cart.some(item => item.product_id === product.id) ? <a href="#cart" className="sf-button sf-button--secondary">В корзине</a> : <button className="sf-button" disabled={product.stock_status === 'out-of-stock'} onClick={() => addToCart(product.id)}>{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}</td>)}</tr></tbody></table></div>{selectedCompare.length < compare.length && <p className="sf-notice">Некоторые выбранные модели больше не опубликованы. Очистите сравнение, чтобы выбрать другие.</p>}<a className="sf-button sf-button--secondary" href="#catalog">Добавить модель из каталога</a></> : <Empty title="Сравнивать пока нечего" icon={ArrowLeftRight}>Нажмите «Сравнить» в карточке товара — до трёх моделей встанут рядом по цене и характеристикам.</Empty>)}</div>}
 
-      {path === 'cart' && <div className="sf-cart-page">{receipt ? <InquiryConfirmation inquiry={receipt} /> : catalogState || (cart.length ? <div className="sf-cart-layout"><section className="sf-cart-items" aria-label="Выбранные товары"><div className="sf-collection-tools sf-cart-tools"><p>Товаров: <strong>{cartCount}</strong></p><button className="sf-text-button" onClick={retry}>Обновить наличие</button><button className="sf-text-button" onClick={() => { setCart([]); setNotice('Корзина очищена.'); }}><Trash2 size={16} />Очистить</button></div>{cart.map(item => {
-          const product = products.find(value => value.id === item.product_id);
-          return <article className="sf-cart-item" key={item.product_id}>{product ? <><a className="sf-cart-photo" href={`#product/${encodeURIComponent(product.id)}`}><ProductPhoto product={product} /></a><div className="sf-cart-item__info"><h2><a href={`#product/${encodeURIComponent(product.id)}`}>{product.name}</a></h2><p className={`sf-stock sf-stock--${product.stock_status}`}>{stockLabels[product.stock_status]}</p><p className="sf-cart-unit-price">{money(product.price)} / шт.</p><div className="sf-quantity" role="group" aria-label={`Количество ${product.name}`}><button disabled={item.quantity <= 1} aria-label={`Уменьшить количество ${product.name}`} onClick={() => changeQuantity(product.id, item.quantity - 1)}>−</button><output aria-live="polite">{item.quantity}</output><button disabled={item.quantity >= MAX_QUANTITY} aria-label={`Увеличить количество ${product.name}`} onClick={() => changeQuantity(product.id, item.quantity + 1)}>+</button></div></div><div className="sf-cart-item__total"><strong>{product.price === null ? 'По запросу' : money(Math.round(product.price * 100) * item.quantity / 100)}</strong><button className="sf-text-button" onClick={() => removeCart(product.id)}><Trash2 size={16} />Удалить</button></div></> : <div className="sf-cart-unavailable"><h2>Модель больше не опубликована</h2><p>Удалите её, чтобы отправить заявку на оставшиеся товары.</p><button className="sf-text-button" onClick={() => removeCart(item.product_id)}>Удалить недоступный товар</button></div>}</article>;
-        })}<a className="sf-text-button sf-continue-shopping" href="#catalog">Продолжить покупки <ArrowRight size={17} /></a></section><aside className="sf-cart-summary"><h2>Ваш выбор</h2><dl><div><dt>Товаров</dt><dd>{cartCount}</dd></div><div><dt>{city.name ? `Доставка в ${city.name}` : 'Доставка по России'}</dt><dd>{cartZone ? zoneTerm(cartZone) : 'от 3 дней'}</dd></div><div><dt>Стоимость доставки</dt><dd>Включена в цену товара</dd></div><div><dt>Оплата</dt><dd>{settings.payment_sbp === 'on' ? 'СБП после подтверждения' : 'По согласованию с магазином'}</dd></div></dl><p className="sf-cart-total"><span>{cartSummary.unknownPrices ? 'Известная стоимость' : 'Стоимость товаров'}</span><strong>{money(cartSummary.knownTotal)}</strong></p>{cartSummary.unknownPrices > 0 && <p className="sf-muted">Для {cartSummary.unknownPrices} шт. цена будет уточнена. Это не полная сумма заявки.</p>}<p className="sf-muted">Сейчас деньги не списываются: сначала магазин подтверждает наличие, затем присылает ссылку или QR-код СБП. <a href="#payment">Как проходит оплата</a></p><InquiryForm settings={settings} account={account} city={city.name} onCity={chooseCity} items={cart} blocked={cartSummary.unavailable > 0} onSuccess={inquiry => { setReceipt(inquiry); setCart([]); window.scrollTo({ top: 0, behavior: 'instant' }); }} /></aside></div> : <Empty title="В корзине пока пусто" icon={ShoppingBag}>Добавьте понравившуюся модель — в корзине можно уточнить наличие, доставку и итоговую цену у магазина.</Empty>)}</div>}
+      {path === 'cart' && <div className="sf-cart-page">{receipt ? <InquiryConfirmation inquiry={receipt} /> : catalogState || (cart.length ? <Cart items={cart} products={products} settings={settings} city={city.name} onCity={() => setCityOpen(true)} onRetry={retry} onQuantity={changeQuantity} onRemove={removeCart}>
+        <InquiryForm settings={settings} account={account} city={city.name} onCity={chooseCity} items={cart} blocked={cart.some(item => !products.some(product => product.id === item.product_id && product.stock_status !== 'out-of-stock'))} onSuccess={inquiry => { setReceipt(inquiry); setCart([]); window.scrollTo({ top: 0, behavior: 'instant' }); }} />
+      </Cart> : <Empty title="В корзине пока пусто" icon={ShoppingBag}>Добавьте понравившуюся модель — в корзине можно уточнить наличие, доставку и итоговую цену у магазина.</Empty>)}</div>}
 
       {Object.hasOwn(infoTitles, path) && <Information key={path} topic={path} settings={settings} city={city.name} onCity={chooseCity} />}
       {path === 'profile' && <div className="sf-profile"><p className="sf-lead">Ваш выбор и обращения</p><p>Избранное и корзина сохраняются в этом браузере и работают без аккаунта. Аккаунт нужен, чтобы видеть историю своих заявок.</p><nav className="sf-account-links"><a href="#favorites">Избранное <span>{favorites.length}</span></a><a href="#compare">Сравнение <span>{compare.length}</span></a><a href="#cart">Корзина <span>{cartCount}</span></a><a href="#contact">Связаться с магазином <ArrowRight size={17} /></a></nav><Account account={account} csrfToken={csrfToken} city={city.name} onChange={refreshAccount} onCity={chooseCity} /></div>}
@@ -211,7 +211,7 @@ export function Storefront() {
     </footer>
     <nav className="sf-bottom-nav" aria-label="Основная навигация">{[
       { path: 'home', label: 'Главная', icon: HomeIcon }, { path: 'catalog', label: 'Каталог', icon: Search }, { path: 'cart', label: 'Корзина', icon: ShoppingBag }, { path: 'compare', label: 'Сравнить', icon: ArrowLeftRight }, { path: 'profile', label: 'Профиль', icon: UserRound },
-    ].map(item => <a key={item.path} href={`#${item.path}`} aria-current={path === item.path || (item.path === 'catalog' && isProduct) ? 'page' : undefined}><item.icon size={21} aria-hidden="true" /><span>{item.label}</span></a>)}</nav>
+    ].map(item => <a key={item.path} href={`#${item.path}`} aria-current={path === item.path || (item.path === 'catalog' && isProduct) ? 'page' : undefined}><span className="sf-nav-icon"><item.icon size={23} aria-hidden="true" />{item.path === 'cart' && cartCount > 0 && <span className="sf-count">{cartCount}</span>}</span><span>{item.label}</span></a>)}</nav>
     {(cityOpen || (!city.asked && !loading)) && <CityPicker city={city} onChoose={chooseCity} onClose={() => { setCity({ ...city, asked: true }); setCityOpen(false); }} />}
     {notice && <div className="sf-toast" role="status"><span>{notice}</span><button aria-label="Закрыть уведомление" onClick={() => setNotice('')}><X size={18} /></button></div>}
   </div>;

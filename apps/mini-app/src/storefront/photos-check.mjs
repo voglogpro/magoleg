@@ -43,20 +43,22 @@ try {
     });
     await page.goto(base);
     await page.locator('.sf-city-options button').first().click();
-    await page.waitForSelector('.sf-home-picks .sf-pick-card');
+    await page.waitForSelector('.sf-cat-tile');
     const benefits = page.locator('.sf-shop-benefits');
     assert.equal(await benefits.locator('a').count(), 3);
     assert.ok((await benefits.innerText()).includes('Быстрая доставка'));
     assert.ok((await benefits.innerText()).includes('12 месяцев'));
     assert.ok((await benefits.innerText()).includes('Прямые поставки'));
-    // Воронка ставит товар выше обещаний магазина: сначала выбор, потом доверие.
+    // Обещания магазина открывают воронку и не наезжают на плитки типов транспорта.
     const benefitBounds = await benefits.boundingBox();
-    const pickBounds = await page.locator('.sf-home-picks').boundingBox();
-    assert.ok(pickBounds.y + pickBounds.height <= benefitBounds.y, 'Smart picks come before the store promises without overlap');
+    const tileBounds = await page.locator('.sf-home-categories').boundingBox();
+    assert.ok(benefitBounds.y + benefitBounds.height <= tileBounds.y, 'Store promises sit above the transport types without overlap');
     assert.ok(await benefits.evaluate(node => node.scrollWidth <= node.clientWidth), 'Benefits fit on narrow screens');
-    assert.equal(await page.locator('.sf-home-picks a').filter({ hasText: 'В наличии сейчас' }).count(), 0);
     await benefits.screenshot({ path: `${output}/benefits-${width}.png` });
-    const picks = await page.locator('.sf-home-picks .sf-pick-card').evaluateAll(nodes => nodes.map(node => {
+    // Подборки живут на своей странице: главная ведёт в каталог плитками типов транспорта.
+    await page.goto(`${base}/#picks`);
+    await page.waitForSelector('.sf-pick-card');
+    const picks = await page.locator('.sf-pick-card').evaluateAll(nodes => nodes.map(node => {
       const rect = node.getBoundingClientRect(); return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom };
     }));
     assert.equal(picks.length, 4, 'Four useful selections for the four real product fixtures');
@@ -66,7 +68,7 @@ try {
       assert.ok(picks[2].y >= picks[0].bottom, 'Rows never overlap');
       assert.ok(picks.every(pick => pick.x >= 0 && pick.right <= width), 'All picks are visible without horizontal scrolling');
     }
-    await page.locator('.sf-home-picks').screenshot({ path: `${output}/picks-${width}.png` });
+    await page.locator('.sf-picks-page').screenshot({ path: `${output}/picks-${width}.png` });
     await page.goto(`${base}/#catalog`);
     await page.waitForSelector('.sf-product-card');
     assert.equal(await page.locator('.sf-product-card').count(), 4);
@@ -75,7 +77,9 @@ try {
       body: node.querySelector('.sf-product-card__body').getBoundingClientRect().height,
     })));
     assert.ok(dimensions.every(card => card.body < 310), 'Product summaries remain compact without full descriptions');
-    if (width >= 1150) assert.ok(dimensions.every(card => card.width < 260), 'Desktop marketplace-sized cards');
+    // До 1280 px витрина плотная, дальше действует утверждённый макет с четырьмя крупными карточками.
+    if (width >= 1150 && width < 1280) assert.ok(dimensions.every(card => card.width < 260), 'Dense desktop grid');
+    if (width >= 1280) assert.ok(dimensions.every(card => card.width < 320), 'Approved desktop card width');
     for (const button of await page.locator('.sf-card-actions > *').all()) {
       const bounds = await button.boundingBox();
       assert.ok(bounds.width >= 44 && bounds.height >= 44, 'Accessible compact card actions');

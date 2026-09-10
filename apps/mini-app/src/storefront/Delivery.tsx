@@ -88,7 +88,6 @@ export function Delivery({ settings, city = '', onCity }: { settings: ShopSettin
           <a className="sf-text-button" href="#contact">Уточнить у магазина →</a>
         </>}
       </div>
-      <a className="sf-text-button" href="https://www.cdek.ru/ru/calculate/" target="_blank" rel="noopener noreferrer">Открыть калькулятор СДЭК ↗</a><p className="sf-muted">Калькулятор откроется на сайте перевозчика. Для расчёта понадобятся город отправления, вес и размеры упакованного товара. Данные из этой формы автоматически в СДЭК не передаются.</p>
     </section>
 
     <section className="sf-info-section" aria-labelledby="delivery-zones-title">
