@@ -52,6 +52,7 @@ export type ShopSettings = {
   consent_document: string;
   offer_document: string;
   returns_document: string;
+  contacts_document: string;
   payment_card: PaymentStatus;
   payment_installment: PaymentStatus;
   payment_invoice: PaymentStatus;
@@ -80,7 +81,7 @@ export const defaultSettings: ShopSettings = {
   shop_name: 'G-Partner', phone: '', telegram: '', telegram_channel: '', address: '', hours: '',
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
   delivery_origin: '', delivery_schedule: '', return_address: '',
-  privacy_document: '', consent_document: '', offer_document: '', returns_document: '',
+  privacy_document: '', consent_document: '', offer_document: '', returns_document: '', contacts_document: '',
   payment_card: 'preparing', payment_installment: 'preparing', payment_invoice: 'preparing',
   payment_on_delivery: 'off', payment_provider: '', payment_installment_partner: '', payment_receipt: '',
 };

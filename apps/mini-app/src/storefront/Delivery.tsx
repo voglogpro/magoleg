@@ -1,8 +1,10 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
-import { ArrowRight, Boxes, MapPin, PackageCheck, Truck } from 'lucide-react';
+import { ArrowRight, MapPin, Truck } from 'lucide-react';
 import { cityKey, parseDeliverySchedule } from './delivery-estimates';
 import { deliveryZones, findDeliveryZone, zoneById, zoneTerm, type DeliveryZone } from './delivery-zones';
 import { CityDatalist } from './CityPicker';
+import { Sections } from './LegalDocuments';
+import { deliveryTerms } from './legal-texts';
 import type { ShopSettings } from './types';
 
 function ZoneCards({ activeId, onPick }: { activeId?: string; onPick?: (zone: DeliveryZone) => void }) {
@@ -96,13 +98,12 @@ export function Delivery({ settings, city = '', onCity }: { settings: ShopSettin
       <p className="sf-muted">Нажмите округ, чтобы отметить своё направление. Крайние сроки относятся к отдалённым населённым пунктам и периодам загрузки перевозчиков.</p>
     </section>
 
-    <section className="sf-info-section"><h2>Способы получения</h2><div className="sf-delivery-methods">
-      <div><span className="sf-method-icon" aria-hidden="true"><Truck size={20} /></span><h3>Курьером до адреса</h3><p>Доставка до согласованного адреса в городе получения. Возможность подъёма и внос крупной техники уточняются при оформлении.</p></div>
-      <div><span className="sf-method-icon" aria-hidden="true"><Boxes size={20} /></span><h3>Транспортной компанией</h3><p>Отправка до пункта выдачи или до двери. Планируем сотрудничество со СДЭК; перевозчик согласуется для конкретного заказа с учётом груза и аккумулятора.</p></div>
-      <div><span className="sf-method-icon" aria-hidden="true"><PackageCheck size={20} /></span><h3>Проверка при получении</h3><p>Осмотрите упаковку и комплектацию до подписания документов перевозчика. О повреждении сообщите магазину сразу и зафиксируйте его в акте.</p></div>
-    </div></section>
-
-    <section className="sf-info-section"><h2>География, сроки и стоимость</h2><p>Отправляем по России в населённые пункты, обслуживаемые согласованным перевозчиком. Срок округа — ориентир после передачи заказа перевозчику, а не единый срок для всех адресов. Подготовка заказа согласуется отдельно.</p><p>Доставка — по тарифам транспортной компании, если магазин письменно не подтвердил бесплатную доставку. Страхование, упаковка и дополнительные услуги включаются в согласованный расчёт. До оплаты вы узнаете стоимость товаров и доставки отдельно.</p>{settings.delivery && <p className="sf-preserve-lines">{settings.delivery}</p>}</section>
+    <section className="sf-info-section" aria-labelledby="delivery-terms-title">
+      <h2 id="delivery-terms-title">Условия доставки</h2>
+      <p className="sf-muted">Опубликованная редакция условий, на которых магазин передаёт заказ покупателю.</p>
+    </section>
+    <Sections sections={deliveryTerms} />
+    {settings.delivery && <section className="sf-info-section"><h2>Дополнительно от магазина</h2><p className="sf-preserve-lines">{settings.delivery}</p></section>}
 
     <nav className="sf-info-cta" aria-label="Оплата заказа">
       <span className="sf-info-cta__icon" aria-hidden="true"><MapPin size={20} /></span>

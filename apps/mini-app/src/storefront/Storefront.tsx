@@ -6,6 +6,7 @@ import { Home } from './Home';
 import { PickCards } from './PickCards';
 import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, sanitizeCart, sanitizeCity, sanitizeIds, smartPicks } from './domain';
 import { findDeliveryZone, zoneTerm } from './delivery-zones';
+import { sellerLine } from './legal-texts';
 import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
@@ -110,7 +111,6 @@ export function Storefront() {
   const catalogState = loading ? <p className="sf-loading" role="status">Загружаем каталог…</p> : error ? <div className="sf-empty" role="alert"><h2>Каталог временно недоступен</h2><p>{error}</p><button className="sf-button" onClick={retry}>Повторить загрузку</button></div> : null;
   const featured = [...products.filter(product => product.featured), ...products.filter(product => !product.featured)].slice(0, 4);
   const picks = smartPicks(products);
-  const sections = ['delivery', 'payment', 'about', 'contact', 'guide'];
 
   return <div className="sf-store">
     <a className="sf-skip" href="#sf-content" onClick={event => { event.preventDefault(); contentRef.current?.focus(); }}>Перейти к содержимому</a>
@@ -189,10 +189,21 @@ export function Storefront() {
 
       {Object.hasOwn(infoTitles, path) && <Information key={path} topic={path} settings={settings} city={city.name} onCity={chooseCity} />}
       {path === 'profile' && <div className="sf-profile"><p className="sf-lead">Ваш выбор и обращения</p><p>Избранное и корзина сохраняются в этом браузере и работают без аккаунта. Аккаунт нужен, чтобы видеть историю своих заявок.</p><nav className="sf-account-links"><a href="#favorites">Избранное <span>{favorites.length}</span></a><a href="#compare">Сравнение <span>{compare.length}</span></a><a href="#cart">Корзина <span>{cartCount}</span></a><a href="#contact">Связаться с магазином <ArrowRight size={17} /></a></nav><Account account={account} csrfToken={csrfToken} city={city.name} onChange={refreshAccount} onCity={chooseCity} /></div>}
-      {path === 'menu' && <nav className="sf-menu" aria-label="Все разделы"><a href="#catalog">Каталог транспорта <ArrowRight size={17} /></a><a href="#picks">Умные подборки <ArrowRight size={17} /></a>{sections.map(section => <a href={`#${section}`} key={section}>{infoTitles[section]}<ArrowRight size={17} /></a>)}<a href="#compare">Сравнение моделей <ArrowRight size={17} /></a><a href="#privacy">Обработка данных <ArrowRight size={17} /></a></nav>}
+      {path === 'menu' && <nav className="sf-menu" aria-label="Все разделы">
+        {[['catalog', 'Каталог транспорта'], ['picks', 'Умные подборки'], ['compare', 'Сравнение моделей'], ['favorites', 'Избранное']].map(([target, label]) =>
+          <a href={`#${target}`} key={target}>{label} <ArrowRight size={17} /></a>)}
+        <p className="sf-menu__title">Документы и условия</p>
+        {['delivery', 'payment', 'warranty', 'returns', 'offer', 'privacy', 'consent', 'about', 'contact'].map(target =>
+          <a href={`#${target}`} key={target}>{infoTitles[target]} <ArrowRight size={17} /></a>)}
+      </nav>}
       {!Object.hasOwn(titles, path) && !isProduct && <Empty title="Такой страницы нет">Вернитесь в каталог или выберите раздел в меню магазина.</Empty>}
     </main>
-    <footer className="sf-footer"><div><span>{settings.shop_name} · доставка по России</span><nav aria-label="Дополнительная информация"><a href="#about">О магазине</a><a href="#delivery">Доставка</a><a href="#payment">Оплата</a><a href="#warranty">Гарантия</a><a href="#privacy">Политика конфиденциальности</a><a href="#consent">Согласие на обработку данных</a><a href="#offer">Публичная оферта</a><a href="#returns">Возврат товаров и денег</a><a href="#contact">Контакты</a></nav></div></footer>
+    <footer className="sf-footer">
+      <div>
+        <nav aria-label="Документы магазина"><a href="#offer">Публичная оферта</a><a href="#privacy">Политика конфиденциальности</a><a href="#returns">Обмен и возврат</a></nav>
+        <p className="sf-footer__legal">{sellerLine}</p>
+      </div>
+    </footer>
     <nav className="sf-bottom-nav" aria-label="Основная навигация">{[
       { path: 'home', label: 'Главная', icon: HomeIcon }, { path: 'catalog', label: 'Каталог', icon: Search }, { path: 'cart', label: 'Корзина', icon: ShoppingBag }, { path: 'compare', label: 'Сравнить', icon: ArrowLeftRight }, { path: 'profile', label: 'Профиль', icon: UserRound },
     ].map(item => <a key={item.path} href={`#${item.path}`} aria-current={path === item.path || (item.path === 'catalog' && isProduct) ? 'page' : undefined}><item.icon size={21} aria-hidden="true" /><span>{item.label}</span></a>)}</nav>

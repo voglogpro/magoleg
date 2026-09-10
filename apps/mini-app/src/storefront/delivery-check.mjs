@@ -19,7 +19,7 @@ try {
     const settings = {
       shop_name: 'G-Partner', delivery_origin: 'Тестовый склад — не реальные условия',
       delivery_schedule: 'Казань; 4; 7; по тарифам перевозчика',
-      legal_name: 'Тестовый продавец', legal_details: 'Тестовые данные браузерной проверки',
+      legal_name: '', legal_details: '', contacts_document: '',
       phone: '+7 (900) 123-45-67', inquiries_enabled: false,
       payment_card: 'preparing', payment_installment: 'preparing', payment_invoice: 'preparing',
       payment_on_delivery: 'off', payment_provider: '', payment_installment_partner: '', payment_receipt: '',
@@ -49,7 +49,9 @@ try {
     assert.match(await page.locator('.sf-delivery-result').innerText(), /Владивосток: 2–3 недели/);
     assert.match(await page.locator('.sf-delivery-result').innerText(), /не онлайн-расчёт СДЭК/);
     assert.equal(await page.locator('.sf-zone-grid .sf-zone-card').count(), 7);
-    assert.doesNotMatch(await page.locator('main').innerText(), /Самовывоз/);
+    // Самовывоз не предлагается как способ получения — оферта прямо это фиксирует.
+    assert.match(await page.locator('main').innerText(), /Самовывоз со склада продавца не предусмотрен/);
+    assert.doesNotMatch(await page.locator('main').innerText(), /География, сроки и стоимость/);
     await page.getByLabel('Город получения').fill('Казань');
     await page.getByRole('button', { name: 'Показать сроки' }).click();
     await page.reload();
@@ -62,15 +64,28 @@ try {
     assert.match(await page.locator('.sf-delivery-result').innerText(), /срок и стоимость уточняются/);
     assert.doesNotMatch(await page.locator('.sf-delivery-result').innerText(), /4–7/);
     assert.equal(await page.locator('a[href="https://www.cdek.ru/ru/calculate/"]').getAttribute('target'), '_blank');
-    for (const topic of ['privacy', 'consent', 'offer', 'returns']) {
+    // Подвал несёт только обязательные документы и строку реквизитов продавца.
+    assert.equal(await page.locator('footer nav a').count(), 3);
+    assert.match(await page.locator('.sf-footer__legal').innerText(), /ИНН 231518680513.+ОГРНИП 326237500411962/s);
+    for (const topic of ['offer', 'privacy', 'returns']) {
       await page.locator(`footer a[href="#${topic}"]`).click();
       await page.waitForURL(new RegExp(`#${topic}$`));
-      await page.locator('.sf-document-draft').waitFor();
-      assert.equal(await page.locator('.sf-document-draft').count(), 1);
+      await page.locator('.sf-info-section').first().waitFor();
       assert.equal(await page.locator('main [role="dialog"]').count(), 0);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: ${topic} fits`);
-      assert.ok((await page.locator('main').innerText()).includes('Тестовый продавец'));
     }
+    // Утверждённые редакции публикуются без пометки «базовый проект»; возврат ещё черновик.
+    await page.goto(`${base}/#offer`);
+    await page.locator('.sf-info-section').first().waitFor();
+    assert.equal(await page.locator('.sf-document-draft').count(), 0);
+    assert.match(await page.locator('main').innerText(), /Свиридовой А\.Ю\./);
+    assert.match(await page.locator('main').innerText(), /ОГРНИП: 326237500411962/);
+    await page.goto(`${base}/#consent`);
+    await page.locator('.sf-info-section').first().waitFor();
+    assert.equal(await page.locator('.sf-document-draft').count(), 0);
+    assert.match(await page.locator('main').innerText(), /infog-partner@mail\.ru/);
+    await page.goto(`${base}/#returns`);
+    await page.locator('.sf-document-draft').waitFor();
     await page.getByText(/Возврат товара не прекращает кредитный договор автоматически/).waitFor();
     await page.screenshot({ path: `${output}/returns-${width}.png`, fullPage: true });
     // Зона оплаты: неподключённый способ никогда не выглядит рабочим.

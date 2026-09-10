@@ -323,7 +323,7 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
         </div>
       </fieldset>
       <fieldset disabled={busy}><legend>Документы сайта</legend><p className="crm-help">На сайте есть отдельные страницы. Ниже можно опубликовать утверждённые юристом редакции обычным текстом. Пока поле пустое, показывается базовый проект с предупреждением. Заполните реальные реквизиты и условия перед запуском оплаты и кредита.</p>
-        {([['privacy_document', 'Политика конфиденциальности'], ['consent_document', 'Согласие на обработку данных'], ['offer_document', 'Публичная оферта'], ['returns_document', 'Возврат товаров и денег']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={7} maxLength={12000} value={settings[key]} onChange={event => update(key, event.target.value)} /></label>)}
+        {([['privacy_document', 'Политика конфиденциальности'], ['consent_document', 'Согласие на обработку данных'], ['offer_document', 'Публичная оферта'], ['returns_document', 'Обмен и возврат товара'], ['contacts_document', 'Контакты']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={7} maxLength={12000} value={settings[key]} onChange={event => update(key, event.target.value)} /></label>)}
       </fieldset>
       <button className="crm-button crm-button--primary" disabled={busy} type="submit">{busy ? 'Сохраняем…' : 'Сохранить информацию'}</button>
     </form>}

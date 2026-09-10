@@ -59,6 +59,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "inquiries_enabled": False,
     "delivery_origin": "", "delivery_schedule": "", "return_address": "",
     "privacy_document": "", "consent_document": "", "offer_document": "", "returns_document": "",
+    "contacts_document": "",
     # Способы расчёта. "on" публикуется как рабочий, поэтому включается только вместе
     # с реквизитами продавца: покупатель не должен видеть оплату, которой ещё нет.
     "payment_card": "preparing", "payment_installment": "preparing",

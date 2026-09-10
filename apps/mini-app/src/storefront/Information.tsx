@@ -4,10 +4,11 @@ import { type ShopSettings } from './types';
 import { Delivery } from './Delivery';
 import { Payment } from './Payment';
 import { LegalDocument, legalTopics } from './LegalDocuments';
+import { seller } from './legal-texts';
 
 export const infoTitles: Record<string, string> = {
   about: 'О магазине', delivery: 'Доставка по России', payment: 'Оплата и документы', contact: 'Контакты', guide: 'Помощь с выбором',
-  privacy: 'Политика конфиденциальности', consent: 'Согласие на обработку персональных данных', offer: 'Публичная оферта', returns: 'Возврат товаров и денег', warranty: 'Гарантия', supply: 'Прямые поставки',
+  privacy: 'Политика конфиденциальности', consent: 'Согласие на обработку персональных данных', offer: 'Публичная оферта', returns: 'Обмен и возврат товара', warranty: 'Гарантия', supply: 'Прямые поставки',
 };
 
 export function ContactLinks({ settings }: { settings: ShopSettings }) {
@@ -18,6 +19,20 @@ export function ContactLinks({ settings }: { settings: ShopSettings }) {
     {telegram && <a className="sf-button sf-button--secondary" href={telegram} target="_blank" rel="noopener noreferrer">Написать в Telegram</a>}
     {!phone && !telegram && <p className="sf-muted">Контакты магазина готовятся к публикации.</p>}
   </div>;
+}
+
+/** Реквизиты продавца: опубликованная в CRM редакция либо зафиксированные данные ИП. */
+export function SellerDetails({ settings }: { settings: ShopSettings }) {
+  const custom = [settings.legal_name, settings.legal_details].filter(Boolean).join('\n');
+  if (custom) return <section className="sf-info-section"><h2>Информация о продавце</h2><p className="sf-preserve-lines">{custom}</p></section>;
+  return <section className="sf-info-section"><h2>Информация о продавце</h2><ul className="sf-doc-facts">
+    <li><span>Продавец</span><b>{seller.name}</b></li>
+    <li><span>ИНН</span><b>{seller.inn}</b></li>
+    <li><span>ОГРНИП</span><b>{seller.ogrnip}</b></li>
+    <li><span>Расчётный счёт</span><b>{`${seller.account} в ${seller.bank}`}</b></li>
+    <li><span>Юридический адрес</span><b>{seller.address}</b></li>
+    <li><span>Почта для обращений</span><b><a href={`mailto:${seller.email}`}>{seller.email}</a></b></li>
+  </ul></section>;
 }
 
 function Paragraph({ title, text, fallback }: { title: string; text: string; fallback: string }) {
@@ -31,7 +46,7 @@ export function Information({ topic, settings, city = '', onCity }: { topic: str
       <p className="sf-lead">{settings.shop_name} — магазин электротранспорта с доставкой по всей России.</p>
       <p>Здесь можно выбрать электросамокат, электроскутер или электровелосипед, подобрать запчасти и аксессуары, сравнить характеристики и передать свой выбор магазину. Фотографии, цены и наличие публикует магазин.</p>
       <section className="sf-info-section"><h2>Как подобрать модель</h2><ol><li>Выберите тип транспорта и задайте бюджет в каталоге.</li><li>Добавьте до трёх моделей в сравнение — основные характеристики будут рядом.</li><li>Соберите корзину и оставьте заявку, чтобы уточнить комплектацию, наличие и получение.</li></ol></section>
-      <Paragraph title="Информация о продавце" text={[settings.legal_name, settings.legal_details].filter(Boolean).join('\n')} fallback="Реквизиты продавца ещё не опубликованы. До покупки уточните их у магазина." />
+      <SellerDetails settings={settings} />
       <ContactLinks settings={settings} />
     </>}
     {topic === 'delivery' && <>
@@ -52,9 +67,13 @@ export function Information({ topic, settings, city = '', onCity }: { topic: str
     </>}
     {topic === 'contact' && <>
       <p className="sf-lead">{settings.shop_name}</p>
+      {settings.contacts_document
+        ? <div className="sf-document-body sf-preserve-lines">{settings.contacts_document}</div>
+        : <section className="sf-info-section"><h2>Как с нами связаться</h2><p>Электронная почта для обращений, гарантийных случаев и возврата: <a href={`mailto:${seller.email}`}>{seller.email}</a>.</p><p>Ответ приходит на тот же адрес. Не отправляйте реквизиты карты и коды подтверждения в письме.</p></section>}
       <ContactLinks settings={settings} />
       {settings.address && <Paragraph title="Адрес" text={settings.address} fallback="" />}
       {settings.hours && <Paragraph title="Время работы" text={settings.hours} fallback="" />}
+      <SellerDetails settings={settings} />
       <InquiryForm settings={settings} items={[]} />
     </>}
     <div className="sf-info-bottom"><a className="sf-button" href="#catalog">Перейти в каталог</a></div>

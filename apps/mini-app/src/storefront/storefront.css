@@ -591,3 +591,20 @@
 @media (prefers-reduced-motion: reduce) {
   .sf-store *, .sf-store *::before, .sf-store *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* Подвал: только обязательные документы и строка реквизитов продавца. */
+.sf-store .sf-footer > div { flex-direction: column; align-items: flex-start; gap: 4px 30px; }
+.sf-store .sf-footer__legal { max-width: 80ch; line-height: 1.6; overflow-wrap: anywhere; }
+.sf-store .sf-menu__title { margin: 22px 0 2px; color: var(--sf-muted); font-size: 12px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; }
+/* Документы: списки внутри разделов и таблица реквизитов продавца. */
+.sf-store .sf-document-intro { margin-bottom: 14px; line-height: 1.75; }
+.sf-store .sf-doc-facts { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sf-store .sf-doc-facts li { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 6px 16px; padding-bottom: 10px; border-bottom: 1px solid var(--sf-line); font-size: 14px; }
+.sf-store .sf-doc-facts span { color: var(--sf-muted); }
+.sf-store .sf-doc-facts b { font-weight: 600; overflow-wrap: anywhere; }
+.sf-store .sf-doc-facts a { color: #ff984e; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 559px) { .sf-store .sf-doc-facts li { grid-template-columns: minmax(0, 1fr); } }
+/* Абзацы документов не должны слипаться: юридический текст читают подряд. */
+.sf-store .sf-info-section :where(p + p, p + ul, ul + p, ol + p) { margin-top: 14px; }
+.sf-store .sf-info-section ul:not([class]) { padding-left: 22px; margin: 0; list-style: disc; }
+.sf-store .sf-info-section ul:not([class]) li { margin: 8px 0; padding-left: 4px; font-size: 15px; line-height: 1.7; color: #c6c7ce; }
