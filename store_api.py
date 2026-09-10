@@ -62,14 +62,14 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "contacts_document": "",
     # Способы расчёта. "on" публикуется как рабочий, поэтому включается только вместе
     # с реквизитами продавца: покупатель не должен видеть оплату, которой ещё нет.
-    "payment_card": "preparing", "payment_installment": "preparing",
-    "payment_invoice": "preparing", "payment_on_delivery": "off",
+    "payment_sbp": "on", "payment_card": "off", "payment_installment": "off",
+    "payment_invoice": "off", "payment_on_delivery": "off",
     "payment_provider": "", "payment_installment_partner": "", "payment_receipt": "",
 }
-PAYMENT_STATUS_FIELDS = ("payment_card", "payment_installment", "payment_invoice", "payment_on_delivery")
+PAYMENT_STATUS_FIELDS = ("payment_sbp", "payment_card", "payment_installment", "payment_invoice", "payment_on_delivery")
 PAYMENT_STATUSES = ("off", "preparing", "on")
 PAYMENT_LABELS = {
-    "payment_card": "оплаты картой", "payment_installment": "рассрочки и кредита",
+    "payment_sbp": "оплаты через СБП", "payment_card": "оплаты картой", "payment_installment": "рассрочки и кредита",
     "payment_invoice": "счёта для организаций", "payment_on_delivery": "оплаты при получении",
 }
 PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "atv", "parts", "accessories")
@@ -750,12 +750,6 @@ def settings_ready(settings: dict[str, Any]) -> bool:
 def payment_blockers(settings: dict[str, Any]) -> list[str]:
     """Что мешает объявить способ оплаты рабочим. Пустой список — можно публиковать «Доступно»."""
     missing = []
-    if not settings["legal_name"] or not settings["legal_details"]:
-        missing.append("наименование и реквизиты продавца")
-    if not (valid_phone(settings["phone"]) or settings["telegram"]):
-        missing.append("телефон или Telegram для обращений")
-    if not settings["return_address"]:
-        missing.append("адрес для возврата товаров")
     if settings["payment_card"] == "on" and not settings["payment_provider"]:
         missing.append("название платёжного сервиса")
     if settings["payment_installment"] == "on" and not settings["payment_installment_partner"]:

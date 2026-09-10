@@ -152,7 +152,14 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.locator('[name=name]').fill('Проверка');
   await page.locator('[name=contact]').fill('+79001234567');
   check(await page.locator('.sf-inquiry [name=city]').inputValue() === 'Москва', `${width}: the order carries the chosen city`);
+  // Кнопка оплаты открывается только принятым согласием с тремя документами.
+  check(await page.locator('.sf-inquiry button[type=submit]').isDisabled(), `${width}: payment is locked before the documents are accepted`);
+  for (const href of ['#offer', '#privacy', '#consent'])
+    check(await page.locator(`.sf-consent a[href="${href}"][target=_blank]`).count() === 1, `${width}: ${href} opens from the order form`);
   await page.locator('[name=consent]').check();
+  check(await page.locator('.sf-inquiry button[type=submit]').isEnabled(), `${width}: accepting the documents unlocks payment`);
+  check((await page.locator('.sf-inquiry').innerText()).includes('включена в стоимость товара'), `${width}: delivery is stated as included`);
+  check((await page.locator('.sf-cart-summary dl').innerText()).includes('Включена в цену товара'), `${width}: the summary repeats the included delivery`);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${output}/cart-${width}.png`, fullPage: true });
   await page.locator('.sf-inquiry button[type=submit]').click();

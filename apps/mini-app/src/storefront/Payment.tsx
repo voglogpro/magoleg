@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Banknote, Building2, CalendarClock, CreditCard, FileCheck2, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Banknote, Building2, CalendarClock, CreditCard, FileCheck2, QrCode, ShieldCheck, type LucideIcon } from 'lucide-react';
 import type { PaymentStatus, ShopSettings } from './types';
 
 export const paymentStatusLabels: Record<PaymentStatus, string> = {
@@ -13,6 +13,11 @@ export function paymentMethods(settings: ShopSettings): Method[] {
   const provider = settings.payment_provider.trim();
   const partner = settings.payment_installment_partner.trim();
   return [
+    {
+      id: 'sbp', title: 'Система быстрых платежей (СБП)', icon: QrCode, status: settings.payment_sbp,
+      text: 'Перевод по QR-коду или ссылке в приложении вашего банка. Комиссия с покупателя не взимается, деньги поступают на расчётный счёт продавца.',
+      ready: 'После подтверждения заказа магазин присылает ссылку или QR-код на оплату. Проверьте получателя и сумму до подтверждения перевода.',
+    },
     {
       id: 'card', title: 'Банковской картой онлайн', icon: CreditCard, status: settings.payment_card,
       text: provider ? `Оплата через платёжный сервис ${provider}. Реквизиты карты вводятся на защищённой странице сервиса, магазину они не передаются.`
@@ -41,7 +46,7 @@ export function paymentMethods(settings: ShopSettings): Method[] {
 const steps = [
   { title: 'Заявка', text: 'Вы собираете корзину и отправляете заявку. Деньги на этом шаге не списываются.' },
   { title: 'Подтверждение', text: 'Магазин проверяет наличие, комплектацию, стоимость доставки и сообщает итоговую сумму.' },
-  { title: 'Оплата', text: 'Оплата выбранным согласованным способом. Реквизиты карты вводятся только на странице платёжного сервиса.' },
+  { title: 'Оплата', text: 'Оплата через СБП по ссылке или QR-коду от магазина. Стоимость доставки уже включена в цену товара.' },
   { title: 'Чек и передача', text: 'Вы получаете кассовый чек и документы на товар, заказ уходит перевозчику.' },
 ];
 

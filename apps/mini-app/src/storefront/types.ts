@@ -30,7 +30,7 @@ export type Product = {
 /** Способ расчёта объявляется рабочим только после подтверждения владельцем в CRM. */
 export type PaymentStatus = 'off' | 'preparing' | 'on';
 export const paymentStatuses: PaymentStatus[] = ['off', 'preparing', 'on'];
-export const paymentStatusFields = ['payment_card', 'payment_installment', 'payment_invoice', 'payment_on_delivery'] as const;
+export const paymentStatusFields = ['payment_sbp', 'payment_card', 'payment_installment', 'payment_invoice', 'payment_on_delivery'] as const;
 
 export type ShopSettings = {
   shop_name: string;
@@ -53,6 +53,7 @@ export type ShopSettings = {
   offer_document: string;
   returns_document: string;
   contacts_document: string;
+  payment_sbp: PaymentStatus;
   payment_card: PaymentStatus;
   payment_installment: PaymentStatus;
   payment_invoice: PaymentStatus;
@@ -82,7 +83,7 @@ export const defaultSettings: ShopSettings = {
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
   delivery_origin: '', delivery_schedule: '', return_address: '',
   privacy_document: '', consent_document: '', offer_document: '', returns_document: '', contacts_document: '',
-  payment_card: 'preparing', payment_installment: 'preparing', payment_invoice: 'preparing',
+  payment_sbp: 'on', payment_card: 'off', payment_installment: 'off', payment_invoice: 'off',
   payment_on_delivery: 'off', payment_provider: '', payment_installment_partner: '', payment_receipt: '',
 };
 export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };

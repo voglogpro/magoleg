@@ -21,7 +21,7 @@ describe('guest inquiry', () => {
   it('does not expose an enabled submission form when inquiries are closed', () => {
     render(<InquiryForm settings={defaultSettings} items={items} />);
     expect(screen.getByText('Приём заявок пока закрыт')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Отправить заявку' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Перейти к оплате' })).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
   it('sends only item IDs and quantities and shows the real server receipt', async () => {
@@ -36,7 +36,7 @@ describe('guest inquiry', () => {
     expect(call[0]).toBe('/api/inquiries');
     expect(JSON.parse(options.body as string)).toEqual({ name: 'Анна', contact: '+79001234567', city: 'Москва', message: '', items, consent: true });
     expect((options.headers as Record<string, string>)['Idempotency-Key']).toMatch(/^[\da-f-]{36}$/);
-    expect(screen.queryByRole('button', { name: 'Отправить заявку' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Перейти к оплате' })).not.toBeInTheDocument();
   });
   it('keeps the same idempotency key on a network retry and does not claim success', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('Соединение прервано'));
@@ -51,13 +51,34 @@ describe('guest inquiry', () => {
     const calls = vi.mocked(fetch).mock.calls;
     expect((calls[0][1]!.headers as Record<string, string>)['Idempotency-Key']).toEqual((calls[1][1]!.headers as Record<string, string>)['Idempotency-Key']);
   });
-  it('validates consent and prevents submitting unavailable products', async () => {
+  it('keeps the payment button locked until the shopper accepts the documents', async () => {
     const { rerender } = render(<InquiryForm settings={enabled} items={items} />);
+    const pay = screen.getByRole('button', { name: 'Перейти к оплате' });
+    expect(pay).toBeDisabled();
+    expect(screen.getByText(/кнопка оплаты станет активной/)).toBeInTheDocument();
+    for (const [name, href] of [['«Публичной оферты»', '#offer'], ['«Политики конфиденциальности»', '#privacy'], ['«Согласие на обработку персональных данных»', '#consent']] as const) {
+      const link = screen.getByRole('link', { name });
+      expect(link).toHaveAttribute('href', href);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(screen.getByRole('button', { name: 'Перейти к оплате' })).toBeEnabled();
+    expect(screen.queryByText(/кнопка оплаты станет активной/)).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    rerender(<InquiryForm settings={enabled} items={items} blocked />);
+    expect(screen.getByRole('button', { name: 'Перейти к оплате' })).toBeDisabled();
+  });
+  it('refuses an incomplete order and never calls the server', async () => {
+    render(<InquiryForm settings={enabled} items={items} />);
+    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.submit(screen.getByRole('form', { name: 'Заявка в магазин' }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(fetch).not.toHaveBeenCalled();
-    rerender(<InquiryForm settings={enabled} items={items} blocked />);
-    expect(screen.getByRole('button', { name: 'Отправить заявку' })).toBeDisabled();
+  });
+  it('tells the shopper that delivery is already in the price', () => {
+    render(<InquiryForm settings={enabled} items={items} />);
+    expect(screen.getByText(/Доставка по России включена в стоимость товара/)).toBeInTheDocument();
   });
   it('assigns a new idempotency key when a rejected payload is edited', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Уточните контакт' }), { status: 400 }));

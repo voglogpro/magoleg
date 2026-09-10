@@ -115,17 +115,17 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.login()
         public = await self.client.get("/api/settings")
         defaults = (await public.json())["settings"]
-        self.assertEqual(defaults["payment_card"], "preparing")
+        # По умолчанию работает только СБП: остальные способы владелец включает сам.
+        self.assertEqual(defaults["payment_sbp"], "on")
+        self.assertEqual(defaults["payment_card"], "off")
         self.assertEqual(defaults["payment_on_delivery"], "off")
-        for values in ({"payment_card": "yes"}, {"payment_invoice": ""}, {"payment_on_delivery": "включено"}):
+        for values in ({"payment_card": "yes"}, {"payment_invoice": ""}, {"payment_sbp": "включено"}):
             response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
             await self.assert_error(response, 400)
-        # Реквизиты, контакт, адрес возврата и платёжный сервис — до объявления «Доступно».
+        # Карту нельзя объявить рабочей без названия платёжного сервиса.
         response = await self.client.put("/api/admin/settings", json={"payment_card": "on"}, headers=self.headers)
         await self.assert_error(response, 400)
         response = await self.client.put("/api/admin/settings", json={
-            "legal_name": "Тестовый продавец", "legal_details": "Тестовые реквизиты",
-            "phone": "+79001234567", "return_address": "Тестовый адрес возврата",
             "payment_card": "on", "payment_provider": "Тестовый платёжный сервис",
             "payment_receipt": "Чек направляется покупателю.",
         }, headers=self.headers)

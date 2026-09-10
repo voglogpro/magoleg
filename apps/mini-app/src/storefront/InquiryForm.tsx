@@ -8,8 +8,9 @@ export function InquiryConfirmation({ inquiry }: { inquiry: Inquiry }) {
   return <div className="sf-confirmation" role="status">
     <h3>Заявка получена</h3>
     <p>Номер: <strong>{inquiry.id}</strong></p>
-    <p>Магазин получил ваше обращение и сможет ответить по указанному контакту. Это заявка на уточнение, не оплаченный заказ.</p>
-    {inquiry.total !== null && <p>Сумма по каталогу: <strong>{money(inquiry.total)}</strong>. Наличие, доставку и итоговую стоимость подтвердит магазин.</p>}
+    <p>Магазин получил заказ и свяжется по указанному контакту. Деньги пока не списаны.</p>
+    {inquiry.total !== null && <p>Сумма по каталогу: <strong>{money(inquiry.total)}</strong>. Доставка включена в стоимость товара.</p>}
+    <p>После подтверждения наличия магазин пришлёт ссылку или QR-код для оплаты через СБП. Проверьте получателя и сумму до подтверждения перевода: реквизиты карты и коды подтверждения магазин никогда не запрашивает.</p>
     <a className="sf-button sf-button--secondary" href="#catalog">Продолжить выбор</a>
   </div>;
 }
@@ -76,17 +77,23 @@ export function InquiryForm({ settings, items, account = null, city = '', onCity
   </div>;
 
   return <form className="sf-inquiry" onSubmit={handleSubmit} aria-label="Заявка в магазин">
-    <h3>{items.length ? 'Уточнить наличие и получение' : 'Задать вопрос магазину'}</h3>
-    <p className="sf-muted">Без регистрации и онлайн-оплаты. Оставьте удобный контакт для ответа.</p>
+    <h3>{items.length ? 'Оформление заказа' : 'Задать вопрос магазину'}</h3>
+    <p className="sf-muted">{items.length
+      ? 'Доставка по России включена в стоимость товара. После подтверждения наличия магазин пришлёт ссылку или QR-код для оплаты через СБП.'
+      : 'Оставьте удобный контакт для ответа.'}</p>
     <fieldset disabled={pending || blocked}>
       <label>Ваше имя<input name="name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={event => setName(event.target.value)} /></label>
       <label>Телефон, email или @Telegram<input name="contact" autoComplete="email" required minLength={5} maxLength={150} value={contact} onChange={event => setContact(event.target.value)} placeholder="Как с вами связаться" /></label>
       {items.length > 0 && <label>Город доставки<input name="city" list="sf-cities" autoComplete="address-level2" required minLength={2} maxLength={80} value={destination} onChange={event => setDestination(event.target.value)} placeholder="Например, Краснодар" /><CityDatalist /></label>}
       <label>{items.length ? 'Комментарий — необязательно' : 'Ваш вопрос'}<textarea name="message" rows={3} required={!items.length} minLength={items.length ? undefined : 10} maxLength={3000} value={message} onChange={event => setMessage(event.target.value)} placeholder={items.length ? 'Район доставки, вопросы о модели' : 'Какой транспорт ищете, куда и как далеко планируете ездить'} /></label>
-      <label className="sf-consent"><input name="consent" type="checkbox" checked={consent} required onChange={event => setConsent(event.target.checked)} /><span>Даю <a href="#consent" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a> для ответа на обращение. <a href="#privacy" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a></span></label>
+      <label className="sf-consent"><input name="consent" type="checkbox" checked={consent} required onChange={event => setConsent(event.target.checked)} /><span>{items.length
+        ? <>Я согласен с условиями <a href="#offer" target="_blank" rel="noopener noreferrer">«Публичной оферты»</a>, <a href="#privacy" target="_blank" rel="noopener noreferrer">«Политики конфиденциальности»</a> и даю <a href="#consent" target="_blank" rel="noopener noreferrer">«Согласие на обработку персональных данных»</a></>
+        : <>Даю <a href="#consent" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a> для ответа на обращение. <a href="#privacy" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a></>}</span></label>
       {error && <p className="sf-error" role="alert" ref={errorRef} tabIndex={-1}>{error}</p>}
       {blocked && <p className="sf-error">Удалите недоступные товары из корзины перед отправкой заявки.</p>}
-      <button className="sf-button" type="submit" disabled={pending || blocked}>{pending ? 'Отправляем…' : 'Отправить заявку'}</button>
+      {/* Кнопка расчёта включается только принятой галочкой: акцепт оферты фиксируется до оплаты. */}
+      <button className="sf-button" type="submit" disabled={pending || blocked || (items.length > 0 && !consent)}>{pending ? 'Отправляем…' : items.length ? 'Перейти к оплате' : 'Отправить вопрос'}</button>
+      {items.length > 0 && !consent && <p className="sf-muted" aria-live="polite">Отметьте согласие с документами — кнопка оплаты станет активной.</p>}
     </fieldset>
   </form>;
 }

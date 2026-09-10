@@ -7,7 +7,7 @@ import { paymentStatusLabels } from '../storefront/Payment';
 import './admin.css';
 
 const paymentFields = [
-  ['payment_card', 'Картой онлайн'], ['payment_installment', 'Рассрочка и кредит'],
+  ['payment_sbp', 'СБП (по QR или ссылке)'], ['payment_card', 'Картой онлайн'], ['payment_installment', 'Рассрочка и кредит'],
   ['payment_invoice', 'Счёт для организаций'], ['payment_on_delivery', 'Оплата при получении'],
 ] as const;
 
@@ -15,14 +15,11 @@ const paymentFields = [
 export function paymentChecklist(settings: ShopSettings) {
   const digits = settings.phone.replace(/\D/g, '');
   return [
-    { label: 'Юридическое наименование и реквизиты продавца', done: Boolean(settings.legal_name.trim() && settings.legal_details.trim()) },
     { label: 'Телефон или Telegram для обращений', done: Boolean((digits.length >= 7 && digits.length <= 15) || settings.telegram.trim()) },
     { label: 'Адрес для возврата товаров', done: Boolean(settings.return_address.trim()) },
-    { label: 'Платёжный сервис для оплаты картой', done: Boolean(settings.payment_provider.trim()) },
-    { label: 'Публичная оферта в утверждённой редакции', done: Boolean(settings.offer_document.trim()) },
-    { label: 'Политика конфиденциальности и согласие', done: Boolean(settings.privacy_document.trim() && settings.consent_document.trim()) },
-    { label: 'Порядок возврата товаров и денег', done: Boolean(settings.returns_document.trim()) },
+    { label: 'Порядок обмена и возврата товара', done: Boolean(settings.returns_document.trim()) },
     { label: 'Порядок выдачи кассового чека', done: Boolean(settings.payment_receipt.trim()) },
+    { label: 'Платёжный сервис — только если включена оплата картой', done: settings.payment_card !== 'on' || Boolean(settings.payment_provider.trim()) },
   ];
 }
 
@@ -319,7 +316,7 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
           <ul>{paymentChecklist(settings).map(item => <li key={item.label} className={item.done ? 'crm-checklist__done' : ''}>
             <span aria-hidden="true">{item.done ? '✓' : '•'}</span><span>{item.label}</span><b>{item.done ? 'заполнено' : 'нужно заполнить'}</b>
           </li>)}</ul>
-          <p className="crm-help">Договор эквайринга, онлайн-касса по 54-ФЗ и юридическая проверка документов выполняются вне сайта. Сервер не разрешит отметить способ «Доступно», пока обязательные поля пустые.</p>
+          <p className="crm-help">Оферта, политика и согласие уже опубликованы в утверждённой редакции; реквизиты ИП зашиты в сайт. Договор с банком, онлайн-касса по 54-ФЗ и приём платежей выполняются вне сайта. Сервер не разрешит отметить «Доступно» способ, для которого не указан сервис или банк-партнёр.</p>
         </div>
       </fieldset>
       <fieldset disabled={busy}><legend>Документы сайта</legend><p className="crm-help">На сайте есть отдельные страницы. Ниже можно опубликовать утверждённые юристом редакции обычным текстом. Пока поле пустое, показывается базовый проект с предупреждением. Заполните реальные реквизиты и условия перед запуском оплаты и кредита.</p>
