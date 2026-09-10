@@ -1,5 +1,13 @@
 import { activePickTags, categoryLabels, defaultFilters, MAX_CART_MODELS, MAX_QUANTITY, tagHints, tagLabels, type CartItem, type Category, type CityChoice, type Filters, type Product, type SmartPick } from './types';
 
+/** Мощность указывается на один мотор: полный привод показывается как «2 × 1100 Вт». */
+export const powerLabel = (product: Pick<Product, 'power_w' | 'drive'>) =>
+  product.power_w === null ? '' : product.drive === 'dual' ? `2 × ${product.power_w} Вт` : `${product.power_w} Вт`;
+export const powerTotal = (product: Pick<Product, 'power_w' | 'drive'>) =>
+  product.power_w === null ? null : product.drive === 'dual' ? product.power_w * 2 : product.power_w;
+/** Ноль литров — это осознанная отметка «багажника нет», а не неизвестное значение. */
+export const cargoLabel = (value: number | null) => value === null ? 'Уточняется' : value === 0 ? 'Нет' : `${value} л`;
+
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
 export const productImage = (value: string) => /^\/media\/[a-zA-Z0-9_./-]+$/.test(value) && !value.includes('..') ? value : '';
@@ -100,7 +108,7 @@ export function parseFilters(search: string): Filters {
   return {
     category: get('category', ['all', ...Object.keys(categoryLabels)], 'all') as Filters['category'],
     tag: get('tag', ['all', ...Object.keys(tagLabels)], 'all') as Filters['tag'],
-    license: get('license', ['all', 'required', 'not-required', 'unknown'], 'all') as Filters['license'],
+    license: get('license', ['all', 'a', 'm', 'not-required', 'required', 'unknown'], 'all') as Filters['license'],
     stock: get('stock', ['all', 'in-stock', 'preorder', 'out-of-stock'], 'all') as Filters['stock'],
     min: amount('min'), max: amount('max'),
     sort: get('sort', ['featured', 'value', 'price-asc', 'price-desc', 'name'], 'featured') as Filters['sort'],

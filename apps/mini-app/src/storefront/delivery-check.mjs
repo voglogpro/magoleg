@@ -21,7 +21,7 @@ try {
       delivery_schedule: 'Казань; 4; 7; по тарифам перевозчика',
       legal_name: '', legal_details: '', contacts_document: '',
       phone: '+7 (900) 123-45-67', inquiries_enabled: false,
-      payment_card: 'preparing', payment_installment: 'preparing', payment_invoice: 'preparing',
+      payment_sbp: 'on', payment_card: 'off', payment_installment: 'off', payment_invoice: 'off',
       payment_on_delivery: 'off', payment_provider: '', payment_installment_partner: '', payment_receipt: '',
     };
     await page.route('**/api/**', route => {
@@ -92,9 +92,12 @@ try {
     await page.goto(`${base}/#payment`);
     await page.locator('.sf-pay-grid').waitFor();
     const payment = await page.locator('main').innerText();
-    assert.match(payment, /Готовим подключение/);
-    assert.doesNotMatch(payment, /(^|\n)Доступно(\n|$)/);
+    // Работает только СБП; способы, которые магазин не подключил, не показываются вовсе.
+    assert.match(payment, /Система быстрых платежей/);
+    assert.match(payment, /(^|\n)Доступно(\n|$)/);
+    assert.doesNotMatch(payment, /Рассрочка и кредит|Оплата при получении|Банковской картой/);
     assert.match(payment, /никогда не просит номер карты/);
+    assert.equal(await page.locator('.sf-pay-card').count(), 1);
     assert.equal(await page.locator('.sf-steps li').count(), 4);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: оплата помещается`);
     await page.screenshot({ path: `${output}/payment-${width}.png`, fullPage: true });

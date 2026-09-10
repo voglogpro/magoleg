@@ -1,6 +1,6 @@
 import type { Product } from './api';
 
-const numericFields = ['price', 'range_km', 'speed_kmh', 'power_w', 'weight_kg', 'cargo_l'] as const;
+const numericFields = ['price', 'range_km', 'speed_kmh', 'power_w', 'weight_kg', 'cargo_l', 'payload_kg'] as const;
 type NumericField = typeof numericFields[number];
 export type ProductDraft = Omit<Product, 'id' | 'updated_at' | NumericField> & Record<NumericField, string>;
 export type ProductPayload = Omit<Product, 'id' | 'updated_at'>;
@@ -20,6 +20,8 @@ export function productDraft(product?: Product): ProductDraft {
     power_w: product?.power_w == null ? '' : String(product.power_w),
     weight_kg: product?.weight_kg == null ? '' : String(product.weight_kg),
     cargo_l: product?.cargo_l == null ? '' : String(product.cargo_l),
+    payload_kg: product?.payload_kg == null ? '' : String(product.payload_kg),
+    drive: product?.drive ?? 'unknown',
   };
 }
 
@@ -38,6 +40,7 @@ export function validateProduct(draft: ProductDraft, publish: boolean): { errors
   if (publish && !draft.images.length) errors.push('Для публикации загрузите хотя бы одну фотографию товара.');
   if (publish && (numbers.price === null || numbers.price <= 0)) errors.push('Для публикации укажите цену больше нуля.');
   if (draft.license !== 'unknown' && !draft.license_verified) errors.push('Подтвердите проверку документов для категории по водительским правам или выберите «Не проверено».');
+  if (numbers.payload_kg !== null && numbers.weight_kg !== null && numbers.payload_kg < numbers.weight_kg) errors.push('Грузоподъёмность меньше веса самого устройства — проверьте значения.');
   return {
     errors: [...new Set(errors)],
     // The cover is always the first photo of the gallery, so a card never advertises a lost image.

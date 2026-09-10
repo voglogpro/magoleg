@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, plural, productImage, sanitizeCart, sanitizeIds, smartPicks, telegramLink } from './domain';
+import { cargoLabel, cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, phoneLink, plural, powerLabel, powerTotal, productImage, sanitizeCart, sanitizeIds, smartPicks, telegramLink } from './domain';
 import { categoryLabels, defaultFilters, vehicleCategories, type Category, type Product } from './types';
 
-const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/products/one.webp', images: ['/media/products/one.webp'], featured: false, published: true, tags: ['courier'], badge: '', updated_at: '2026-09-06' };
+const product: Product = { id: 'one', name: 'Модель один', description: 'Для города', category: 'scooter', license: 'not-required', license_verified: true, price: 10000, stock_status: 'in-stock', range_km: 40, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, payload_kg: 120, drive: 'single', image_url: '/media/products/one.webp', images: ['/media/products/one.webp'], featured: false, published: true, tags: ['courier'], badge: '', updated_at: '2026-09-06' };
 
 describe('catalogue filtering', () => {
   it('round-trips every category offered by the shared public and admin labels', () => {
@@ -123,5 +123,36 @@ describe('safe media and contact links', () => {
     expect(telegramLink('https://t.me/gpartner_shop')).toBe('https://t.me/gpartner_shop');
     expect(telegramLink('https://evil.test/gpartner_shop')).toBe('');
     expect(telegramLink('javascript:alert(1)')).toBe('');
+  });
+});
+
+describe('характеристики модели', () => {
+  it('показывает мощность на один мотор, а при полном приводе — умножает на два', () => {
+    expect(powerLabel({ power_w: 1100, drive: 'single' })).toBe('1100 Вт');
+    expect(powerLabel({ power_w: 1100, drive: 'dual' })).toBe('2 × 1100 Вт');
+    expect(powerTotal({ power_w: 1100, drive: 'dual' })).toBe(2200);
+    expect(powerTotal({ power_w: 1100, drive: 'single' })).toBe(1100);
+    expect(powerLabel({ power_w: null, drive: 'dual' })).toBe('');
+    expect(powerTotal({ power_w: null, drive: 'dual' })).toBeNull();
+  });
+
+  it('отличает отсутствие багажника от неизвестного объёма', () => {
+    expect(cargoLabel(null)).toBe('Уточняется');
+    expect(cargoLabel(0)).toBe('Нет');
+    expect(cargoLabel(30)).toBe('30 л');
+  });
+
+  it('фильтрует каталог по категориям прав A, M и «без прав»', () => {
+    const models = [
+      { ...product, id: 'a', license: 'a' as const },
+      { ...product, id: 'm', license: 'm' as const },
+      { ...product, id: 'none', license: 'not-required' as const },
+      { ...product, id: 'draft', license: 'a' as const, license_verified: false },
+    ];
+    for (const [license, expected] of [['a', ['a']], ['m', ['m']], ['not-required', ['none']]] as const)
+      expect(filterProducts(models, { ...defaultFilters, license }).map(item => item.id)).toEqual([...expected]);
+    // Непроверенные документы никогда не выдаются за подтверждённую категорию.
+    expect(filterProducts(models, { ...defaultFilters, license: 'unknown' }).map(item => item.id)).toEqual(['draft']);
+    expect(parseFilters(catalogHref({ license: 'm' }).split('?')[1]).license).toBe('m');
   });
 });

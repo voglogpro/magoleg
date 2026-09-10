@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart } from 'lucide-react';
-import { effectiveLicense, money, productImage } from './domain';
-import { badgeLabels, categoryLabels, licenseLabels, stockLabels, vehicleCategories, type Product } from './types';
+import { effectiveLicense, money, powerLabel, productImage } from './domain';
+import { badgeLabels, categoryLabels, licenseShort, stockLabels, vehicleCategories, type Product } from './types';
 
 export function ProductPhoto({ product, large = false }: { product: Product; large?: boolean }) {
   const [broken, setBroken] = useState(false);
@@ -65,9 +65,9 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
       <p className={`sf-stock sf-stock--${product.stock_status}`}>{stockLabels[product.stock_status]}</p>
       <dl className="sf-card-specs">
         {product.range_km !== null && <div><dt>Пробег</dt><dd>до {product.range_km} км</dd></div>}
-        {product.power_w !== null && <div><dt>Мощность</dt><dd>{product.power_w} Вт</dd></div>}
+        {product.power_w !== null && <div><dt>Мощность</dt><dd>{powerLabel(product)}</dd></div>}
       </dl>
-      {vehicleCategories.includes(product.category) && <p className="sf-license-caption" title={licenseLabels[license]}>{license === 'unknown' ? 'Права: уточняйте' : licenseLabels[license]}</p>}
+      {vehicleCategories.includes(product.category) && license !== 'unknown' && <p className="sf-license-caption">{licenseShort[license]}</p>}
       <strong className="sf-product-price">{money(product.price)}</strong>
       <div className="sf-card-actions">
       {inCart ? <a className="sf-button sf-button--secondary" href="#cart">В корзине</a> : <button className="sf-button" type="button" disabled={product.stock_status === 'out-of-stock'} onClick={() => onAdd(product.id)}>{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}

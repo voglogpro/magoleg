@@ -1,7 +1,9 @@
 export type Category = 'kick-scooter' | 'scooter' | 'e-bike' | 'atv' | 'parts' | 'accessories';
 export type ProductTag = 'waterproof' | 'heavy-rider' | 'two-up' | 'courier' | 'women' | 'beginner' | 'teen';
 export type ProductBadge = '' | 'hit' | 'best-price' | 'value';
-export type License = 'required' | 'not-required' | 'unknown';
+/** Категория прав для модели. «required» осталось от прежних карточек без уточнённой категории. */
+export type License = 'a' | 'm' | 'not-required' | 'required' | 'unknown';
+export type Drive = 'single' | 'dual' | 'unknown';
 export type Stock = 'in-stock' | 'preorder' | 'out-of-stock';
 
 export type Product = {
@@ -18,6 +20,8 @@ export type Product = {
   power_w: number | null;
   weight_kg: number | null;
   cargo_l: number | null;
+  payload_kg: number | null;
+  drive: Drive;
   image_url: string;
   images: string[];
   featured: boolean;
@@ -125,5 +129,15 @@ export const badgeLabels: Record<Exclude<ProductBadge, ''>, string> = {
 };
 /** Rider requirements only apply to vehicles; parts and accessories never carry them. */
 export const vehicleCategories: Category[] = ['kick-scooter', 'scooter', 'e-bike', 'atv'];
-export const licenseLabels = { required: 'С правами', 'not-required': 'Без прав', unknown: 'Требования уточняются' };
+export const licenseLabels: Record<License, string> = {
+  a: 'Права категории A', m: 'Права категории M', 'not-required': 'Без прав',
+  required: 'Нужны права', unknown: 'Требования уточняются',
+};
+/** Короткая подпись под карточкой: в плитке нет места на полную формулировку. */
+export const licenseShort: Record<License, string> = {
+  a: 'Права: A', m: 'Права: M', 'not-required': 'Без прав', required: 'Нужны права', unknown: 'Права: уточняйте',
+};
+export const driveLabels: Record<Drive, string> = {
+  single: 'Задний привод, один мотор', dual: 'Полный привод, два мотора', unknown: 'Уточняется',
+};
 export const stockLabels = { 'in-stock': 'В наличии', preorder: 'Под заказ', 'out-of-stock': 'Нет в наличии' };

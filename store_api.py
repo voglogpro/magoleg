@@ -81,8 +81,13 @@ MAX_PHOTOS = 8
 PRODUCT_FIELDS = {
     "name", "description", "category", "license", "license_verified", "price",
     "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg", "cargo_l",
+    "payload_kg", "drive",
     "image_url", "images", "published", "featured", "tags", "badge",
 }
+# «required» и «not-required» остаются от прежних карточек: категорию прав владелец уточняет сам.
+PRODUCT_LICENSES = ("a", "m", "not-required", "required", "unknown")
+# Мощность указывается на один мотор; полный привод удваивает её в характеристиках.
+PRODUCT_DRIVES = ("single", "dual", "unknown")
 
 
 def now_iso() -> str:
@@ -403,7 +408,8 @@ class Store:
         values = {
             "name": "", "description": "", "category": "scooter", "license": "unknown",
             "license_verified": False, "price": None, "stock_status": "preorder", "range_km": None,
-            "speed_kmh": None, "power_w": None, "weight_kg": None, "cargo_l": None, "image_url": "", "images": [], "published": False,
+            "speed_kmh": None, "power_w": None, "weight_kg": None, "cargo_l": None,
+            "payload_kg": None, "drive": "unknown", "image_url": "", "images": [], "published": False,
             "featured": False, "tags": [], "badge": "",
             **(previous or {}), **{key: value for key, value in data.items() if key in PRODUCT_FIELDS},
         }
@@ -413,7 +419,8 @@ class Store:
         if "images" not in data and "image_url" in data:
             values["images"] = [values["image_url"]] if values["image_url"] else []
         require(values["category"] in PRODUCT_CATEGORIES, "Неизвестная категория товара.")
-        require(values["license"] in ("required", "not-required", "unknown"), "Неизвестное требование к правам.")
+        require(values["license"] in PRODUCT_LICENSES, "Неизвестное требование к правам.")
+        require(values["drive"] in PRODUCT_DRIVES, "Неизвестный привод: выберите один мотор, полный привод или «уточняется».")
         require(values["stock_status"] in ("in-stock", "preorder", "out-of-stock"), "Неизвестный статус наличия.")
         tags = values["tags"]
         require(isinstance(tags, list) and len(tags) <= len(PRODUCT_TAGS)
@@ -425,7 +432,8 @@ class Store:
         require(values["license"] == "unknown" or values["license_verified"],
                 "Для указания требований к правам сначала подтвердите проверку документов модели.")
         for key, maximum in (("price", 100_000_000), ("range_km", 3000), ("speed_kmh", 500),
-                             ("power_w", 500_000), ("weight_kg", 10_000), ("cargo_l", 1_000)):
+                             ("power_w", 500_000), ("weight_kg", 10_000), ("cargo_l", 1_000),
+                             ("payload_kg", 2_000)):
             values[key] = number_value(values[key], key, maximum)
         if values["price"] is not None:
             price = Decimal(str(values["price"]))
@@ -646,7 +654,8 @@ async def list_products(request: web.Request) -> web.Response:
     with request.app[STORE_KEY].connect() as connection:
         rows = connection.execute("SELECT data FROM products WHERE published=1 ORDER BY updated_at DESC,id" if public
                                   else "SELECT data FROM products ORDER BY updated_at DESC,id").fetchall()
-    products = [{"tags": [], "badge": "", "cargo_l": None, **json.loads(row["data"])} for row in rows]
+    products = [{"tags": [], "badge": "", "cargo_l": None, "payload_kg": None, "drive": "unknown",
+                 **json.loads(row["data"])} for row in rows]
     for product in products:
         # Cards saved before galleries existed carry their single photo as a one-photo gallery.
         product.setdefault("images", [product["image_url"]] if product["image_url"] else [])

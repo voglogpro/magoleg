@@ -8,7 +8,7 @@ afterEach(cleanup);
 const model = (patch: Partial<Product>): Product => ({
   id: 'id', name: 'Модель', description: '', category: 'kick-scooter', license: 'unknown',
   license_verified: false, price: 50000, stock_status: 'in-stock', range_km: null, speed_kmh: null,
-  power_w: null, weight_kg: null, cargo_l: null, image_url: '', images: [], featured: false,
+  power_w: null, weight_kg: null, cargo_l: null, payload_kg: null, drive: 'unknown', image_url: '', images: [], featured: false,
   published: true, tags: [], badge: '', updated_at: '2026-09-09', ...patch,
 });
 const withSettings = (patch: Partial<ShopSettings> = {}) => ({ ...defaultSettings, ...patch });

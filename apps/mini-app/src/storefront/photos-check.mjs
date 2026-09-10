@@ -49,9 +49,10 @@ try {
     assert.ok((await benefits.innerText()).includes('Быстрая доставка'));
     assert.ok((await benefits.innerText()).includes('12 месяцев'));
     assert.ok((await benefits.innerText()).includes('Прямые поставки'));
+    // Воронка ставит товар выше обещаний магазина: сначала выбор, потом доверие.
     const benefitBounds = await benefits.boundingBox();
     const pickBounds = await page.locator('.sf-home-picks').boundingBox();
-    assert.ok(benefitBounds.y + benefitBounds.height <= pickBounds.y, 'Store promises sit above the smart picks without overlap');
+    assert.ok(pickBounds.y + pickBounds.height <= benefitBounds.y, 'Smart picks come before the store promises without overlap');
     assert.ok(await benefits.evaluate(node => node.scrollWidth <= node.clientWidth), 'Benefits fit on narrow screens');
     assert.equal(await page.locator('.sf-home-picks a').filter({ hasText: 'В наличии сейчас' }).count(), 0);
     await benefits.screenshot({ path: `${output}/benefits-${width}.png` });

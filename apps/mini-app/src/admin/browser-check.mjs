@@ -84,7 +84,12 @@ try {
     await page.locator('.crm-editor-head').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${output}/editor-${width}.png`, fullPage: true });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
-    await page.getByLabel('Вес, кг', { exact: true }).scrollIntoViewIfNeeded();
+    await page.getByLabel('Вес устройства, кг', { exact: true }).scrollIntoViewIfNeeded();
+    // Грузоподъёмность, привод и отметка «нет» для багажника доступны из формы карточки.
+    await page.getByLabel('Грузоподъёмность, кг', { exact: true }).scrollIntoViewIfNeeded();
+    await page.getByRole('combobox', { name: 'Привод', exact: true }).selectOption('dual');
+    await page.getByRole('combobox', { name: 'Багажник', exact: true }).selectOption('none');
+    assert.equal(await page.getByRole('combobox', { name: 'Багажник', exact: true }).inputValue(), 'none');
     const actionBox = await page.locator('.crm-editor-actions').boundingBox();
     assert.ok(actionBox.y >= 0 && actionBox.y + actionBox.height < 900, 'Save controls stay reachable midway through the editor');
     const tags = await page.locator('.crm-tag-grid .crm-checkbox').evaluateAll(els => els.slice(0, 2).map(el => el.getBoundingClientRect().top));

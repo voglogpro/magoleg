@@ -104,7 +104,9 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await countIs('.sf-product-card', 2), `${width}: transport category works`);
   await page.locator('.sf-filter-toggle').click();
   check(await page.locator('.sf-filter-panel > div').first().locator('.sf-filter-options button').count() === 5, `${width}: the four active themes are filterable`);
-  await page.locator('.sf-filter-panel > div').nth(1).locator('.sf-filter-options button').nth(1).click();
+  // Категории прав: «Все варианты» плюс A, M, без прав, нужны права, уточняется.
+  check(await page.locator('.sf-filter-panel > div').nth(1).locator('.sf-filter-options button').count() === 6, `${width}: licence categories are filterable`);
+  await page.locator('.sf-filter-panel > div').nth(1).locator('.sf-filter-options button').filter({ hasText: 'Нужны права' }).click();
   check(await countIs('.sf-product-card', 1), `${width}: verified rights combine with category`);
   await page.locator('.sf-filter-panel__actions .sf-button').click();
   check(await page.locator('.sf-filter-panel').isHidden(), `${width}: close filters`);

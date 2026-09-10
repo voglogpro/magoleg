@@ -137,6 +137,27 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.put("/api/admin/settings", json={"payment_installment": "on"}, headers=self.headers)
         await self.assert_error(response, 400)
 
+    async def test_drive_payload_and_licence_categories_round_trip(self):
+        await self.login()
+        response = await self.client.post("/api/admin/products", json={
+            "name": "Полноприводная модель", "drive": "dual", "power_w": 1100,
+            "weight_kg": 37, "payload_kg": 135, "cargo_l": 0,
+            "license": "m", "license_verified": True,
+        }, headers=self.headers)
+        self.assertEqual(response.status, 201, await response.text())
+        product = (await response.json())["product"]
+        self.assertEqual(product["drive"], "dual")
+        self.assertEqual(product["payload_kg"], 135)
+        self.assertEqual(product["license"], "m")
+        # Ноль литров сохраняется как осознанное «багажника нет», а не как пустое значение.
+        self.assertEqual(product["cargo_l"], 0)
+        for values in ({"drive": "awd"}, {"license": "b"}, {"payload_kg": 5000}, {"payload_kg": -1}):
+            response = await self.client.post("/api/admin/products", json={"name": "Проверка", **values}, headers=self.headers)
+            await self.assert_error(response, 400)
+        # Категория прав без подтверждённых документов не публикуется.
+        response = await self.client.post("/api/admin/products", json={"name": "Без документов", "license": "a"}, headers=self.headers)
+        await self.assert_error(response, 400)
+
     async def test_teen_theme_requires_explicit_product_tag(self):
         await self.login()
         response = await self.client.post("/api/admin/products", json={"name": "Тестовая серия", "tags": ["teen"]}, headers=self.headers)

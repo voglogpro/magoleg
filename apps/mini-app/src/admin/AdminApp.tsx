@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { adminRequest, AdminApiError, formatDate, formatPrice, mediaSource, type AdminSession, type Inquiry, type Product, type ShopSettings } from './api';
 import { fitPhoto } from './fit-photo';
 import { productDraft, uploadSizeError, validateProduct, validateUpload, type ProductDraft } from './product-form';
-import { activePickLabels as tagLabels, badgeLabels, categoryLabels, defaultSettings, type PaymentStatus, type ProductTag } from '../storefront/types';
+import { activePickLabels as tagLabels, badgeLabels, categoryLabels, defaultSettings, driveLabels, type PaymentStatus, type ProductTag } from '../storefront/types';
 import { paymentStatusLabels } from '../storefront/Payment';
 import './admin.css';
 
@@ -222,10 +222,15 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
         <fieldset disabled={busy}><legend>Характеристики</legend><p className="crm-help">Заполняйте только подтверждённые данные. Пустые значения не будут показаны как нулевые.</p><div className="crm-fields-two">
           <label>Запас хода, км<input inputMode="decimal" type="number" min="0" max="3000" step="0.1" value={draft.range_km} onChange={event => update('range_km', event.target.value)}/></label>
           <label>Макс. скорость, км/ч<input inputMode="decimal" type="number" min="0" max="500" step="0.1" value={draft.speed_kmh} onChange={event => update('speed_kmh', event.target.value)}/></label>
-          <label>Мощность, Вт<input inputMode="numeric" type="number" min="0" max="500000" step="1" value={draft.power_w} onChange={event => update('power_w', event.target.value)}/></label>
-          <label>Вес, кг<input inputMode="decimal" type="number" min="0" max="10000" step="0.1" value={draft.weight_kg} onChange={event => update('weight_kg', event.target.value)}/></label>
-          <label>Багажник, л<input inputMode="decimal" type="number" min="0" max="1000" step="1" value={draft.cargo_l} onChange={event => update('cargo_l', event.target.value)}/></label>
-        </div></fieldset>
+          <label>Привод<select value={draft.drive} onChange={event => update('drive', event.target.value as Product['drive'])}>{(Object.keys(driveLabels) as Product['drive'][]).map(value => <option value={value} key={value}>{driveLabels[value]}</option>)}</select></label>
+          <label>Мощность на один мотор, Вт<input inputMode="numeric" type="number" min="0" max="500000" step="1" value={draft.power_w} onChange={event => update('power_w', event.target.value)}/></label>
+          <label>Вес устройства, кг<input inputMode="decimal" type="number" min="0" max="10000" step="0.1" value={draft.weight_kg} onChange={event => update('weight_kg', event.target.value)}/></label>
+          <label>Грузоподъёмность, кг<input inputMode="decimal" type="number" min="0" max="2000" step="1" value={draft.payload_kg} onChange={event => update('payload_kg', event.target.value)}/></label>
+          <label>Багажник<select value={draft.cargo_l === '' ? '' : draft.cargo_l === '0' ? 'none' : 'volume'} onChange={event => update('cargo_l', event.target.value === '' ? '' : event.target.value === 'none' ? '0' : '1')}>
+            <option value="">Уточняется</option><option value="none">Нет</option><option value="volume">Есть, указать объём</option>
+          </select></label>
+          {draft.cargo_l !== '' && draft.cargo_l !== '0' && <label>Объём багажника, л<input inputMode="decimal" type="number" min="1" max="1000" step="1" value={draft.cargo_l} onChange={event => update('cargo_l', event.target.value)}/></label>}
+        </div><p className="crm-help">Мощность указывается на одно колесо. При полном приводе сайт покажет её как «2 × 1100 Вт» и посчитает суммарную. Грузоподъёмность — предельный вес райдера с грузом, отдельно от веса самого устройства.</p></fieldset>
         <fieldset disabled={busy}><legend>Умные подборки и отметки</legend>
           <p className="crm-help">Подборки собирают товары на главной: покупатель нажимает и видит только подходящие модели.</p>
           <div className="crm-tag-grid">{(Object.keys(tagLabels) as ProductTag[]).map(tag => <label className="crm-checkbox" key={tag}>
@@ -235,7 +240,13 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <label>Отметка на карточке<select value={draft.badge} onChange={event => update('badge', event.target.value as Product['badge'])}><option value="">Без отметки</option>{Object.entries(badgeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
         </fieldset>
         <fieldset disabled={busy}><legend>Документы и показ на сайте</legend>
-          <label>Водительские права<select value={draft.license} onChange={event => update('license', event.target.value as Product['license'])}><option value="unknown">Не проверено</option><option value="required">С правами</option><option value="not-required">Без прав</option></select></label>
+          <label>Водительские права<select value={draft.license} onChange={event => update('license', event.target.value as Product['license'])}>
+            <option value="unknown">Не проверено</option>
+            <option value="not-required">Без прав</option>
+            <option value="m">Категория M</option>
+            <option value="a">Категория A</option>
+            <option value="required">Нужны права, категория уточняется</option>
+          </select></label>
           <label className="crm-checkbox"><input type="checkbox" checked={draft.license_verified} onChange={event => update('license_verified', event.target.checked)}/><span>Я проверил документы модели и требования к водительским правам</span></label>
           <label className="crm-checkbox"><input type="checkbox" checked={draft.featured} onChange={event => update('featured', event.target.checked)}/><span>Показывать в подборке на главной</span></label>
           <p className="crm-help">Для публикации обязательны название, описание, фотография и цена. Категории по правам доступны только после проверки документов.</p>

@@ -1,11 +1,11 @@
-import type { Category, ProductBadge, ProductTag } from '../storefront/types';
+import type { Category, Drive, License, ProductBadge, ProductTag } from '../storefront/types';
 
 export type Product = {
   id: string;
   name: string;
   description: string;
   category: Category;
-  license: 'required' | 'not-required' | 'unknown';
+  license: License;
   price: number | null;
   stock_status: 'in-stock' | 'preorder' | 'out-of-stock';
   range_km: number | null;
@@ -13,6 +13,8 @@ export type Product = {
   power_w: number | null;
   weight_kg: number | null;
   cargo_l: number | null;
+  payload_kg: number | null;
+  drive: Drive;
   image_url: string;
   images: string[];
   published: boolean;
