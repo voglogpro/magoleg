@@ -85,6 +85,22 @@ class CatalogImportTests(unittest.TestCase):
                                  "csrf", replace_photos=True)
         self.assertEqual(call.call_args.args[2], {"images": ["/media/new.webp"]})
 
+    @patch.object(importer, "upload_photo")
+    @patch.object(importer, "call")
+    def test_metadata_refresh_preserves_owner_stock_publication_and_gallery(self, call, upload):
+        call.side_effect = [{"products": [{
+            "id": "a", "name": "A", "images": ["/media/owner.webp"],
+            "stock_status": "in-stock", "published": True,
+        }]}, {}]
+        importer.import_products(None, "https://shop.example", [({
+            "name": "A", "price": 2, "stock_status": "preorder", "published": False,
+            "description": "Current specs",
+        }, [Path("x.png")])], "csrf", update_existing=True)
+        self.assertEqual(call.call_args.args[2], {
+            "name": "A", "price": 2, "description": "Current specs",
+        })
+        upload.assert_not_called()
+
     @patch.object(importer, "call")
     def test_multipart_has_file_field_and_csrf(self, call):
         call.return_value = {"image_url": "/media/new.webp"}
