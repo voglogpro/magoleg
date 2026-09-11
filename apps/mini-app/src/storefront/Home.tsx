@@ -2,8 +2,9 @@ import type { CSSProperties, ReactNode } from 'react';
 import { ArrowLeftRight, ArrowRight, Bike, Bell, Cog, Gauge, Heart, Puzzle, ShoppingBag, Truck, Zap, type LucideIcon } from 'lucide-react';
 import { StoreHero } from '../components/StoreHero';
 import { ShopBenefits } from '../components/ShopBenefits';
+import { PickCards } from './PickCards';
 import { catalogHref, categorySummary, money, plural, telegramLink } from './domain';
-import { categoryLabels, type Category, type Product, type ShopSettings } from './types';
+import { categoryLabels, type Category, type Product, type ShopSettings, type SmartPick } from './types';
 
 /** Счётчики выбора покупателя: они и есть его место в воронке. */
 export type Chosen = { favorites: number; compare: number; cart: number };
@@ -74,8 +75,8 @@ export function TelegramPromo({ settings }: { settings: ShopSettings }) {
   </section>;
 }
 
-export function Home({ products, settings, chosen, featured, catalogState, cards, onCatalog }: {
-  products: Product[]; settings: ShopSettings; chosen: Chosen;
+export function Home({ products, settings, picks, chosen, featured, catalogState, cards, onCatalog }: {
+  products: Product[]; settings: ShopSettings; picks: SmartPick[]; chosen: Chosen;
   featured: Product[]; catalogState: ReactNode; cards: (items: Product[]) => ReactNode; onCatalog: () => void;
 }) {
   return <>
@@ -88,6 +89,10 @@ export function Home({ products, settings, chosen, featured, catalogState, cards
         <div className="sf-section-heading"><h2 id="sf-products-title">{products.some(product => product.featured) ? 'Выбор магазина' : 'Присмотритесь ближе'}</h2>{products.length > 0 && <a href="#catalog">Все модели <ArrowRight size={16} /></a>}</div>
         {catalogState || (featured.length ? cards(featured) : <div className="sf-catalog-preparing"><h3>Готовим ассортимент</h3><p>Здесь появятся фотографии, характеристики и цены после публикации товаров магазином.</p><a href="#contact">Контакты и информация о магазине</a></div>)}
       </section>
+      {picks.length > 0 && <section className="sf-home-block sf-home-picks" aria-labelledby="sf-picks-title">
+        <div className="sf-section-heading"><h2 id="sf-picks-title">Умные подборки</h2><a href="#picks">Все подборки <ArrowRight size={16} /></a></div>
+        <PickCards picks={picks.slice(0, 4)} layout="grid" />
+      </section>}
       {products.length > 0 && <div className="sf-home-catalog-cta"><div><h2>Найдите свой электротранспорт</h2><p>Сравните модели по запасу хода, мощности и цене.</p></div><a className="sf-button" href="#catalog">Перейти в каталог <ArrowRight size={16} /></a></div>}
       <TelegramPromo settings={settings} />
       <nav className="sf-store-links" aria-label="Информация для покупателя"><a href="#delivery"><strong>Доставка по России</strong><span>Сроки по округам, от 3 дней</span></a><a href="#payment"><strong>Оплата и документы</strong><span>Способы расчёта и порядок заказа</span></a><a href="#about"><strong>О магазине</strong><span>Информация и реквизиты</span></a><a href="#guide"><strong>Помощь с выбором</strong><span>Подберём под ваши задачи</span></a></nav>

@@ -133,7 +133,7 @@ export function Storefront() {
     <main id="sf-content" className={`sf-main sf-page-${isProduct ? 'product' : path}`} tabIndex={-1} ref={contentRef}>
       {path !== 'home' && <div className="sf-page-heading"><a href={isProduct ? '#catalog' : '#home'} className="sf-back" aria-label={isProduct ? 'Вернуться в каталог' : 'На главную'}><ArrowLeft size={20} /><span>{isProduct ? 'Каталог' : 'Главная'}</span></a><h1>{title}</h1>{path === 'cart' && cart.length > 0 && <button className="sf-icon-button sf-cart-clear" aria-label="Очистить корзину" onClick={() => { setCart([]); setNotice('Корзина очищена.'); }}><Trash2 size={22} /></button>}</div>}
       {settingsError && <div className="sf-settings-error" role="status"><span>{settingsError}</span><button onClick={retry} disabled={loading}>Обновить</button></div>}
-      {path === 'home' && <Home products={products} settings={settings} featured={featured}
+      {path === 'home' && <Home products={products} settings={settings} picks={picks} featured={featured}
         chosen={{ favorites: favorites.length, compare: compare.length, cart: cartCount }}
         catalogState={catalogState} cards={cards} onCatalog={() => navigate('#catalog')} />}
 

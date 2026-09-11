@@ -68,7 +68,10 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.locator('.sf-search').count() === 0, `${width}: no catalogue search field`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
   check(await page.locator('.sf-home-selection').count() === 0, `${width}: home no longer repeats the catalogue tab`);
-  check(await page.locator('.sf-home-picks').count() === 0, `${width}: selections live in their own menu page`);
+  // Подборки снова ведут покупателя с главной: владелец вернул их после редизайна.
+  check(await page.locator('.sf-home-picks .sf-pick-card').count() === 4, `${width}: four named selections lead from the home page`);
+  check(await page.locator('.sf-home-picks .sf-pick-art svg').count() === 4, `${width}: every selection carries its own icon`);
+  check(await page.locator('.sf-benefit-art').count() === 3, `${width}: branded artwork returns to the shop promises`);
   check(await page.locator('.sf-cat-tile img').count() === 0, `${width}: transport links do not repeat product photos`);
   check(await page.locator('.sf-product-card__visual > .sf-stock').count() === 0, `${width}: no stock band above product photos`);
   check(await page.locator('.sf-stock-light--in-stock').count() > 0, `${width}: stock indicator accompanies model names`);
