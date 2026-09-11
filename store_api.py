@@ -50,7 +50,11 @@ ACCOUNT_SESSION_AGE = 60 * 24 * 60 * 60
 ACCOUNT_SESSION_IDLE = 30 * 24 * 60 * 60
 ACCOUNT_SESSIONS_PER_CUSTOMER = 6
 MEDIA_NAME = re.compile(r"[a-f0-9]{32}\.webp\Z")
-STATIC_PRODUCT_IMAGE = re.compile(r"/products/kugoo-current/[a-z0-9-]+\.(?:jpg|jpeg|png|webp)\Z")
+STATIC_PRODUCT_IMAGE = re.compile(r"/products/kugoo-(?:current|2026)/[a-z0-9-]+\.(?:jpg|jpeg|png|webp)\Z")
+# Версия восстановления входит в ключ вместе с хешем манифеста: правка самой логики
+# обязана прогнаться заново, даже когда список товаров не менялся. Иначе карточка,
+# записанная прежней версией, навсегда остаётся со старыми путями к фотографиям.
+RESTORE_REVISION = "2"
 PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
 DEFAULT_SETTINGS: dict[str, Any] = {
@@ -316,7 +320,7 @@ class Store:
         if not manifest.is_file():
             return
         raw = manifest.read_bytes()
-        version = hashlib.sha256(raw).hexdigest()
+        version = f"{hashlib.sha256(raw).hexdigest()}:{RESTORE_REVISION}"
         key = "catalog-kugoo-current-version"
         seen = connection.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         if seen and seen["value"] == version:
