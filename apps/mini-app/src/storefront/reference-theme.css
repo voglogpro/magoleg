@@ -194,7 +194,7 @@
   position: relative;
   isolation: isolate;
   background:
-    linear-gradient(180deg, #101013 0%, #141417 58%, #17171b 62%, #121215 100%),
+    linear-gradient(180deg, #101013 0%, #141417 80%, #17171b 84%, #121215 100%),
     #101013;
   overflow: hidden;
 }
@@ -202,7 +202,7 @@
 .sf-store .sf-product-photo::before {
   content: '';
   position: absolute;
-  inset: 58% -12% auto -12%;
+  inset: 82% -12% auto -12%;
   z-index: -1;
   height: 2px;
   background: linear-gradient(90deg, transparent, #ff7a1a 12%, #ffb066 50%, #ff7a1a 88%, transparent);
@@ -212,9 +212,9 @@
 .sf-store .sf-product-photo::after {
   content: '';
   position: absolute;
-  inset: auto 14% 8% 14%;
+  inset: auto 12% 4% 12%;
   z-index: -1;
-  height: 16%;
+  height: 13%;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, .55), transparent 72%);
 }
@@ -225,8 +225,8 @@
 .sf-store .sf-product-card:hover { transform: translateY(-3px); border-color: #4a3a2c; box-shadow: 0 14px 34px rgba(0, 0, 0, .45); }
 .sf-store .sf-product-card:hover .sf-product-photo::before { box-shadow: 0 0 22px 7px rgba(255, 122, 26, .6), 0 0 60px 22px rgba(255, 106, 0, .3); }
 /* Крупный кадр на странице товара держит ту же сцену, только просторнее. */
-.sf-store .sf-product-photo--large::before { inset: 62% -8% auto -8%; }
-.sf-store .sf-product-photo--large::after { inset: auto 18% 10% 18%; height: 13%; }
+.sf-store .sf-product-photo--large::before { inset: 84% -8% auto -8%; }
+.sf-store .sf-product-photo--large::after { inset: auto 16% 5% 16%; height: 10%; }
 @media (prefers-reduced-motion: reduce) { .sf-store .sf-product-card:hover { transform: none; } }
 /* Отметки магазина держат фирменную палитру: мятный и бежевый читались как чужие вставки.
    Хит — заливка акцентом, остальные — тёмная плашка с оранжевым контуром. */

@@ -115,6 +115,7 @@ describe('safe media and contact links', () => {
   it('accepts only same-site uploaded media and shipped catalogue paths', () => {
     expect(productImage('/media/products/one.webp')).toBe('/media/products/one.webp');
     expect(productImage('/products/kugoo-current/m4-front.jpg')).toBe('/products/kugoo-current/m4-front.jpg');
+    expect(productImage('/products/kugoo-current/m4-front.webp')).toBe('/products/kugoo-current/m4-front.webp');
     for (const bad of ['https://evil.test/a.png', '//evil.test/a', '/media/../secret', 'javascript:alert(1)', '/products/demo.jpg']) expect(productImage(bad)).toBe('');
   });
   it('validates telephone and Telegram destinations', () => {

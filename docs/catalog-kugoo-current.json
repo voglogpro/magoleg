@@ -14,14 +14,16 @@
     "drive": "dual",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider"],
+    "tags": [
+      "heavy-rider"
+    ],
     "badge": "value",
     "featured": true,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-current/m4-pro-max-front.jpg",
-      "../apps/mini-app/public/products/kugoo-current/m4-pro-max-side.jpg"
+      "../apps/mini-app/public/products/kugoo-current/m4-pro-max-front.webp",
+      "../apps/mini-app/public/products/kugoo-current/m4-pro-max-side.webp"
     ]
   },
   {
@@ -39,14 +41,16 @@
     "drive": "dual",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider"],
+    "tags": [
+      "heavy-rider"
+    ],
     "badge": "hit",
     "featured": true,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-current/f3-pro-max-front.jpg",
-      "../apps/mini-app/public/products/kugoo-current/f3-pro-max-side.jpg"
+      "../apps/mini-app/public/products/kugoo-current/f3-pro-max-front.webp",
+      "../apps/mini-app/public/products/kugoo-current/f3-pro-max-side.webp"
     ]
   },
   {
@@ -64,14 +68,17 @@
     "drive": "single",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider", "beginner"],
+    "tags": [
+      "heavy-rider",
+      "beginner"
+    ],
     "badge": "best-price",
     "featured": true,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-current/m4-front.jpg",
-      "../apps/mini-app/public/products/kugoo-current/m4-side.jpg"
+      "../apps/mini-app/public/products/kugoo-current/m4-front.webp",
+      "../apps/mini-app/public/products/kugoo-current/m4-side.webp"
     ]
   },
   {
@@ -89,7 +96,9 @@
     "drive": "single",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider"],
+    "tags": [
+      "heavy-rider"
+    ],
     "badge": "",
     "featured": false,
     "published": false,
@@ -114,14 +123,17 @@
     "drive": "single",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider", "courier"],
+    "tags": [
+      "heavy-rider",
+      "courier"
+    ],
     "badge": "value",
     "featured": true,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-current/v3-pro-front.jpg",
-      "../apps/mini-app/public/products/kugoo-current/v3-pro-side.jpg"
+      "../apps/mini-app/public/products/kugoo-current/v3-pro-front.webp",
+      "../apps/mini-app/public/products/kugoo-current/v3-pro-side.webp"
     ]
   },
   {
@@ -139,14 +151,16 @@
     "drive": "single",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider"],
+    "tags": [
+      "heavy-rider"
+    ],
     "badge": "",
     "featured": true,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-current/v4-max-front.jpg",
-      "../apps/mini-app/public/products/kugoo-current/v4-max-side.jpg"
+      "../apps/mini-app/public/products/kugoo-current/v4-max-front.webp",
+      "../apps/mini-app/public/products/kugoo-current/v4-max-side.webp"
     ]
   },
   {
@@ -164,14 +178,16 @@
     "drive": "single",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider"],
+    "tags": [
+      "heavy-rider"
+    ],
     "badge": "hit",
     "featured": true,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-current/g2-max-front.jpg",
-      "../apps/mini-app/public/products/kugoo-current/g2-max-side.jpg"
+      "../apps/mini-app/public/products/kugoo-current/g2-max-front.webp",
+      "../apps/mini-app/public/products/kugoo-current/g2-max-side.webp"
     ]
   },
   {
@@ -189,14 +205,16 @@
     "drive": "single",
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider"],
+    "tags": [
+      "heavy-rider"
+    ],
     "badge": "",
     "featured": true,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-current/wish-04-front.jpg",
-      "../apps/mini-app/public/products/kugoo-current/wish-04-side.jpg"
+      "../apps/mini-app/public/products/kugoo-current/wish-04-front.webp",
+      "../apps/mini-app/public/products/kugoo-current/wish-04-side.webp"
     ]
   }
 ]
