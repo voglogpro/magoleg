@@ -11,6 +11,7 @@ from unittest.mock import patch
 from store_api import Store
 
 MANIFEST = Path(__file__).resolve().parent.parent / "docs" / "catalog-kugoo-current.json"
+BIKES_MANIFEST = Path(__file__).resolve().parent.parent / "docs" / "catalog-kugoo-bikes-2026.json"
 
 
 class CatalogRestoreTests(unittest.TestCase):
@@ -52,6 +53,19 @@ class CatalogRestoreTests(unittest.TestCase):
                    if not (public / name.removeprefix("../apps/mini-app/public").lstrip("/")).is_file()]
         self.assertEqual(missing, [], "В манифесте есть ссылки на отсутствующие фотографии")
 
+    def test_bike_manifest_has_a_grounded_cover_for_every_named_model(self):
+        """Новая линейка должна целиком приехать с фирменной первой фотографией."""
+        cards = json.loads(BIKES_MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(len(cards), 21)
+        self.assertEqual(len({card["name"] for card in cards}), 21)
+        self.assertTrue(all(card["photo_files"][0].startswith(
+            "../apps/mini-app/public/products/kugoo-bike-heroes/") for card in cards))
+        public = BIKES_MANIFEST.resolve().parent.parent / "apps" / "mini-app" / "public"
+        missing = [card["photo_files"][0] for card in cards
+                   if not (public / card["photo_files"][0].removeprefix(
+                       "../apps/mini-app/public").lstrip("/")).is_file()]
+        self.assertEqual(missing, [])
+
     def test_renamed_supply_photos_replace_the_previous_gallery(self):
         store = self.store([self.card(["g2-max-front.jpg", "g2-max-side.jpg"])])
         self.assertEqual(self.products(store)[0]["images"], ["/products/kugoo-current/g2-max-front.jpg",
@@ -90,6 +104,13 @@ class CatalogRestoreTests(unittest.TestCase):
         product = self.products(renewed)[0]
         self.assertEqual(product["images"], ["/products/kugoo-current/g2-max-front.webp"])
         self.assertEqual(product["image_url"], "/products/kugoo-current/g2-max-front.webp")
+
+    def test_owner_name_case_and_punctuation_do_not_create_a_duplicate(self):
+        store = self.store([self.card(["g2-max-front.webp"],
+                                      name="Электровелосипед Kugoo U5 800w 60v 45ah")])
+        renewed = self.store([self.card(["g2-max-front.webp"],
+                                        name="Электровелосипед KUGOO U5 800W 60V 45Ah")])
+        self.assertEqual(len(self.products(renewed)), 1)
 
 
 if __name__ == "__main__":

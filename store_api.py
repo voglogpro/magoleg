@@ -50,7 +50,7 @@ ACCOUNT_SESSION_AGE = 60 * 24 * 60 * 60
 ACCOUNT_SESSION_IDLE = 30 * 24 * 60 * 60
 ACCOUNT_SESSIONS_PER_CUSTOMER = 6
 MEDIA_NAME = re.compile(r"[a-f0-9]{32}\.webp\Z")
-STATIC_PRODUCT_IMAGE = re.compile(r"/products/kugoo-(?:current|2026)/[a-z0-9-]+\.(?:jpg|jpeg|png|webp)\Z")
+STATIC_PRODUCT_IMAGE = re.compile(r"/products/kugoo-(?:current|2026|bike-heroes)/[a-z0-9-]+\.(?:jpg|jpeg|png|webp)\Z")
 # Версия восстановления входит в ключ вместе с хешем манифеста: правка самой логики
 # обязана прогнаться заново, даже когда список товаров не менялся. Иначе карточка,
 # записанная прежней версией, навсегда остаётся со старыми путями к фотографиям.
@@ -99,6 +99,12 @@ PRODUCT_DRIVES = ("single", "dual", "unknown")
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def catalog_product_key(value: str) -> str:
+    """Match owner-entered model names despite case, punctuation and Latin/Cyrillic C."""
+    normalized = value.casefold().replace("ё", "е").replace("с", "c")
+    return re.sub(r"[^a-zа-я0-9]+", "", normalized)
 
 
 def hash_password(password: str) -> str:
@@ -297,6 +303,11 @@ class Store:
             connection.execute("INSERT OR IGNORE INTO settings(id,data) VALUES(1,?)",
                                (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),))
             self.restore_catalog(connection)
+            self.restore_catalog(
+                connection,
+                Path(__file__).with_name("catalog-kugoo-bikes-2026.json"),
+                version_key="catalog-kugoo-bikes-2026-version",
+            )
         if os.name != "nt":
             self.database.chmod(0o600)
         encoded = os.getenv("ADMIN_PASSWORD_HASH", "")
@@ -317,7 +328,8 @@ class Store:
             connection.execute("DELETE FROM customer_sessions WHERE expires_at <= ?", (time.time(),))
         self.dummy_hash = await asyncio.to_thread(hash_password, secrets.token_urlsafe(32))
 
-    def restore_catalog(self, connection: sqlite3.Connection, manifest: Path | None = None) -> None:
+    def restore_catalog(self, connection: sqlite3.Connection, manifest: Path | None = None,
+                        *, version_key: str = "catalog-kugoo-current-version") -> None:
         """Restore the versioned public catalogue after a BotHost database loss.
 
         This deliberately makes new researched models *preorder* cards. Existing cards keep
@@ -328,7 +340,7 @@ class Store:
             return
         raw = manifest.read_bytes()
         version = f"{hashlib.sha256(raw).hexdigest()}:{RESTORE_REVISION}"
-        key = "catalog-kugoo-current-version"
+        key = version_key
         seen = connection.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         if seen and seen["value"] == version:
             return
@@ -346,7 +358,9 @@ class Store:
                 return
         for source in cards:
             name = source["name"]
-            matches = connection.execute("SELECT id,data FROM products WHERE json_extract(data, '$.name')=?", (name,)).fetchall()
+            expected = catalog_product_key(name)
+            matches = [row for row in connection.execute("SELECT id,data FROM products").fetchall()
+                       if catalog_product_key(json.loads(row["data"]).get("name", "")) == expected]
             if len(matches) > 1:
                 LOGGER.warning("Catalogue restoration skipped duplicate product: %s", name)
                 continue
