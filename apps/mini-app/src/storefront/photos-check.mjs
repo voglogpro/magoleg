@@ -43,19 +43,18 @@ try {
     });
     await page.goto(base);
     await page.locator('.sf-city-options button').first().click();
-    await page.waitForSelector('.sf-cat-tile');
+    await page.waitForSelector('.sf-shop-benefits');
     const benefits = page.locator('.sf-shop-benefits');
-    assert.equal(await benefits.locator('a').count(), 3);
+    assert.equal(await benefits.locator('a').count(), 2);
     assert.ok((await benefits.innerText()).includes('Быстрая доставка'));
     assert.ok((await benefits.innerText()).includes('12 месяцев'));
-    assert.ok((await benefits.innerText()).includes('Прямые поставки'));
-    // Обещания магазина открывают воронку и не наезжают на плитки типов транспорта.
+    // Обещания магазина открывают воронку, следом идут умные подборки — без наезда.
     const benefitBounds = await benefits.boundingBox();
-    const tileBounds = await page.locator('.sf-home-categories').boundingBox();
-    assert.ok(benefitBounds.y + benefitBounds.height <= tileBounds.y, 'Store promises sit above the transport types without overlap');
+    const picksBounds = await page.locator('.sf-home-picks').boundingBox();
+    assert.ok(benefitBounds.y + benefitBounds.height <= picksBounds.y, 'Store promises sit above the smart selections without overlap');
     assert.ok(await benefits.evaluate(node => node.scrollWidth <= node.clientWidth), 'Benefits fit on narrow screens');
     await benefits.screenshot({ path: `${output}/benefits-${width}.png` });
-    // Подборки живут на своей странице: главная ведёт в каталог плитками типов транспорта.
+    // Своя страница подборок остаётся: с главной туда ведёт ссылка «Все подборки».
     await page.goto(`${base}/#picks`);
     await page.waitForSelector('.sf-pick-card');
     const picks = await page.locator('.sf-pick-card').evaluateAll(nodes => nodes.map(node => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { CategoryTiles, ContinueChoice, TelegramPromo } from './Home';
+import { ContinueChoice, TelegramPromo } from './Home';
 import { defaultSettings, type Product, type ShopSettings } from './types';
 
 afterEach(cleanup);
@@ -12,34 +12,6 @@ const model = (patch: Partial<Product>): Product => ({
   published: true, tags: [], badge: '', updated_at: '2026-09-09', ...patch,
 });
 const withSettings = (patch: Partial<ShopSettings> = {}) => ({ ...defaultSettings, ...patch });
-
-describe('первый шаг воронки — тип транспорта', () => {
-  it('показывает только категории с опубликованными товарами и цену «от»', () => {
-    render(<CategoryTiles products={[
-      model({ id: 'a', price: 42000 }), model({ id: 'b', price: 32900 }),
-      model({ id: 'c', category: 'scooter', price: 94900 }),
-      model({ id: 'd', category: 'atv', published: false, price: 10 }),
-    ]} />);
-    const tiles = screen.getAllByRole('link').filter(link => link.className.includes('sf-cat-tile'));
-    expect(tiles).toHaveLength(2);
-    expect(tiles[0]).toHaveTextContent('Электросамокаты');
-    expect(tiles[0]).toHaveTextContent('2 модели');
-    expect(tiles[0].textContent).toMatch(/от\s*32\s*900/);
-    expect(tiles[0]).toHaveAttribute('href', '#catalog?category=kick-scooter');
-    expect(screen.queryByText('Квадроциклы')).toBeNull();
-  });
-
-  it('не выдумывает цену, когда она по запросу', () => {
-    render(<CategoryTiles products={[model({ price: null })]} />);
-    expect(screen.getByText('1 модель')).toBeInTheDocument();
-    expect(screen.queryByText(/^от/)).toBeNull();
-  });
-
-  it('исчезает, пока каталог пуст', () => {
-    const { container } = render(<CategoryTiles products={[]} />);
-    expect(container).toBeEmptyDOMElement();
-  });
-});
 
 describe('возврат покупателя в воронку', () => {
   it('молчит, пока покупатель ничего не выбрал', () => {

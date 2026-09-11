@@ -77,17 +77,16 @@ for (const width of [320, 390, 768, 900, 1440]) {
   // Подборки снова ведут покупателя с главной: владелец вернул их после редизайна.
   check(await page.locator('.sf-home-picks .sf-pick-card').count() === 4, `${width}: four named selections lead from the home page`);
   check(await page.locator('.sf-home-picks .sf-pick-art svg').count() === 4, `${width}: every selection carries its own icon`);
-  check(await page.locator('.sf-benefit-art').count() === 3, `${width}: branded artwork returns to the shop promises`);
-  check(await page.locator('.sf-cat-tile img').count() === 0, `${width}: transport links do not repeat product photos`);
+  check(await page.locator('.sf-benefit-art').count() === 2, `${width}: branded artwork returns to the shop promises`);
+  check(!(await page.locator('.sf-shop-benefits').innerText()).includes('посредник'), `${width}: the shop never promises supply without intermediaries`);
   check(await page.locator('.sf-product-card__visual > .sf-stock').count() === 0, `${width}: no stock band above product photos`);
   check(await page.locator('.sf-stock-light--in-stock').count() > 0, `${width}: stock indicator accompanies model names`);
   check(await page.locator('.sf-badge').first().innerText() === 'Хит продаж', `${width}: the shop badge rides on the card`);
-  // Compact homepage: benefits → transport links → models → catalogue action.
-  check(await page.locator('.sf-cat-tile').count() === 2, `${width}: home opens with the published transport types`);
-  check(/от\s*19\s*900/.test(await page.locator('.sf-cat-tile').first().innerText()), `${width}: a type tile carries its lowest real price`);
+  // Compact homepage: benefits → smart selections → models → catalogue action.
+  check(await page.locator('.sf-home-categories').count() === 0, `${width}: no transport type tiles on home`);
   check(await page.locator('.sf-funnel').count() === 0, `${width}: no instructional buying steps on home`);
   check(await page.evaluate(() => {
-    const order = ['.sf-shop-benefits', '.sf-home-categories', '.sf-home-products', '.sf-home-catalog-cta'];
+    const order = ['.sf-shop-benefits', '.sf-home-picks', '.sf-home-products', '.sf-home-catalog-cta'];
     const tops = order.map(selector => document.querySelector(selector)?.getBoundingClientRect().top ?? NaN);
     return tops.every((top, index) => index === 0 || top > tops[index - 1]);
   }), `${width}: the funnel keeps its order on the page`);

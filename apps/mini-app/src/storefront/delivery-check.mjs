@@ -101,7 +101,7 @@ try {
     assert.equal(await page.locator('.sf-steps li').count(), 4);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: оплата помещается`);
     await page.screenshot({ path: `${output}/payment-${width}.png`, fullPage: true });
-    for (const topic of ['warranty', 'supply']) {
+    for (const topic of ['warranty', 'delivery']) {
       await page.goto(`${base}/#home`);
       await page.locator(`.sf-shop-benefits a[href="#${topic}"]`).click();
       await page.waitForURL(new RegExp(`#${topic}$`));

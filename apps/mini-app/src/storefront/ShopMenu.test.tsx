@@ -6,22 +6,21 @@ import { defaultSettings, type ShopSettings } from './types';
 
 afterEach(cleanup);
 const withSettings = (patch: Partial<ShopSettings> = {}) => ({ ...defaultSettings, ...patch });
-const group = (title: string) => screen.getByText(title).closest('details') as HTMLDetailsElement;
+const block = (index: number) => screen.getByRole('navigation').querySelectorAll('.sf-menu__list')[index] as HTMLElement;
+const labels = (node: HTMLElement) => within(node).getAllByRole('link').map(link => link.textContent?.trim());
 
 describe('меню магазина', () => {
-  it('держит короткий список разделов, а документы прячет под одну кнопку', () => {
+  it('делит разделы и документы на два блока без заголовков', () => {
     render(<ShopMenu settings={withSettings()} />);
-    const sections = screen.getByRole('navigation').querySelector('.sf-menu__list') as HTMLElement;
-    expect(within(sections).getAllByRole('link').map(link => link.textContent?.trim())).toEqual([
-      'Главная', 'Каталог транспорта', 'Умные подборки', 'Доставка по России', 'Оплата и документы', 'О магазине', 'Контакты',
-    ]);
-    // Свёрнутая группа остаётся в разметке: ссылку видно поиском и после раскрытия.
-    const legal = group('Юридический отдел');
-    expect(legal.open).toBe(false);
-    expect(within(legal).getByText('Публичная оферта')).toBeInTheDocument();
-    expect(within(legal).getByText('Обмен и возврат товара')).toBeInTheDocument();
-    expect(within(legal).getByText('Гарантия')).toBeInTheDocument();
+    expect(labels(block(0))).toEqual(['Главная', 'О магазине', 'Контакты', 'Гарантия', 'Доставка', 'Оплата']);
+    expect(labels(block(1))).toEqual(['Публичная оферта', 'Политика конфиденциальности', 'Согласие на обработку данных', 'Обмен и возврат']);
     expect(screen.getByRole('link', { name: seller.email })).toHaveAttribute('href', `mailto:${seller.email}`);
+  });
+
+  it('не обещает прямых поставок: магазин работает посредником', () => {
+    render(<ShopMenu settings={withSettings()} />);
+    expect(screen.queryByText('Прямые поставки')).toBeNull();
+    expect(screen.queryByText(/Помощь с выбором/)).toBeNull();
   });
 
   it('показывает только те способы оплаты, которые магазин подтвердил', () => {

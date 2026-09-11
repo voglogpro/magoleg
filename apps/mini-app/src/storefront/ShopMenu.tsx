@@ -1,24 +1,25 @@
-import { ChevronDown, ChevronRight, Headset, Megaphone, Phone, Send } from 'lucide-react';
+import { ChevronRight, Headset, Megaphone, Phone, Send } from 'lucide-react';
 import { phoneLink, telegramLink } from './domain';
 import { infoTitles } from './Information';
 import { seller } from './legal-texts';
 import { paymentMethods } from './Payment';
 import type { ShopSettings } from './types';
 
-/** Разделы, которые покупатель ищет чаще всего: они остаются на виду без раскрытия. */
-const mainSections = ['home', 'catalog', 'picks', 'delivery', 'payment', 'about', 'contact'] as const;
-const mainTitles: Record<string, string> = { home: 'Главная', catalog: 'Каталог транспорта', picks: 'Умные подборки', ...infoTitles };
-
 /**
- * Свёрнутые группы. Документы магазина покупатель открывает раз в жизни — в общем
- * списке они только удлиняли меню, поэтому уходят под одну кнопку.
+ * Меню идёт двумя блоками через черту, без заголовков и раскрывающихся групп:
+ * сначала разделы магазина, следом документы. Каталог и подборки сюда не входят —
+ * они и так лежат в шапке и в нижней панели, и в меню только дублировались.
  */
-const groups = [
-  { id: 'legal', title: 'Юридический отдел', note: 'Оферта, гарантия, возврат и обработка данных',
-    items: ['offer', 'privacy', 'consent', 'returns', 'warranty'] },
-  { id: 'buyer', title: 'Покупателю', note: 'Как мы возим и как помогаем выбрать',
-    items: ['guide', 'supply'] },
+const blocks = [
+  ['home', 'about', 'contact', 'warranty', 'delivery', 'payment'],
+  ['offer', 'privacy', 'consent', 'returns'],
 ];
+
+/** В меню названия короче, чем заголовки самих страниц: длинная строка ломает ровный столбец. */
+const menuTitles: Record<string, string> = {
+  ...infoTitles, home: 'Главная', delivery: 'Доставка', payment: 'Оплата', returns: 'Обмен и возврат',
+  consent: 'Согласие на обработку данных',
+};
 
 /** Короткая подпись для значка оплаты: полное название способа в плашку не помещается. */
 const payBadges: Record<string, string> = {
@@ -37,23 +38,11 @@ export function ShopMenu({ settings }: { settings: ShopSettings }) {
       <span>Вместе к большему</span>
     </div>
 
-    <ul className="sf-menu__list">
-      {mainSections.map(target => <li key={target}>
-        <a href={`#${target}`}>{mainTitles[target]} <ChevronRight size={18} aria-hidden="true" /></a>
+    {blocks.map((block, index) => <ul className="sf-menu__list" key={index}>
+      {block.map(target => <li key={target}>
+        <a href={`#${target}`}>{menuTitles[target]} <ChevronRight size={18} aria-hidden="true" /></a>
       </li>)}
-    </ul>
-
-    {groups.map(group => <details className="sf-menu__group" key={group.id}>
-      <summary>
-        <span><strong>{group.title}</strong><small>{group.note}</small></span>
-        <ChevronDown size={18} aria-hidden="true" />
-      </summary>
-      <ul className="sf-menu__list sf-menu__list--nested">
-        {group.items.map(target => <li key={target}>
-          <a href={`#${target}`}>{infoTitles[target]} <ChevronRight size={18} aria-hidden="true" /></a>
-        </li>)}
-      </ul>
-    </details>)}
+    </ul>)}
 
     <div className="sf-menu__support">
       <Headset size={24} aria-hidden="true" />

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { ProductCard } from './ProductCard';
-import { CategoryTiles } from './Home';
 import type { Product } from './types';
 
 afterEach(cleanup);
@@ -21,10 +20,5 @@ describe('товары из прежней базы', () => {
       onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={vi.fn()} />);
     expect(screen.getByText('Kugoo F3 PLUS')).toBeInTheDocument();
     expect(screen.getByText('1000 Вт')).toBeInTheDocument();
-  });
-
-  it('плитки типов транспорта считают такие товары', () => {
-    render(<CategoryTiles products={[legacy]} />);
-    expect(screen.getByText('Электросамокаты')).toBeInTheDocument();
   });
 });

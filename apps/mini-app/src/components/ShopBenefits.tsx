@@ -5,10 +5,11 @@ import { ArrowUpRight } from 'lucide-react';
  * обычным текстом, который читается голосовым доступом и выделяется мышью.
  */
 export function ShopBenefits() {
+  // «Прямых поставок» здесь нет намеренно: магазин работает как посредник,
+  // и обещание «без посредников» было бы неправдой на первом же экране.
   const benefits = [
     { id: 'delivery', title: 'Быстрая доставка', lines: ['От 3-х дней', 'по всей России'], href: '#delivery', action: 'Сроки до вашего города' },
     { id: 'warranty', title: 'Гарантия', lines: ['12 месяцев', 'на все товары'], href: '#warranty', action: 'Условия гарантии' },
-    { id: 'supply', title: 'Прямые поставки', lines: ['Без посредников', 'и переплат'], href: '#supply', action: 'О наших поставках' },
   ];
   return <section className="sf-shop-benefits" aria-label="Преимущества магазина">
     {benefits.map(benefit => <a className={`sf-benefit sf-benefit--${benefit.id}`} key={benefit.id} href={benefit.href}>

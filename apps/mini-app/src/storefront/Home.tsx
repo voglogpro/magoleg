@@ -1,41 +1,13 @@
-import type { CSSProperties, ReactNode } from 'react';
-import { ArrowLeftRight, ArrowRight, Bike, Bell, Cog, Gauge, Heart, Puzzle, ShoppingBag, Truck, Zap, type LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { ArrowLeftRight, ArrowRight, Bell, Heart, ShoppingBag } from 'lucide-react';
 import { StoreHero } from '../components/StoreHero';
 import { ShopBenefits } from '../components/ShopBenefits';
 import { PickCards } from './PickCards';
-import { catalogHref, categorySummary, money, plural, telegramLink } from './domain';
-import { categoryLabels, type Category, type Product, type ShopSettings, type SmartPick } from './types';
+import { catalogHref, money, plural, telegramLink } from './domain';
+import { type Product, type ShopSettings, type SmartPick } from './types';
 
 /** Счётчики выбора покупателя: они и есть его место в воронке. */
 export type Chosen = { favorites: number; compare: number; cart: number };
-
-const categoryIcons: Record<Category, LucideIcon> = {
-  'kick-scooter': Zap, scooter: Gauge, 'e-bike': Bike, atv: Truck, parts: Cog, accessories: Puzzle,
-};
-
-/**
- * Шаг 1 воронки: тип транспорта. Плитка ведёт в каталог с уже выставленным фильтром,
- * поэтому покупателю не нужно разбираться с панелью фильтров, чтобы увидеть свои модели.
- */
-export function CategoryTiles({ products }: { products: Product[] }) {
-  const rows = categorySummary(products);
-  if (!rows.length) return null;
-  return <section className="sf-home-block sf-home-categories" aria-labelledby="sf-categories-title">
-    <div className="sf-section-heading"><h2 id="sf-categories-title">Ваш формат движения</h2><a href="#catalog">Весь каталог <ArrowRight size={16} /></a></div>
-    <ul className="sf-cat-grid">
-      {rows.map((row, index) => {
-        const Icon = categoryIcons[row.category];
-        return <li key={row.category} style={{ '--sf-step': index } as CSSProperties}>
-          <a className="sf-cat-tile" href={catalogHref({ category: row.category })}>
-            <Icon className="sf-cat-tile__symbol" size={20} strokeWidth={1.5} aria-hidden="true" />
-            <span className="sf-cat-tile__text"><strong>{categoryLabels[row.category]}</strong><span className="sf-cat-tile__meta"><span>{row.count} {plural(row.count, ['модель', 'модели', 'моделей'])}</span>{row.from !== null && <span>от {money(row.from)}</span>}</span></span>
-            <ArrowRight className="sf-cat-tile__arrow" size={16} aria-hidden="true" />
-          </a>
-        </li>;
-      })}
-    </ul>
-  </section>;
-}
 
 /** Возврат в воронку: покупатель уже что-то отложил, и главная напоминает, где он остановился. */
 export function ContinueChoice({ chosen }: { chosen: Chosen }) {
@@ -88,7 +60,6 @@ export function Home({ products, settings, picks, chosen, featured, catalogState
         <PickCards picks={picks.slice(0, 4)} layout="grid" />
       </section>}
       <ContinueChoice chosen={chosen} />
-      <CategoryTiles products={products} />
       <section className="sf-home-block sf-home-products" aria-labelledby="sf-products-title">
         <div className="sf-section-heading"><h2 id="sf-products-title">{products.some(product => product.featured) ? 'Выбор магазина' : 'Присмотритесь ближе'}</h2>{products.length > 0 && <a href="#catalog">Все модели <ArrowRight size={16} /></a>}</div>
         {catalogState || (featured.length ? cards(featured) : <div className="sf-catalog-preparing"><h3>Готовим ассортимент</h3><p>Здесь появятся фотографии, характеристики и цены после публикации товаров магазином.</p><a href="#contact">Контакты и информация о магазине</a></div>)}
