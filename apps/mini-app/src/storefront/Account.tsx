@@ -98,8 +98,6 @@ export function Account({ account, csrfToken, city = '', onChange, onCity }: {
       setPassword('');
       if (result.role === 'owner') {
         setOwner({ username: result.username || contact.trim(), csrfToken: result.csrfToken });
-        // A blocked pop-up leaves the panel link below as the way in.
-        window.open('/admin', '_blank', 'noopener');
         return;
       }
       if (result.account?.city) onCity?.(result.account.city);
@@ -127,7 +125,7 @@ export function Account({ account, csrfToken, city = '', onChange, onCity }: {
   if (owner) return <Card icon={ShieldCheck} eyebrow="Управление магазином" title="Вход выполнен">
     <p className="sf-account-card__lead">Вы вошли как {owner.username}. Откройте управление товарами — повторный ввод пароля не нужен.</p>
     {error && <p className="sf-error" role="alert">{error}</p>}
-    <a className="sf-button" href="/admin" target="_blank" rel="noopener noreferrer">Панель управления <ArrowRight size={17} /></a>
+    <a className="sf-button" href="/admin">Панель управления <ArrowRight size={17} /></a>
     <button className="sf-text-button sf-account-leave" onClick={leave} disabled={busy}><LogOut size={16} />{busy ? 'Выходим…' : 'Выйти из аккаунта'}</button>
   </Card>;
 
