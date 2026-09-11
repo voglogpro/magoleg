@@ -306,13 +306,13 @@ class Store:
             connection.execute("DELETE FROM customer_sessions WHERE expires_at <= ?", (time.time(),))
         self.dummy_hash = await asyncio.to_thread(hash_password, secrets.token_urlsafe(32))
 
-    def restore_catalog(self, connection: sqlite3.Connection) -> None:
+    def restore_catalog(self, connection: sqlite3.Connection, manifest: Path | None = None) -> None:
         """Restore the versioned public catalogue after a BotHost database loss.
 
         This deliberately makes new researched models *preorder* cards. Existing cards keep
         their owner-managed stock, publication state and uploaded gallery.
         """
-        manifest = Path(__file__).with_name("catalog-kugoo-current.json")
+        manifest = manifest or Path(__file__).with_name("catalog-kugoo-current.json")
         if not manifest.is_file():
             return
         raw = manifest.read_bytes()
@@ -351,6 +351,12 @@ class Store:
                 card.pop("published", None)
                 card.pop("stock_status", None)
                 card.pop("image_url", None)
+                # Фотографии поставки переезжают вместе с манифестом: иначе переименованный
+                # файл оставляет в карточке битую ссылку. Снимки, загруженные владельцем
+                # через CRM, остаются нетронутыми — они лежат в /media и здесь не совпадут.
+                stored = previous.get("images") or []
+                if images and stored and all(STATIC_PRODUCT_IMAGE.fullmatch(value) for value in stored):
+                    card.update(images=images, image_url=images[0])
                 product = self.product(card, previous)
                 connection.execute("UPDATE products SET data=?,published=?,updated_at=? WHERE id=?",
                                    (json.dumps(product, ensure_ascii=False), int(product["published"]),

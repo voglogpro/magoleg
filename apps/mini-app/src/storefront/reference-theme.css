@@ -187,47 +187,38 @@
 }
 
 /* ФИРМЕННАЯ СЦЕНА ТОВАРА
-   Подложка повторяет студию из референса: тёмная стена, оранжевая линия горизонта и
-   отражающий пол. Рисуется градиентами, а не картинкой: одинаково резкая на любом
-   экране, ничего не грузит и не мешает фото с прозрачным фоном. */
-.sf-store .sf-product-photo {
+   Подложка — студийный кадр владельца: тёмная стена, оранжевая линия горизонта и
+   отражающий бетонный пол. Кадр 1000x1000 в WebP (42 КБ) и общий для всех карточек,
+   поэтому грузится один раз и дальше берётся из кеша браузера. */
+/* Селекторы повторяют графитовое правило `.sf-product-card__visual .sf-product-photo`,
+   иначе оно перекрывает сцену своим `background: transparent`.
+   Кадр растянут по вертикали до 167%: линия горизонта исходника лежит на 48% его высоты,
+   а в карточке должна проходить под колёсами — 0,48 × 1,67 ≈ 0,8 высоты кадра. */
+.sf-store .sf-product-photo,
+.sf-store .sf-product-card__visual .sf-product-photo,
+.sf-store .sf-product-photo--large {
   position: relative;
   isolation: isolate;
-  background:
-    linear-gradient(180deg, #101013 0%, #141417 80%, #17171b 84%, #121215 100%),
-    #101013;
+  background: url('/brand/product-stage-v1.webp') center top / 100% 167% no-repeat, #101013;
   overflow: hidden;
-}
-/* Линия горизонта со свечением: сцена, а не рамка, поэтому уходит за края кадра. */
-.sf-store .sf-product-photo::before {
-  content: '';
-  position: absolute;
-  inset: 82% -12% auto -12%;
-  z-index: -1;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #ff7a1a 12%, #ffb066 50%, #ff7a1a 88%, transparent);
-  box-shadow: 0 0 18px 5px rgba(255, 122, 26, .45), 0 0 46px 16px rgba(255, 106, 0, .22);
 }
 /* Мягкая тень под техникой: товар стоит на полу, а не висит в пустоте. */
 .sf-store .sf-product-photo::after {
   content: '';
   position: absolute;
-  inset: auto 12% 4% 12%;
-  z-index: -1;
-  height: 13%;
+  inset: auto 12% 6% 12%;
+  z-index: 0;
+  height: 12%;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, .55), transparent 72%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, .5), transparent 72%);
 }
-.sf-store .sf-product-photo img { position: relative; z-index: 1; }
+.sf-store .sf-product-photo img,
 .sf-store .sf-product-photo > span { position: relative; z-index: 1; }
-/* Наведение поднимает карточку и усиливает свет — товар откликается на внимание. */
+/* Наведение поднимает карточку: товар откликается на внимание. */
 .sf-store .sf-product-card { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
 .sf-store .sf-product-card:hover { transform: translateY(-3px); border-color: #4a3a2c; box-shadow: 0 14px 34px rgba(0, 0, 0, .45); }
-.sf-store .sf-product-card:hover .sf-product-photo::before { box-shadow: 0 0 22px 7px rgba(255, 122, 26, .6), 0 0 60px 22px rgba(255, 106, 0, .3); }
-/* Крупный кадр на странице товара держит ту же сцену, только просторнее. */
-.sf-store .sf-product-photo--large::before { inset: 84% -8% auto -8%; }
-.sf-store .sf-product-photo--large::after { inset: auto 16% 5% 16%; height: 10%; }
 @media (prefers-reduced-motion: reduce) { .sf-store .sf-product-card:hover { transform: none; } }
+
 /* Отметки магазина держат фирменную палитру: мятный и бежевый читались как чужие вставки.
    Хит — заливка акцентом, остальные — тёмная плашка с оранжевым контуром. */
 .sf-store .sf-badge { z-index: 2; letter-spacing: .01em; }
