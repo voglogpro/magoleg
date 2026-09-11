@@ -12,14 +12,16 @@
     "cargo_l": null,
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider"],
+    "tags": [
+      "heavy-rider"
+    ],
     "badge": "",
     "featured": false,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-2026/f3-plus-front-v1.png",
-      "../apps/mini-app/public/products/kugoo-2026/f3-plus-side-v1.png"
+      "../apps/mini-app/public/products/kugoo-2026/f3-plus-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/f3-plus-side-v1.webp"
     ]
   },
   {
@@ -35,14 +37,17 @@
     "cargo_l": null,
     "license": "unknown",
     "license_verified": false,
-    "tags": ["heavy-rider", "courier"],
+    "tags": [
+      "heavy-rider",
+      "courier"
+    ],
     "badge": "",
     "featured": false,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-front-v1.png",
-      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-rear-v1.png"
+      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-rear-v1.webp"
     ]
   },
   {
@@ -64,8 +69,8 @@
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-front-v1.png",
-      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-side-v1.png"
+      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-side-v1.webp"
     ]
   },
   {
@@ -81,14 +86,16 @@
     "cargo_l": null,
     "license": "unknown",
     "license_verified": false,
-    "tags": ["women"],
+    "tags": [
+      "women"
+    ],
     "badge": "best-price",
     "featured": false,
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-2026/m2-plus-front-v1.png",
-      "../apps/mini-app/public/products/kugoo-2026/m2-plus-side-v1.png"
+      "../apps/mini-app/public/products/kugoo-2026/m2-plus-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/m2-plus-side-v1.webp"
     ]
   }
 ]

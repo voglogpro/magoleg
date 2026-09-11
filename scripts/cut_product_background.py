@@ -1,16 +1,23 @@
-"""Снять однотонный светлый фон с предметных фотографий каталога.
+"""Снять фон с предметных фотографий каталога.
 
-Фотографии поставщика сняты на белом циклораме, а витрина магазина тёмная: белый
-прямоугольник вокруг техники выбивается из интерфейса. Скрипт делает фон прозрачным,
-чтобы товар встал на фирменную сцену витрины.
+Витрина магазина стоит на фирменной сцене, поэтому прямоугольник фона вокруг техники
+выбивается из интерфейса. Скрипт делает фон прозрачным, чтобы товар встал на сцену.
 
-Заливка идёт **от краёв кадра**, поэтому белые детали внутри самой техники (фара,
-надписи, светлая рама) не выедаются. Край смягчается, иначе по контуру остаётся пила.
+Режимы различаются тем, как отделяется фон:
+
+* ``light`` — заливка **от краёв кадра** по однотонному светлому фону студии. Белые
+  детали внутри самой техники (фара, надписи, светлая рама) не выедаются, потому что
+  они не связаны с краем. Край смягчается, иначе по контуру остаётся пила.
+* ``neural`` — сегментация предмета моделью ``rembg``. Нужна там, где фон тёмный и с
+  подсветкой: тёмная рама и покрышки по цвету не отличаются от фона, и любая заливка
+  протекает внутрь техники. Модель ставится отдельно: ``pip install rembg onnxruntime``.
+* ``auto`` (по умолчанию) — светлый фон режется заливкой, тёмный отдаётся модели.
 
     python scripts/cut_product_background.py apps/mini-app/public/products/kugoo-current
+    python scripts/cut_product_background.py <папка> --mode neural
     python scripts/cut_product_background.py <папка> --dry-run   # только отчёт
 
-Исходные JPEG остаются на диске: результат сохраняется рядом в WebP с альфой —
+Исходники остаются на диске: результат сохраняется рядом в WebP с альфой —
 прозрачность без веса PNG, который для фотографии раздувается в несколько мегабайт.
 """
 
@@ -19,6 +26,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections import deque
+from functools import cache
 from pathlib import Path
 
 from PIL import Image, ImageFilter
@@ -33,16 +41,33 @@ FEATHER = 1.6
 MARGIN = 0.06
 # Качество WebP: на предметной съёмке разница с исходником не видна, вес падает в разы.
 QUALITY = 86
+# Модель сегментации: выделяет предмет целиком, а не по цвету, поэтому тёмная техника
+# не сливается с тёмной подсветкой фона.
+NEURAL_MODEL = "isnet-general-use"
+# Полупрозрачный край модели: ниже порога это дымка вокруг предмета, выше — сам предмет.
+NEURAL_FLOOR, NEURAL_CEILING = 30, 225
+
+
+def corner_reference(image: Image.Image) -> tuple[int, ...]:
+    """Средний цвет четырёх углов кадра — на предметной съёмке это чистый фон."""
+    width, height = image.size
+    pixels = image.load()
+    corners = [pixels[0, 0], pixels[width - 1, 0], pixels[0, height - 1], pixels[width - 1, height - 1]]
+    return tuple(sum(channel) // len(corners) for channel in zip(*corners))
+
+
+def is_light_background(image: Image.Image) -> bool:
+    """Светлая ли студия в кадре: от этого зависит, какой режим справится с фоном."""
+    return sum(corner_reference(image)) / 3 >= MIN_BACKGROUND_LUMA
 
 
 def background_mask(image: Image.Image, tolerance: int) -> list[bool]:
     """True для пикселей фона, связанных с краем кадра."""
     width, height = image.size
     pixels = image.load()
-    corners = [pixels[0, 0], pixels[width - 1, 0], pixels[0, height - 1], pixels[width - 1, height - 1]]
-    reference = tuple(sum(channel) // len(corners) for channel in zip(*corners))
-    if sum(reference) / 3 < MIN_BACKGROUND_LUMA:
-        raise ValueError("Углы кадра тёмные — фон не однотонно светлый, вырезать нечего")
+    reference = corner_reference(image)
+    if not is_light_background(image):
+        raise ValueError("Углы кадра тёмные — фон не однотонно светлый, нужен режим neural")
 
     def is_background(x: int, y: int) -> bool:
         pixel = pixels[x, y]
@@ -70,13 +95,39 @@ def background_mask(image: Image.Image, tolerance: int) -> list[bool]:
     return visited
 
 
-def cut(path: Path, tolerance: int, feather: float) -> tuple[Path, float]:
+@cache
+def neural_session():
+    """Ленивая загрузка модели: она весит сотни мегабайт, а светлому режиму не нужна."""
+    try:
+        from rembg import new_session
+    except ImportError as error:  # pragma: no cover - зависит от окружения запуска
+        raise ValueError("Для тёмного фона нужен rembg: pip install rembg onnxruntime") from error
+    return new_session(NEURAL_MODEL)
+
+
+def neural_alpha(image: Image.Image, session) -> Image.Image:
+    """Альфа предмета по сегментации: тёмная техника отделяется от тёмного фона."""
+    from rembg import remove
+
+    alpha = remove(image, session=session).getchannel("A")
+    # Модель оставляет вокруг предмета слабую дымку и не дотягивает альфу до непрозрачной
+    # внутри него. Растягиваем края шкалы, иначе фон сцены просвечивает сквозь технику.
+    span = NEURAL_CEILING - NEURAL_FLOOR
+    return alpha.point(lambda value: 0 if value <= NEURAL_FLOOR else
+                       255 if value >= NEURAL_CEILING else round((value - NEURAL_FLOOR) * 255 / span))
+
+
+def cut(path: Path, mode: str, tolerance: int, feather: float) -> tuple[Path, float]:
     image = Image.open(path).convert("RGB")
-    visited = background_mask(image, tolerance)
     width, height = image.size
-    alpha = Image.new("L", image.size, 255)
-    alpha.putdata([0 if flag else 255 for flag in visited])
-    removed = sum(visited) / (width * height)
+    if mode == "neural" or (mode == "auto" and not is_light_background(image)):
+        alpha = neural_alpha(image, neural_session())
+        removed = 1 - sum(alpha.get_flattened_data()) / (255 * width * height)
+    else:
+        visited = background_mask(image, tolerance)
+        alpha = Image.new("L", image.size, 255)
+        alpha.putdata([0 if flag else 255 for flag in visited])
+        removed = sum(visited) / (width * height)
     if removed > 0.97:
         raise ValueError("Прозрачным стал почти весь кадр — фотография не предметная")
     if feather:
@@ -96,25 +147,26 @@ def cut(path: Path, tolerance: int, feather: float) -> tuple[Path, float]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Сделать светлый фон предметных фотографий прозрачным")
+    parser = argparse.ArgumentParser(description="Сделать фон предметных фотографий прозрачным")
     parser.add_argument("directory", type=Path, help="Папка с фотографиями каталога")
+    parser.add_argument("--mode", choices=("auto", "light", "neural"), default="auto",
+                        help="Как отделять фон: заливкой по светлому, моделью или по яркости кадра")
     parser.add_argument("--tolerance", type=int, default=TOLERANCE, help=f"Допуск к оттенку фона (по умолчанию {TOLERANCE})")
     parser.add_argument("--feather", type=float, default=FEATHER, help=f"Смягчение края в пикселях (по умолчанию {FEATHER})")
     parser.add_argument("--dry-run", action="store_true", help="Только проверить, ничего не записывать")
     arguments = parser.parse_args()
 
-    sources = sorted(path for path in arguments.directory.glob("*") if path.suffix.lower() in {".jpg", ".jpeg"})
+    sources = sorted(path for path in arguments.directory.glob("*") if path.suffix.lower() in {".jpg", ".jpeg", ".png"})
     if not sources:
-        print(f"В {arguments.directory} нет JPEG-фотографий", file=sys.stderr)
+        print(f"В {arguments.directory} нет исходных фотографий", file=sys.stderr)
         return 1
     failures = 0
     for path in sources:
         try:
             if arguments.dry_run:
-                background_mask(Image.open(path).convert("RGB"), arguments.tolerance)
-                print(f"— {path.name}: фон распознан")
+                print(f"— {path.name}: фон {'светлый' if is_light_background(Image.open(path).convert('RGB')) else 'тёмный'}")
                 continue
-            target, removed = cut(path, arguments.tolerance, arguments.feather)
+            target, removed = cut(path, arguments.mode, arguments.tolerance, arguments.feather)
             print(f"+ {target.name}: прозрачным стало {removed:.0%} кадра")
         except (OSError, ValueError) as error:
             failures += 1

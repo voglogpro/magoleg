@@ -32,11 +32,12 @@ class CatalogRestoreTests(unittest.TestCase):
         return store
 
     @staticmethod
-    def card(photos):
+    def card(photos, **extra):
         return {
             "name": "Электросамокат Kugoo G2 Max", "category": "kick-scooter", "price": 51900,
             "description": "Описание модели для проверки восстановления каталога.",
             "photo_files": [f"../apps/mini-app/public/products/kugoo-current/{name}" for name in photos],
+            **extra,
         }
 
     def products(self, store):
@@ -62,8 +63,8 @@ class CatalogRestoreTests(unittest.TestCase):
                                              "/products/kugoo-current/g2-max-side.webp"])
         self.assertEqual(product["image_url"], "/products/kugoo-current/g2-max-front.webp")
 
-    def test_owner_uploaded_photos_survive_restoration(self):
-        store = self.store([self.card(["g2-max-front.jpg"])])
+    def upload_owner_photo(self, store):
+        """Подменить галерею карточки снимком из кабинета владельца."""
         # Снимок владельца должен лежать в uploads: сервер не принимает ссылку на пустоту.
         store.uploads.mkdir(parents=True, exist_ok=True)
         (store.uploads / ("a" * 32 + ".webp")).write_bytes(b"webp")
@@ -73,9 +74,22 @@ class CatalogRestoreTests(unittest.TestCase):
             data["images"] = ["/media/" + "a" * 32 + ".webp"]
             data["image_url"] = data["images"][0]
             connection.execute("UPDATE products SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), row["id"]))
+        return data["images"][0]
+
+    def test_owner_uploaded_photos_survive_restoration(self):
+        store = self.store([self.card(["g2-max-front.jpg"])])
+        uploaded = self.upload_owner_photo(store)
         renewed = self.store([self.card(["g2-max-front.webp"])])
+        self.assertEqual(self.products(renewed)[0]["images"], [uploaded])
+
+    def test_replace_photos_flag_returns_the_card_to_the_supply_gallery(self):
+        """Замена фона по просьбе владельца обязана дойти и до карточки со снимком из кабинета."""
+        store = self.store([self.card(["g2-max-front.jpg"])])
+        self.upload_owner_photo(store)
+        renewed = self.store([self.card(["g2-max-front.webp"], replace_photos=True)])
         product = self.products(renewed)[0]
-        self.assertEqual(product["images"], ["/media/" + "a" * 32 + ".webp"])
+        self.assertEqual(product["images"], ["/products/kugoo-current/g2-max-front.webp"])
+        self.assertEqual(product["image_url"], "/products/kugoo-current/g2-max-front.webp")
 
 
 if __name__ == "__main__":

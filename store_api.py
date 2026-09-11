@@ -55,6 +55,8 @@ STATIC_PRODUCT_IMAGE = re.compile(r"/products/kugoo-(?:current|2026)/[a-z0-9-]+\
 # обязана прогнаться заново, даже когда список товаров не менялся. Иначе карточка,
 # записанная прежней версией, навсегда остаётся со старыми путями к фотографиям.
 RESTORE_REVISION = "2"
+# Поля манифеста поставки, которых нет в карточке товара: они управляют восстановлением.
+MANIFEST_ONLY_FIELDS = frozenset({"photo_files", "replace_photos"})
 PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
 DEFAULT_SETTINGS: dict[str, Any] = {
@@ -274,7 +276,8 @@ class Store:
                 );
                 CREATE TABLE IF NOT EXISTS customer_sessions (
                     token_hash TEXT PRIMARY KEY, customer_id TEXT NOT NULL, csrf TEXT NOT NULL,
-                    created_at REAL NOT NULL, last_seen REAL NOT NULL, expires_at REAL NOT NULL
+                    created_at REAL NOT NULL, last_seen REAL NOT NULL, expires_at REAL NOT NULL,
+                    remembered INTEGER NOT NULL DEFAULT 1
                 );
                 CREATE INDEX IF NOT EXISTS products_public ON products(published, updated_at);
                 CREATE INDEX IF NOT EXISTS inquiries_created ON inquiries(created_at);
@@ -286,6 +289,10 @@ class Store:
                 connection.execute("ALTER TABLE inquiries ADD COLUMN customer_id TEXT")
             if "city" not in {row["name"] for row in connection.execute("PRAGMA table_info(customers)")}:
                 connection.execute("ALTER TABLE customers ADD COLUMN city TEXT NOT NULL DEFAULT ''")
+            # Отметка «оставаться в системе» появилась позже самих сессий. Прежние сессии
+            # покупатель открывал этой отметкой по умолчанию, поэтому им ставим её же.
+            if "remembered" not in {row["name"] for row in connection.execute("PRAGMA table_info(customer_sessions)")}:
+                connection.execute("ALTER TABLE customer_sessions ADD COLUMN remembered INTEGER NOT NULL DEFAULT 1")
             connection.execute("CREATE INDEX IF NOT EXISTS inquiries_customer ON inquiries(customer_id, created_at)")
             connection.execute("INSERT OR IGNORE INTO settings(id,data) VALUES(1,?)",
                                (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),))
@@ -343,7 +350,7 @@ class Store:
             if len(matches) > 1:
                 LOGGER.warning("Catalogue restoration skipped duplicate product: %s", name)
                 continue
-            card = {key: value for key, value in source.items() if key != "photo_files"}
+            card = {key: value for key, value in source.items() if key not in MANIFEST_ONLY_FIELDS}
             files = source.get("photo_files", [])
             images = [value.removeprefix("../apps/mini-app/public") for value in files if isinstance(value, str)]
             if not all(STATIC_PRODUCT_IMAGE.fullmatch(value) for value in images):
@@ -358,8 +365,11 @@ class Store:
                 # Фотографии поставки переезжают вместе с манифестом: иначе переименованный
                 # файл оставляет в карточке битую ссылку. Снимки, загруженные владельцем
                 # через CRM, остаются нетронутыми — они лежат в /media и здесь не совпадут.
+                # Флаг replace_photos — отдельная просьба владельца пересобрать галерею модели
+                # (например, заменить фон на фирменную сцену); он снимается сразу после выкладки.
                 stored = previous.get("images") or []
-                if images and stored and all(STATIC_PRODUCT_IMAGE.fullmatch(value) for value in stored):
+                own = bool(stored) and all(STATIC_PRODUCT_IMAGE.fullmatch(value) for value in stored)
+                if images and (own or source.get("replace_photos")):
                     card.update(images=images, image_url=images[0])
                 product = self.product(card, previous)
                 connection.execute("UPDATE products SET data=?,published=?,updated_at=? WHERE id=?",
@@ -437,14 +447,19 @@ class Store:
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         now = time.time()
         with self.connect() as connection:
-            row = connection.execute("""SELECT s.token_hash, s.csrf, c.id, c.name, c.contact, c.city
+            row = connection.execute("""SELECT s.token_hash, s.csrf, s.remembered, c.id, c.name, c.contact, c.city
                 FROM customer_sessions s JOIN customers c ON c.id = s.customer_id
                 WHERE s.token_hash=? AND s.expires_at > ? AND s.last_seen > ?""",
                                      (token_hash, now, now - ACCOUNT_SESSION_IDLE)).fetchone()
             if row is None:
                 require(not required, "Сессия истекла. Войдите снова.", 401)
                 return None
-            connection.execute("UPDATE customer_sessions SET last_seen=? WHERE token_hash=?", (now, token_hash))
+            # Срок сессии с отметкой «оставаться в системе» отсчитывается от последнего захода,
+            # а не от входа: иначе покупателя выбрасывает ровно через два месяца, хотя он
+            # заходит каждую неделю. На чужом устройстве отметки нет — там срок не продлевается.
+            connection.execute(
+                "UPDATE customer_sessions SET last_seen=?, expires_at=MAX(expires_at, ?) WHERE token_hash=?",
+                (now, now + ACCOUNT_SESSION_AGE if row["remembered"] else 0, token_hash))
         if csrf and request.method not in ("GET", "HEAD", "OPTIONS"):
             supplied = request.headers.get("X-CSRF-Token", "")
             require(hmac.compare_digest(supplied.encode(), row["csrf"].encode()),
@@ -460,9 +475,11 @@ class Store:
                 SELECT token_hash FROM customer_sessions WHERE customer_id=?
                 ORDER BY created_at DESC LIMIT -1 OFFSET ?)""",
                                (customer_id, ACCOUNT_SESSIONS_PER_CUSTOMER - 1))
-            connection.execute("INSERT INTO customer_sessions VALUES(?,?,?,?,?,?)",
+            connection.execute("""INSERT INTO customer_sessions
+                (token_hash, customer_id, csrf, created_at, last_seen, expires_at, remembered)
+                VALUES(?,?,?,?,?,?,?)""",
                                (hashlib.sha256(token.encode()).hexdigest(), customer_id, csrf,
-                                now, now, now + (ACCOUNT_SESSION_AGE if remember else SESSION_AGE)))
+                                now, now, now + (ACCOUNT_SESSION_AGE if remember else SESSION_AGE), int(remember)))
         response = web.json_response({**payload, "csrfToken": csrf})
         response.set_cookie(ACCOUNT_COOKIE, token, httponly=True, secure=self.cookie_secure,
                             samesite="Strict", path="/api", max_age=ACCOUNT_SESSION_AGE if remember else None)
@@ -630,10 +647,18 @@ def account_payload(row: sqlite3.Row) -> dict[str, Any]:
 
 
 async def account_state(request: web.Request) -> web.Response:
-    row = request.app[STORE_KEY].account(request, required=False)
+    store = request.app[STORE_KEY]
+    row = store.account(request, required=False)
     if row is None:
         return web.json_response({"account": None})
-    return web.json_response({**account_payload(row), "csrfToken": row["csrf"]})
+    response = web.json_response({**account_payload(row), "csrfToken": row["csrf"]})
+    if row["remembered"]:
+        # Продлевать сессию в базе мало: браузер выкинет саму куку ровно через её max_age.
+        # Каждое открытие витрины отодвигает и её, поэтому постоянный покупатель не выходит.
+        response.set_cookie(ACCOUNT_COOKIE, request.cookies[ACCOUNT_COOKIE], httponly=True,
+                            secure=store.cookie_secure, samesite="Strict", path="/api",
+                            max_age=ACCOUNT_SESSION_AGE)
+    return response
 
 
 async def account_register(request: web.Request) -> web.Response:

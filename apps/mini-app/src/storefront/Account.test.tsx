@@ -79,6 +79,14 @@ describe('customer account', () => {
     expect(panel).not.toHaveAttribute('target');
   });
 
+  it('keeps a returning shopper out of the sign-in form while the session is restored', () => {
+    // Пустая форма входа у постоянного покупателя читается как «меня выкинуло из аккаунта».
+    render(<Account account={null} csrfToken="" restoring onChange={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent('восстанавливаем сессию');
+    expect(screen.queryByLabelText('Пароль')).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('shows only the inquiries the server links to this account', async () => {
     vi.mocked(fetch).mockResolvedValue(json({ inquiries: [
       { id: 'abcdef123456', status: 'contacted', total: 19900, created_at: '2026-09-06T10:00:00+00:00', city: 'Краснодар', items: [{ product_id: 'one', name: 'Городская модель', price: 19900, quantity: 1 }] },

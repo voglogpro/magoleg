@@ -29,7 +29,7 @@ try {
     });
     await context.route('**/media/**', route => route.fulfill({ path: `public/products/kugoo-2026/${
       (() => { const p = products.products.find(p => p.images?.some(url => route.request().url().endsWith(url)) || route.request().url().endsWith(p.image_url));
-        return /M2\+/i.test(p?.name || '') ? 'm2-plus-front-v1.png' : /F3/i.test(p?.name || '') ? 'f3-plus-front-v1.png' : /WISH/i.test(p?.name || '') ? 'wish-01-se-front-v1.png' : 'v3-pro-max-front-v1.png'; })()
+        return /M2\+/i.test(p?.name || '') ? 'm2-plus-front-v1.webp' : /F3/i.test(p?.name || '') ? 'f3-plus-front-v1.webp' : /WISH/i.test(p?.name || '') ? 'wish-01-se-front-v1.webp' : 'v3-pro-max-front-v1.webp'; })()
     }` }));
     await context.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
     await context.addInitScript(({ id }) => {

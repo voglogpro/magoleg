@@ -2,10 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAccount, getProducts, getSettings } from './api';
 import { defaultSettings, type AccountProfile, type ShopSettings, type Product } from './types';
 
+/** Отметка о прошлом входе. Хранится только признак: имя и контакт остаются на сервере. */
+const SIGNED_IN_KEY = 'gpartner.signed-in.v1';
+const wasSignedIn = () => { try { return localStorage.getItem(SIGNED_IN_KEY) === '1'; } catch { return false; } };
+const rememberSignedIn = (value: boolean) => {
+  try { if (value) localStorage.setItem(SIGNED_IN_KEY, '1'); else localStorage.removeItem(SIGNED_IN_KEY); }
+  catch { /* Приватное окно запрещает хранилище: вход продолжит жить в куке сессии. */ }
+};
+
 export function useAccount() {
   const [account, setAccount] = useState<AccountProfile | null>(null);
   const [csrfToken, setCsrfToken] = useState('');
   const [ready, setReady] = useState(false);
+  // Покупатель, который уже входил, не должен встречать форму входа, пока сервер
+  // подтверждает сессию: пустая форма читается как «меня выкинуло из аккаунта».
+  const [restoring, setRestoring] = useState(wasSignedIn);
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision(value => value + 1), []);
   useEffect(() => {
@@ -13,12 +24,20 @@ export function useAccount() {
     void getAccount(controller.signal)
       // A signed-out visitor and an unreachable server look the same here: the
       // shop stays usable without an account either way.
-      .then(state => { setAccount(state.account); setCsrfToken(state.csrfToken ?? ''); })
-      .catch(() => { if (!controller.signal.aborted) { setAccount(null); setCsrfToken(''); } })
+      .then(state => {
+        setAccount(state.account); setCsrfToken(state.csrfToken ?? '');
+        rememberSignedIn(Boolean(state.account));
+        setRestoring(false);
+      })
+      .catch(() => {
+        // Обрыв связи не значит выход из аккаунта: отметку о входе не стираем,
+        // иначе одна неудачная загрузка показала бы форму входа постоянному покупателю.
+        if (!controller.signal.aborted) { setAccount(null); setCsrfToken(''); setRestoring(false); }
+      })
       .finally(() => { if (!controller.signal.aborted) setReady(true); });
     return () => controller.abort();
   }, [revision]);
-  return { account, csrfToken, ready, refresh };
+  return { account, csrfToken, ready, restoring, refresh };
 }
 
 export function useStoreData() {

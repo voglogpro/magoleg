@@ -8,7 +8,7 @@ const base = process.env.STOREFRONT_QA_URL || 'http://127.0.0.1:5192';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(base).hostname), 'Use a local preview only');
 const catalogue = JSON.parse(await readFile(resolve('../../docs/catalog-kugoo.json'), 'utf8'));
 const output = resolve('test-results/admin-session-delete');
-const photo = await readFile(resolve('public/products/kugoo-2026/f3-plus-front-v1.png'));
+const photo = await readFile(resolve('public/products/kugoo-2026/f3-plus-front-v1.webp'));
 await mkdir(output, { recursive: true });
 /** CHROMIUM_PATH позволяет запустить проверку на предустановленном браузере окружения. */
 const launchOptions = { headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) };

@@ -4,16 +4,18 @@
 
 ## Готовые файлы
 
-Все PNG лежат в `apps/mini-app/public/products/kugoo-2026/`. Порядок ниже соответствует галерее; первый файл — обложка.
+Все файлы лежат в `apps/mini-app/public/products/kugoo-2026/`. Порядок ниже соответствует галерее; первый файл — обложка.
+Фон снят скриптом `scripts/cut_product_background.py --mode neural`: витрина ставит технику на фирменную сцену,
+и собственный тёмный прямоугольник кадра вокруг товара выглядел бы наклейкой поверх сцены.
 
 | Модель | Цена из задания | Первый ракурс | Второй ракурс |
 | --- | ---: | --- | --- |
-| Kugoo F3 PLUS | 72 990 ₽ | `f3-plus-front-v1.png` | `f3-plus-side-v1.png` |
-| Kugoo Kirin V3 PRO MAX | 77 990 ₽ | `v3-pro-max-front-v1.png` | `v3-pro-max-rear-v1.png` |
-| Kugoo WISH 01 SE | 94 900 ₽ | `wish-01-se-front-v1.png` | `wish-01-se-side-v1.png` |
-| Kugoo Kirin M2+ NEW 2025 | 32 900 ₽ | `m2-plus-front-v1.png` | `m2-plus-side-v1.png` |
+| Kugoo F3 PLUS | 72 990 ₽ | `f3-plus-front-v1.webp` | `f3-plus-side-v1.webp` |
+| Kugoo Kirin V3 PRO MAX | 77 990 ₽ | `v3-pro-max-front-v1.webp` | `v3-pro-max-rear-v1.webp` |
+| Kugoo WISH 01 SE | 94 900 ₽ | `wish-01-se-front-v1.webp` | `wish-01-se-side-v1.webp` |
+| Kugoo Kirin M2+ NEW 2025 | 32 900 ₽ | `m2-plus-front-v1.webp` | `m2-plus-side-v1.webp` |
 
-Ссылки на локальные файлы уже внесены в `docs/catalog-kugoo.json`. PNG — мастер-файлы; после загрузки штатный API сохраняет оптимизированные WebP в `/media/`. Не нужно подменять API-адреса фотографий прямыми PNG-ссылками: CRM управляет собственной галереей.
+Ссылки на локальные файлы уже внесены в `docs/catalog-kugoo.json` и в манифест восстановления `docs/catalog-kugoo-current.json`. Мастер-файлы — WebP с прозрачностью; после загрузки штатный API сохраняет свою копию в `/media/`, альфа-канал при этом сохраняется. Не нужно подменять API-адреса фотографий прямыми ссылками на файлы витрины: CRM управляет собственной галереей.
 
 ## Загрузка в CRM
 
@@ -47,29 +49,29 @@ python scripts/import_catalog.py https://bot-1787936996-1241-kponamarev.bothost.
 
 [Страница товара](https://kugoo-russia.ru/electrosamokaty/kugoo-f3-plus).
 
-- [Исходник спереди](https://static.tildacdn.com/stor3162-3037-4035-b937-663764373131/95416263.jpg) → `f3-plus-front-v1.png`.
-- [Исходник сбоку](https://static.tildacdn.com/stor6337-3466-4432-b861-393237333732/70365850.jpg) → `f3-plus-side-v1.png`.
+- [Исходник спереди](https://static.tildacdn.com/stor3162-3037-4035-b937-663764373131/95416263.jpg) → `f3-plus-front-v1.webp`.
+- [Исходник сбоку](https://static.tildacdn.com/stor6337-3466-4432-b861-393237333732/70365850.jpg) → `f3-plus-side-v1.webp`.
 
 ### Kugoo Kirin V3 PRO MAX
 
 [Страница товара](https://kugoostore.ru/elektrovelosiped-v3-pro-max-60v-28-6ah-800w).
 
-- [Исходник спереди](https://kugoostore.ru/image/cache/catalog/produkts/elektrovelosiped-v3-pro-max-60v-286ah-800w-kgkv3promax-b-1500x1500.png) → `v3-pro-max-front-v1.png`.
-- [Исходник сзади](https://kugoostore.ru/image/cache/catalog/produkts/elektrovelosiped-v3-pro-max-60v-286ah-800w-kgkv3promax-b-1-1500x1500.jpg) → `v3-pro-max-rear-v1.png`.
+- [Исходник спереди](https://kugoostore.ru/image/cache/catalog/produkts/elektrovelosiped-v3-pro-max-60v-286ah-800w-kgkv3promax-b-1500x1500.png) → `v3-pro-max-front-v1.webp`.
+- [Исходник сзади](https://kugoostore.ru/image/cache/catalog/produkts/elektrovelosiped-v3-pro-max-60v-286ah-800w-kgkv3promax-b-1-1500x1500.jpg) → `v3-pro-max-rear-v1.webp`.
 
 ### Kugoo WISH 01 SE
 
 [Страница товара](https://kugoo-russia.ru/elektropitbajki/kugoo-wish-01-se).
 
-- [Исходник спереди](https://static.tildacdn.com/stor3839-3064-4734-b738-383661313636/9a431b18e0febff3e5f39d62676b0305.jpg) → `wish-01-se-front-v1.png`.
-- [Исходник сбоку](https://static.tildacdn.com/stor3630-6539-4763-b931-336665316362/27bcc0ea6773b12c05a8b082abb215ed.jpg) → `wish-01-se-side-v1.png`.
+- [Исходник спереди](https://static.tildacdn.com/stor3839-3064-4734-b738-383661313636/9a431b18e0febff3e5f39d62676b0305.jpg) → `wish-01-se-front-v1.webp`.
+- [Исходник сбоку](https://static.tildacdn.com/stor3630-6539-4763-b931-336665316362/27bcc0ea6773b12c05a8b082abb215ed.jpg) → `wish-01-se-side-v1.webp`.
 
 ### Kugoo Kirin M2+
 
 [Страница товара](https://kugoo-russia.ru/electrosamokaty/kugoo-m2-plus).
 
-- [Исходник спереди](https://static.tildacdn.com/stor3033-3461-4636-a337-373263383865/36947892.jpg) → `m2-plus-front-v1.png`.
-- [Исходник сбоку](https://static.tildacdn.com/stor3162-6439-4564-a239-346435356463/73860603.jpg) → `m2-plus-side-v1.png`.
+- [Исходник спереди](https://static.tildacdn.com/stor3033-3461-4636-a337-373263383865/36947892.jpg) → `m2-plus-front-v1.webp`.
+- [Исходник сбоку](https://static.tildacdn.com/stor3162-6439-4564-a239-346435356463/73860603.jpg) → `m2-plus-side-v1.webp`.
 
 На исходниках M2+ есть съёмное сиденье; оно сохранено. При поставке без сиденья потребуются другие фотографии, не ретушь комплектации.
 
@@ -81,7 +83,7 @@ python scripts/import_catalog.py https://bot-1787936996-1241-kponamarev.bothost.
 
 ## Шаблон обработки
 
-Использован встроенный imagegen, по отдельному редактированию на каждый снимок. Для согласования серии `f3-plus-front-v1.png` служил только референсом фона/света; исходный снимок товара задавал геометрию и ракурс.
+Использован встроенный imagegen, по отдельному редактированию на каждый снимок. Для согласования серии `f3-plus-front-v1.webp` служил только референсом фона/света; исходный снимок товара задавал геометрию и ракурс.
 
 ```text
 Use case: precise-object-edit. Asset: G-Partner ecommerce product photo, square composition.
@@ -105,9 +107,9 @@ Photorealistic catalog image.
 python -m unittest discover -s tests -p "test_import_catalog*.py"
 ```
 
-Тесты проверяют набор цен и файлов, сохранение заполненных галерей, обновление только фото, порядок кадров, обработку дубликатов и multipart-запрос. Интеграционный тест поднимает временную локальную CRM, загружает все 8 PNG через настоящий API, проверяет доступность WebP и повторный импорт без дубликатов. Рабочая база и рабочий пароль не используются.
+Тесты проверяют набор цен и файлов, сохранение заполненных галерей, обновление только фото, порядок кадров, обработку дубликатов и multipart-запрос. Интеграционный тест поднимает временную локальную CRM, загружает все 8 снимков через настоящий API, проверяет доступность WebP и повторный импорт без дубликатов. Рабочая база и рабочий пароль не используются.
 
-Отдельная браузерная проверка с реальными PNG и локальным тестовым каталогом:
+Отдельная браузерная проверка с реальными снимками и локальным тестовым каталогом:
 
 ```powershell
 cd apps/mini-app

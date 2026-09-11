@@ -104,9 +104,10 @@
     "published": false,
     "image_url": "",
     "photo_files": [
-      "../apps/mini-app/public/products/kugoo-2026/f3-plus-front-v1.png",
-      "../apps/mini-app/public/products/kugoo-2026/f3-plus-side-v1.png"
-    ]
+      "../apps/mini-app/public/products/kugoo-2026/f3-plus-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/f3-plus-side-v1.webp"
+    ],
+    "replace_photos": true
   },
   {
     "name": "Электровелосипед Kugoo V3 Pro",
@@ -216,5 +217,88 @@
       "../apps/mini-app/public/products/kugoo-current/wish-04-front.webp",
       "../apps/mini-app/public/products/kugoo-current/wish-04-side.webp"
     ]
+  },
+  {
+    "name": "Электровелосипед Kugoo Kirin V3 PRO MAX 60V 28.6Ah",
+    "category": "e-bike",
+    "description": "Электровелосипед Kugoo Kirin V3 PRO MAX с багажником в комплекте.\n\nМощность: 800 Вт\nАккумулятор: 28600 mAh\nМаксимальная скорость: до 55 км/ч\nМаксимальный пробег: до 80 км\nВремя полной зарядки: 7–8 часов\nРазмер колёс: 16 дюймов\nПривод: задний\nТормозная система: дисковая\nДисплей: есть\nПодсветка: есть\nБагажник: в комплекте\nМаксимальная нагрузка: 150 кг",
+    "price": 77990,
+    "stock_status": "preorder",
+    "range_km": 80,
+    "speed_kmh": 55,
+    "power_w": 800,
+    "weight_kg": null,
+    "cargo_l": null,
+    "payload_kg": 150,
+    "drive": "single",
+    "license": "unknown",
+    "license_verified": false,
+    "tags": [
+      "heavy-rider",
+      "courier"
+    ],
+    "badge": "",
+    "featured": false,
+    "published": false,
+    "image_url": "",
+    "photo_files": [
+      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/v3-pro-max-rear-v1.webp"
+    ],
+    "replace_photos": true
+  },
+  {
+    "name": "Электропитбайк Kugoo WISH 01 SE 48V 20.8Ah 1500W",
+    "category": "scooter",
+    "description": "Электропитбайк Kugoo WISH 01 SE на стальной раме.\n\nМощность: 1500 Вт\nАккумулятор: 21 Ah, 48 В\nМаксимальная скорость: до 50 км/ч\nМаксимальный пробег: до 65 км\nВремя полной зарядки: 7 часов\nДиаметр переднего колеса: 14 дюймов\nТормоза: гидравлические дисковые\nМатериал рамы: сталь\nВес: 48 кг\nМаксимальная нагрузка: 120 кг",
+    "price": 94900,
+    "stock_status": "preorder",
+    "range_km": 65,
+    "speed_kmh": 50,
+    "power_w": 1500,
+    "weight_kg": 48,
+    "cargo_l": null,
+    "payload_kg": 120,
+    "drive": "single",
+    "license": "unknown",
+    "license_verified": false,
+    "tags": [],
+    "badge": "",
+    "featured": false,
+    "published": false,
+    "image_url": "",
+    "photo_files": [
+      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/wish-01-se-side-v1.webp"
+    ],
+    "replace_photos": true
+  },
+  {
+    "name": "Электросамокат Kugoo Kirin M2+ NEW 2025",
+    "category": "kick-scooter",
+    "description": "Лёгкий городской электросамокат Kugoo Kirin M2+ в чёрном цвете.\n\nМощность: 350 Вт, 36 В\nАккумулятор: 8 Ah\nМаксимальная скорость: 40–45 км/ч\nМаксимальный пробег: до 25 км\nРазмер колёс: 8 дюймов\nТормоз: задний\nВес: 18 кг\nМаксимальная нагрузка: 120 кг\nЦвет: чёрный",
+    "price": 32900,
+    "stock_status": "preorder",
+    "range_km": 25,
+    "speed_kmh": 45,
+    "power_w": 350,
+    "weight_kg": 18,
+    "cargo_l": null,
+    "payload_kg": 120,
+    "drive": "single",
+    "license": "unknown",
+    "license_verified": false,
+    "tags": [
+      "women"
+    ],
+    "badge": "best-price",
+    "featured": false,
+    "published": false,
+    "image_url": "",
+    "photo_files": [
+      "../apps/mini-app/public/products/kugoo-2026/m2-plus-front-v1.webp",
+      "../apps/mini-app/public/products/kugoo-2026/m2-plus-side-v1.webp"
+    ],
+    "replace_photos": true
   }
 ]

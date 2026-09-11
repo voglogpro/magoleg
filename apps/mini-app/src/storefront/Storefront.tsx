@@ -42,7 +42,7 @@ const catalogTypes = [['all', 'Все модели'], ...Object.entries(category
 export function Storefront() {
   const { products, settings, loading, error, settingsError, retry } = useStoreData();
   const { path, search, navigate } = useHashRoute();
-  const { account, csrfToken, refresh: refreshAccount } = useAccount();
+  const { account, csrfToken, restoring: restoringAccount, refresh: refreshAccount } = useAccount();
   const [cart, setCart] = useStored('gpartner.cart.v1', sanitizeCart);
   const [favorites, setFavorites] = useStored('gpartner.favorites.v1', sanitizeIds);
   const [compare, setCompare] = useStored('gpartner.compare.v1', value => sanitizeIds(value, 3));
@@ -193,7 +193,7 @@ export function Storefront() {
       </Cart> : <Empty title="В корзине пока пусто" icon={ShoppingBag}>Добавьте понравившуюся модель — в корзине можно уточнить наличие, доставку и итоговую цену у магазина.</Empty>)}</div>}
 
       {Object.hasOwn(infoTitles, path) && <Information key={path} topic={path} settings={settings} city={city.name} onCity={chooseCity} />}
-      {path === 'profile' && <div className="sf-profile"><p className="sf-lead">Ваш выбор и обращения</p><p>Избранное и корзина сохраняются в этом браузере и работают без аккаунта. Аккаунт нужен, чтобы видеть историю своих заявок.</p><nav className="sf-account-links"><a href="#favorites">Избранное <span>{favorites.length}</span></a><a href="#compare">Сравнение <span>{compare.length}</span></a><a href="#cart">Корзина <span>{cartCount}</span></a><a href="#contact">Связаться с магазином <ArrowRight size={17} /></a></nav><Account account={account} csrfToken={csrfToken} city={city.name} onChange={refreshAccount} onCity={chooseCity} /></div>}
+      {path === 'profile' && <div className="sf-profile"><p className="sf-lead">Ваш выбор и обращения</p><p>Избранное и корзина сохраняются в этом браузере и работают без аккаунта. Аккаунт нужен, чтобы видеть историю своих заявок.</p><nav className="sf-account-links"><a href="#favorites">Избранное <span>{favorites.length}</span></a><a href="#compare">Сравнение <span>{compare.length}</span></a><a href="#cart">Корзина <span>{cartCount}</span></a><a href="#contact">Связаться с магазином <ArrowRight size={17} /></a></nav><Account account={account} csrfToken={csrfToken} city={city.name} restoring={restoringAccount} onChange={refreshAccount} onCity={chooseCity} /></div>}
       {path === 'menu' && <nav className="sf-menu" aria-label="Все разделы">
         {[['catalog', 'Каталог транспорта'], ['picks', 'Умные подборки'], ['compare', 'Сравнение моделей'], ['favorites', 'Избранное']].map(([target, label]) =>
           <a href={`#${target}`} key={target}>{label} <ArrowRight size={17} /></a>)}

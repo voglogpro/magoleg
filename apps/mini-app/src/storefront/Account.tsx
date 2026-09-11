@@ -61,8 +61,9 @@ function Card({ icon: Icon, eyebrow, title, children }: {
   </section>;
 }
 
-export function Account({ account, csrfToken, city = '', onChange, onCity }: {
-  account: AccountProfile | null; csrfToken: string; city?: string; onChange: () => void; onCity?: (city: string) => void;
+export function Account({ account, csrfToken, city = '', restoring = false, onChange, onCity }: {
+  account: AccountProfile | null; csrfToken: string; city?: string; restoring?: boolean;
+  onChange: () => void; onCity?: (city: string) => void;
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
@@ -77,13 +78,14 @@ export function Account({ account, csrfToken, city = '', onChange, onCity }: {
   const ownerCheck = useRef<AbortController | null>(null);
   useEffect(() => {
     if (account) { setOwner(null); return; }
+    if (restoring) return;
     const controller = new AbortController();
     ownerCheck.current = controller;
     void getOwnerSession(controller.signal).then(session => {
       if (!controller.signal.aborted) setOwner(session);
     }).catch(() => { /* A failed restore must not prevent a fresh sign-in. */ });
     return () => controller.abort();
-  }, [account]);
+  }, [account, restoring]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -121,6 +123,10 @@ export function Account({ account, csrfToken, city = '', onChange, onCity }: {
     catch (reason) { setError(errorText(reason)); }
     finally { setBusy(false); }
   }
+
+  if (restoring && !account && !owner) return <Card icon={UserRound} eyebrow="Личный кабинет" title="Возвращаем вас в аккаунт">
+    <p className="sf-account-card__lead" role="status">Вход сохранён на этом устройстве — восстанавливаем сессию…</p>
+  </Card>;
 
   if (owner) return <Card icon={ShieldCheck} eyebrow="Управление магазином" title="Вход выполнен">
     <p className="sf-account-card__lead">Вы вошли как {owner.username}. Откройте управление товарами — повторный ввод пароля не нужен.</p>

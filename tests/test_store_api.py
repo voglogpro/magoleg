@@ -14,8 +14,8 @@ from aiohttp import CookieJar, FormData, web
 from aiohttp.test_utils import TestClient, TestServer
 from PIL import Image, PngImagePlugin
 
-from store_api import (ACCOUNT_COOKIE, COOKIE_NAME, MAX_UPLOAD, STORE_KEY, hash_password, setup_store,
-                       valid_phone, verify_password)
+from store_api import (ACCOUNT_COOKIE, ACCOUNT_SESSION_AGE, COOKIE_NAME, MAX_UPLOAD, STORE_KEY,
+                       hash_password, setup_store, valid_phone, verify_password)
 
 TEST_PASSWORD = "isolated-test-password-only"
 CUSTOMER_PASSWORD = "isolated-customer-password"
@@ -714,6 +714,39 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.assert_error(await self.client.post("/api/account/register", json={
             "name": "No consent", "contact": "user@example.com", "password": CUSTOMER_PASSWORD,
         }, headers={"Origin": self.origin}), 400)
+
+    async def test_a_remembered_customer_session_slides_instead_of_expiring_on_a_fixed_date(self):
+        """Покупатель, который заходит в магазин, не должен выпадать из аккаунта по сроку входа."""
+        await self.register()
+        store = self.client.app[STORE_KEY]
+        with store.connect() as connection:
+            opened = connection.execute("SELECT expires_at FROM customer_sessions").fetchone()["expires_at"]
+            # Отматываем сессию почти к концу срока: так выглядит покупатель спустя два месяца.
+            connection.execute("UPDATE customer_sessions SET expires_at=?", (time.time() + 60,))
+        state = await self.client.get("/api/account")
+        self.assertEqual((await state.json())["account"]["name"], "Customer")
+        with store.connect() as connection:
+            renewed = connection.execute("SELECT expires_at FROM customer_sessions").fetchone()["expires_at"]
+        self.assertGreater(renewed, opened - 5)
+        # Браузер выкидывает саму куку по её сроку, поэтому витрина продлевает и её.
+        self.assertEqual(int(state.cookies[ACCOUNT_COOKIE]["max-age"]), ACCOUNT_SESSION_AGE)
+
+    async def test_a_session_without_the_remember_mark_keeps_its_original_deadline(self):
+        """На чужом устройстве отметки нет: срок сессии не должен продлеваться заходами."""
+        response = await self.client.post("/api/account/register", json={
+            "name": "Guest", "contact": "guest@example.com", "city": "Москва",
+            "password": CUSTOMER_PASSWORD, "consent": True, "remember": False,
+        }, headers={"Origin": self.origin})
+        self.assertEqual(response.status, 200, await response.text())
+        self.assertIsNone(response.cookies[ACCOUNT_COOKIE]["max-age"] or None)
+        store = self.client.app[STORE_KEY]
+        with store.connect() as connection:
+            opened = connection.execute("SELECT expires_at FROM customer_sessions").fetchone()["expires_at"]
+        state = await self.client.get("/api/account")
+        self.assertEqual((await state.json())["account"]["name"], "Guest")
+        with store.connect() as connection:
+            self.assertEqual(connection.execute("SELECT expires_at FROM customer_sessions").fetchone()["expires_at"], opened)
+        self.assertNotIn(ACCOUNT_COOKIE, state.cookies)
 
     async def test_one_form_signs_in_customers_and_the_owner_separately(self):
         await self.register()
