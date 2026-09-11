@@ -98,19 +98,30 @@
 .sf-store .sf-delivery-result { padding: 16px; border: 1px solid var(--sf-line); border-radius: 4px; }
 .sf-store .sf-delivery-result h3 { font-size: 20px; margin-bottom: 8px; }
 .sf-store .sf-delivery-result p + p { margin-top: 10px; }
-.sf-store .sf-shop-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid #a54d20; border-radius: 8px; background: #101114; }
-.sf-store .sf-benefit { display: flex; min-width: 0; flex-direction: column; border-radius: 6px; }
-.sf-store .sf-benefit + .sf-benefit { border-left: 1px solid var(--sf-line); }
-.sf-store .sf-benefit-art { display: block; width: 100%; aspect-ratio: 1.25; background: url('/brand/shop-benefits-triptych-v1.png') left center / 300% auto no-repeat; }
+.sf-store .sf-shop-benefits { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; border: 1px solid #a54d20; border-radius: 8px; background: #101114; }
+.sf-store .sf-benefit { display: flex; min-width: 0; flex-direction: row; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; }
+.sf-store .sf-benefit + .sf-benefit { border-top: 1px solid var(--sf-line); }
+/* Иллюстрация — квадратная марка, а не полоса во всю карточку: обещание магазина
+   не должно занимать пол-экрана. Ширина фона 300% кладёт в кадр ровно одну треть
+   триптиха, а высота 100% держит исходную квадратную панель без искажения. */
+.sf-store .sf-benefit-art { display: block; flex: none; width: 54px; height: 54px; border-radius: 10px; background: url('/brand/shop-benefits-triptych-v1.png') left center / 300% 100% no-repeat; }
 .sf-store .sf-benefit--warranty .sf-benefit-art { background-position: center; }
 .sf-store .sf-benefit--supply .sf-benefit-art { background-position: right center; }
-.sf-store .sf-benefit-copy { display: flex; flex: 1; flex-direction: column; padding: 0 10px 14px; gap: 10px; }
-.sf-store .sf-benefit h2 { font-family: Montserrat, Inter, sans-serif; font-size: clamp(14px, 2vw, 26px); line-height: 1.2; letter-spacing: -.02em; font-weight: 800; }
-.sf-store .sf-benefit p { display: grid; gap: 2px; color: var(--sf-muted); font-size: 12px; line-height: 1.45; }
-.sf-store .sf-benefit-link { display: flex; gap: 4px; align-items: center; justify-content: space-between; margin-top: auto; color: #ff984e; font-size: 12px; line-height: 1.4; }
+.sf-store .sf-benefit-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; padding: 0; gap: 1px; }
+.sf-store .sf-benefit h2 { font-family: Montserrat, Inter, sans-serif; font-size: 15px; line-height: 1.25; letter-spacing: -.02em; font-weight: 800; }
+.sf-store .sf-benefit p { display: flex; flex-wrap: wrap; gap: 0 4px; color: var(--sf-muted); font-size: 12px; line-height: 1.4; }
+.sf-store .sf-benefit-link { display: flex; gap: 4px; align-items: center; margin-top: 3px; color: #ff984e; font-size: 12px; line-height: 1.4; }
 .sf-store .sf-benefit-link svg { flex-shrink: 0; }
 .sf-store .sf-benefit:hover { background-color: #1a1715; }
-@media (min-width: 700px) { .sf-store .sf-benefit-art { aspect-ratio: 1.7; } .sf-store .sf-benefit-copy { padding: 0 24px 22px; } .sf-store .sf-benefit p { font-size: 16px; } .sf-store .sf-benefit-link { font-size: 14px; } }
+@media (min-width: 700px) {
+  .sf-store .sf-shop-benefits { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sf-store .sf-benefit { padding: 14px 16px; }
+  .sf-store .sf-benefit + .sf-benefit { border-top: 0; border-left: 1px solid var(--sf-line); }
+  .sf-store .sf-benefit-art { width: 66px; height: 66px; }
+  .sf-store .sf-benefit h2 { font-size: 17px; }
+  .sf-store .sf-benefit p { font-size: 13px; }
+  .sf-store .sf-benefit-link { font-size: 13px; }
+}
 .sf-store .sf-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
 .sf-store .sf-section-heading h2 { font-size: clamp(19px, 3.9vw, 25px); }
 .sf-store .sf-section-heading > a { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; min-height: 44px; color: #ff984e; font-size: 13px; white-space: nowrap; }
@@ -396,9 +407,39 @@
 .sf-store .sf-login-form input { width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid #56565f; border-radius: 7px; background: #141417; color: var(--sf-text); font-size: 16px; }
 .sf-store .sf-login-form input:focus { border-color: var(--sf-orange); }
 .sf-store .sf-login-form > button { justify-self: stretch; margin-top: 2px; }
-.sf-store .sf-menu { display: grid; padding: 0 16px 28px; max-width: 760px; }
-.sf-store .sf-menu a { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 16px 0; border-bottom: 1px solid var(--sf-line); font-size: 16px; }
-.sf-store .sf-menu a svg { flex-shrink: 0; }
+/* МЕНЮ МАГАЗИНА
+   Список разделов держится коротким: документы уходят в свёрнутые группы, а внизу
+   остаётся то, за чем в меню приходят второй раз — поддержка, каналы и реквизиты. */
+.sf-store .sf-menu { display: grid; gap: 10px; padding: 0 16px 32px; max-width: 560px; margin-inline: auto; text-align: center; }
+.sf-store .sf-menu__brand { display: grid; justify-items: center; gap: 2px; padding: 6px 0 14px; }
+.sf-store .sf-menu__brand img { width: 52px; height: 52px; }
+.sf-store .sf-menu__brand strong { font: 800 24px/1.2 Montserrat, Inter, sans-serif; letter-spacing: -.02em; }
+.sf-store .sf-menu__brand span { color: var(--sf-muted); font-size: 13px; }
+.sf-store .sf-menu ul { list-style: none; }
+.sf-store .sf-menu__list { display: grid; }
+.sf-store .sf-menu__list a { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 12px; font-size: 16px; }
+.sf-store .sf-menu__list a svg { flex-shrink: 0; color: var(--sf-orange); }
+.sf-store .sf-menu__list a:hover { color: #ff984e; }
+.sf-store .sf-menu__group { border-top: 1px solid #a54d20; padding-top: 8px; }
+/* Стрелка прижата к правому краю, а подпись остаётся по центру колонки: иначе
+   ширина стрелки сдвигает заголовок группы относительно остальных строк меню. */
+.sf-store .sf-menu__group summary { position: relative; display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 8px 40px; cursor: pointer; list-style: none; }
+.sf-store .sf-menu__group summary svg { position: absolute; right: 12px; }
+.sf-store .sf-menu__group summary::-webkit-details-marker { display: none; }
+.sf-store .sf-menu__group summary strong { display: block; font-size: 16px; font-weight: 650; }
+.sf-store .sf-menu__group summary small { display: block; margin-top: 2px; color: var(--sf-muted); font-size: 12px; line-height: 1.35; }
+.sf-store .sf-menu__group summary svg { flex-shrink: 0; color: var(--sf-orange); transition: transform .18s ease; }
+.sf-store .sf-menu__group[open] summary svg { transform: rotate(180deg); }
+.sf-store .sf-menu__list--nested a { min-height: 42px; color: var(--sf-muted); font-size: 15px; }
+.sf-store .sf-menu__support { display: grid; justify-items: center; gap: 2px; border-top: 1px solid #a54d20; padding-top: 18px; }
+.sf-store .sf-menu__support svg { color: var(--sf-orange); }
+.sf-store .sf-menu__support p { color: var(--sf-muted); font-size: 13px; }
+.sf-store .sf-menu__support a { color: #ff984e; font-size: 15px; }
+.sf-store .sf-menu__socials { display: flex; justify-content: center; gap: 12px; padding-top: 4px; }
+.sf-store .sf-menu__socials a { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #1d1f24; color: #ff984e; }
+.sf-store .sf-menu__socials a:hover { background: #262a30; }
+.sf-store .sf-menu__pay { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; border-top: 1px solid #a54d20; padding-top: 18px; }
+.sf-store .sf-menu__pay li { border: 1px solid var(--sf-line); border-radius: 8px; padding: 6px 12px; color: #c8d0d8; font-size: 12px; font-weight: 600; }
 .sf-store .sf-footer { border-top: 1px solid var(--sf-deep-line); padding: 28px 16px; background: var(--sf-deep); color: #9a9ca5; font-size: 13px; }
 .sf-store .sf-footer > div { max-width: 1232px; margin: auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px 30px; }
 .sf-store .sf-footer > div > span { color: var(--sf-muted); }
@@ -604,7 +645,6 @@
 /* Подвал: только обязательные документы и строка реквизитов продавца. */
 .sf-store .sf-footer > div { flex-direction: column; align-items: flex-start; gap: 4px 30px; }
 .sf-store .sf-footer__legal { max-width: 80ch; line-height: 1.6; overflow-wrap: anywhere; }
-.sf-store .sf-menu__title { margin: 22px 0 2px; color: var(--sf-muted); font-size: 12px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; }
 /* Документы: списки внутри разделов и таблица реквизитов продавца. */
 .sf-store .sf-document-intro { margin-bottom: 14px; line-height: 1.75; }
 .sf-store .sf-doc-facts { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }

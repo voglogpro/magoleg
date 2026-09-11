@@ -139,12 +139,12 @@
 
 .sf-store .sf-home-content { padding-top: 16px; }
 .sf-store .sf-home-content > .sf-shop-benefits { margin: 0; }
-.sf-store .sf-shop-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--sf-line); border-radius: 18px; background: var(--sf-panel); padding: 14px 0; }
-.sf-store .sf-benefit { display: flex; flex-direction: column; min-width: 0; border-radius: 0; text-align: left; }
-.sf-store .sf-benefit + .sf-benefit { border-left: 1px solid var(--sf-line); }
-.sf-store .sf-benefit-copy { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 0 9px 12px; }
-.sf-store .sf-benefit h2 { font: 800 clamp(13px, 3.4vw, 20px)/1.2 Montserrat, Inter, sans-serif; letter-spacing: -.02em; }
-.sf-store .sf-benefit p { display: grid; gap: 2px; font-size: 11px; line-height: 1.45; color: #9da8b3; }
+.sf-store .sf-shop-benefits { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--sf-line); border-radius: 18px; background: var(--sf-panel); padding: 6px; }
+.sf-store .sf-benefit { display: flex; flex-direction: row; align-items: center; gap: 12px; min-width: 0; padding: 10px; border-radius: 14px; text-align: left; }
+.sf-store .sf-benefit + .sf-benefit { border-top: 1px solid var(--sf-line); }
+.sf-store .sf-benefit-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 1px; padding: 0; }
+.sf-store .sf-benefit h2 { font: 800 15px/1.25 Montserrat, Inter, sans-serif; letter-spacing: -.02em; }
+.sf-store .sf-benefit p { display: flex; flex-wrap: wrap; gap: 0 4px; font-size: 12px; line-height: 1.4; color: #9da8b3; }
 .sf-store .sf-cat-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .sf-store .sf-cat-tile { display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--sf-line); border-radius: 16px; background: var(--sf-panel); min-width: 0; }
 .sf-store .sf-cat-tile__symbol { flex-shrink: 0; color: #b4bec8; }
@@ -172,18 +172,22 @@
 .sf-store .sf-product-card__visual > a { display: block; }
 .sf-store .sf-product-grid--list .sf-product-card__visual > a { display: flex; }
 @media (min-width: 600px) {
-  .sf-store .sf-benefit-copy { padding: 0 20px 18px; }
-  .sf-store .sf-benefit h2 { font-size: 22px; }
-  .sf-store .sf-benefit p { font-size: 14px; }
+  .sf-store .sf-benefit h2 { font-size: 17px; }
+  .sf-store .sf-benefit p { font-size: 13px; }
   .sf-store .sf-home-catalog-cta .sf-button { width: auto; flex-shrink: 0; }
 }
 @media (min-width: 700px) {
   .sf-store .sf-cat-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
   .sf-store .sf-home-content { padding-top: 20px; }
 }
+@media (min-width: 700px) {
+  .sf-store .sf-shop-benefits { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sf-store .sf-benefit { padding: 12px 14px; }
+  .sf-store .sf-benefit + .sf-benefit { border-top: 0; border-left: 1px solid var(--sf-line); }
+}
 @media (min-width: 900px) {
   .sf-store .sf-mobile-shortcuts { display: none; }
-  .sf-store .sf-shop-benefits { padding-block: 18px; }
+  .sf-store .sf-shop-benefits { padding: 8px; }
 }
 
 /* ФИРМЕННАЯ СЦЕНА ТОВАРА

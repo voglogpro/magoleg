@@ -11,6 +11,7 @@ import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
 import { ProductCard, ProductGallery, ProductPhoto } from './ProductCard';
+import { ShopMenu } from './ShopMenu';
 import { activePickLabels, categoryLabels, driveLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product } from './types';
 import './storefront.css';
 import './reference-theme.css';
@@ -194,13 +195,7 @@ export function Storefront() {
 
       {Object.hasOwn(infoTitles, path) && <Information key={path} topic={path} settings={settings} city={city.name} onCity={chooseCity} />}
       {path === 'profile' && <div className="sf-profile"><p className="sf-lead">Ваш выбор и обращения</p><p>Избранное и корзина сохраняются в этом браузере и работают без аккаунта. Аккаунт нужен, чтобы видеть историю своих заявок.</p><nav className="sf-account-links"><a href="#favorites">Избранное <span>{favorites.length}</span></a><a href="#compare">Сравнение <span>{compare.length}</span></a><a href="#cart">Корзина <span>{cartCount}</span></a><a href="#contact">Связаться с магазином <ArrowRight size={17} /></a></nav><Account account={account} csrfToken={csrfToken} city={city.name} restoring={restoringAccount} onChange={refreshAccount} onCity={chooseCity} /></div>}
-      {path === 'menu' && <nav className="sf-menu" aria-label="Все разделы">
-        {[['catalog', 'Каталог транспорта'], ['picks', 'Умные подборки'], ['compare', 'Сравнение моделей'], ['favorites', 'Избранное']].map(([target, label]) =>
-          <a href={`#${target}`} key={target}>{label} <ArrowRight size={17} /></a>)}
-        <p className="sf-menu__title">Документы и условия</p>
-        {['delivery', 'payment', 'warranty', 'returns', 'offer', 'privacy', 'consent', 'about', 'contact'].map(target =>
-          <a href={`#${target}`} key={target}>{infoTitles[target]} <ArrowRight size={17} /></a>)}
-      </nav>}
+      {path === 'menu' && <ShopMenu settings={settings} />}
       {!Object.hasOwn(titles, path) && !isProduct && <Empty title="Такой страницы нет">Вернитесь в каталог или выберите раздел в меню магазина.</Empty>}
     </main>
     <footer className="sf-footer">
