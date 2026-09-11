@@ -97,5 +97,6 @@ export function formatDate(value: string) {
 }
 
 export function mediaSource(value: string) {
-  return /^\/media\/[a-zA-Z0-9_.-]+$/.test(value) ? value : '';
+  return (/^\/media\/[a-zA-Z0-9_.-]+$/.test(value)
+    || /^\/products\/kugoo-current\/[a-z0-9-]+\.(?:jpg|jpeg|png|webp)$/.test(value)) && !value.includes('..') ? value : '';
 }

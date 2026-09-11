@@ -36,6 +36,7 @@ describe('admin publication validation', () => {
   });
   it('restricts previews to server-uploaded images', () => {
     expect(mediaSource('/media/0123.webp')).toBe('/media/0123.webp');
+    expect(mediaSource('/products/kugoo-current/m4-front.jpg')).toBe('/products/kugoo-current/m4-front.jpg');
     for (const source of ['https://third-party.example/image.jpg', 'javascript:alert(1)', '/media/../secret', '/media/x.svg?token=secret']) expect(mediaSource(source)).toBe('');
   });
   it('checks image type, size and empty uploads', () => {
