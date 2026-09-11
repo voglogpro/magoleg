@@ -4,8 +4,9 @@
     python scripts/import_catalog.py https://your-shop.example docs/catalog-kugoo.json
 
 The owner password is asked interactively and never stored. Optional photo_files are uploaded
-through the normal CRM API. Existing descriptions/prices/publication status are never changed;
-existing galleries are preserved unless --replace-photos is explicitly requested.
+through the normal CRM API. Existing cards are preserved by default. ``--update-existing``
+refreshes descriptive fields while keeping the shop's publication and stock status; galleries
+are preserved unless ``--replace-photos`` is explicitly requested.
 """
 
 from __future__ import annotations
@@ -106,7 +107,7 @@ def upload_photo(opener, site, path, csrf):
     return result["image_url"]
 
 
-def import_products(opener, site, prepared, csrf, *, replace_photos=False):
+def import_products(opener, site, prepared, csrf, *, replace_photos=False, update_existing=False):
     existing = {}
     for item in call(opener, f"{site}/api/admin/products")["products"]:
         existing.setdefault(item["name"], []).append(item)
@@ -118,18 +119,30 @@ def import_products(opener, site, prepared, csrf, *, replace_photos=False):
             raise ValueError(f"В CRM несколько карточек «{name}». Выберите нужную вручную.")
         previous = matches[0] if matches else None
         has_photos = previous and (previous.get("images") or previous.get("image_url"))
-        if previous and (not photos or (has_photos and not replace_photos)):
-            print(f"— сохранён без изменений: {name}")
-            skipped += 1
-            continue
-        images = [upload_photo(opener, site, photo, csrf) for photo in photos]
         if previous:
-            # Change only the gallery; never replay stale manifest metadata over the CRM card.
+            replace_gallery = bool(photos) and (replace_photos or not has_photos)
+            if not update_existing and not replace_gallery:
+                print(f"— сохранён без изменений: {name}")
+                skipped += 1
+                continue
+            payload = {}
+            if update_existing:
+                # Availability and publication are owner decisions, not research data.
+                payload.update({key: value for key, value in product.items()
+                                if key not in {"published", "stock_status", "image_url", "images"}})
+            if replace_gallery:
+                payload["images"] = [upload_photo(opener, site, photo, csrf) for photo in photos]
             identifier = quote(str(previous["id"]), safe="")
-            call(opener, f"{site}/api/admin/products/{identifier}", {"images": images}, csrf, method="PUT")
-            print(f"+ добавлены фотографии ({len(images)}): {name}")
+            call(opener, f"{site}/api/admin/products/{identifier}", payload, csrf, method="PUT")
+            changes = []
+            if update_existing:
+                changes.append("данные")
+            if replace_gallery:
+                changes.append(f"фото ({len(payload['images'])})")
+            print(f"+ обновлены {' и '.join(changes)}: {name}")
             updated += 1
         else:
+            images = [upload_photo(opener, site, photo, csrf) for photo in photos]
             payload = dict(product)
             payload.setdefault("published", False)
             if images:
@@ -148,6 +161,8 @@ def main() -> int:
     parser.add_argument("--username", default="", help="Логин владельца (по умолчанию спросим)")
     parser.add_argument("--dry-run", action="store_true", help="Проверить локальные файлы без входа и записи в CRM")
     parser.add_argument("--replace-photos", action="store_true", help="Заменить уже заполненные галереи (остальные поля сохранить)")
+    parser.add_argument("--update-existing", action="store_true",
+                        help="Обновить цены и характеристики, сохранив наличие и публикацию")
     arguments = parser.parse_args()
 
     site = arguments.site.rstrip("/")
@@ -170,7 +185,8 @@ def main() -> int:
     session = call(opener, f"{site}/api/admin/login", {"username": username, "password": password})
     csrf = session["csrfToken"]
 
-    counts = import_products(opener, site, products, csrf, replace_photos=arguments.replace_photos)
+    counts = import_products(opener, site, products, csrf, replace_photos=arguments.replace_photos,
+                             update_existing=arguments.update_existing)
     print(f"\nГотово: карточек добавлено {counts['created']}, галерей обновлено {counts['updated']}, сохранено {counts['skipped']}.")
     print("Проверьте комплектацию, характеристики и фотографии в CRM перед публикацией.")
     return 0

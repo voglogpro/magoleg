@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, ShoppingCart } from 'lucide-react';
 import { effectiveLicense, money, powerLabel, productImage } from './domain';
 import { badgeLabels, categoryLabels, licenseShort, stockLabels, vehicleCategories, type Product } from './types';
@@ -45,6 +45,36 @@ export function ProductGallery({ product }: { product: Product }) {
   </div>;
 }
 
+/** A compact, touch-first gallery for catalogue tiles. Swiping must not open the product. */
+function ProductCardGallery({ product, href }: { product: Product; href: string }) {
+  const photos = product.images.map(productImage).filter(Boolean);
+  const [active, setActive] = useState(0);
+  const pointer = useRef({ x: 0, moved: false });
+  const beginSwipe = (event: PointerEvent<HTMLDivElement>) => { pointer.current = { x: event.clientX, moved: false }; };
+  const watchSwipe = (event: PointerEvent<HTMLDivElement>) => {
+    if (Math.abs(event.clientX - pointer.current.x) > 8) pointer.current.moved = true;
+  };
+  const guardLink = (event: MouseEvent<HTMLDivElement>) => {
+    if (!pointer.current.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    pointer.current.moved = false;
+  };
+  if (photos.length < 2) return <a href={href} aria-label={`Подробнее: ${product.name}`}><ProductPhoto product={product} /></a>;
+  return <div className="sf-card-gallery">
+    <div className="sf-card-gallery__track" tabIndex={0} aria-label={`Фотографии: ${product.name}`}
+      onPointerDown={beginSwipe} onPointerMove={watchSwipe} onClickCapture={guardLink}
+      onScroll={event => setActive(Math.round(event.currentTarget.scrollLeft / Math.max(1, event.currentTarget.clientWidth)))}>
+      {photos.map((url, index) => <a href={href} aria-label={`Подробнее: ${product.name}, фото ${index + 1}`} key={url}>
+        <span className="sf-product-photo"><img src={url} alt={`${product.name}: фото ${index + 1}`} loading="lazy" decoding="async" draggable={false} /></span>
+      </a>)}
+    </div>
+    <div className="sf-card-gallery__dots" aria-hidden="true">
+      {photos.map((url, index) => <span key={url} className={index === active ? 'is-active' : ''} />)}
+    </div>
+  </div>;
+}
+
 export function ProductCard({ product, favorite, compared, inCart, onFavorite, onCompare, onAdd }: {
   product: Product; favorite: boolean; compared: boolean; inCart: boolean;
   onFavorite: (id: string) => void; onCompare: (id: string) => void; onAdd: (id: string) => void;
@@ -55,7 +85,7 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
   const license = effectiveLicense(product);
   return <article className="sf-product-card">
     <div className="sf-product-card__visual">
-      <a href={href} aria-label={`Подробнее: ${product.name}`}><ProductPhoto product={product} /></a>
+      <ProductCardGallery product={product} href={href} />
       {product.badge && <span className={`sf-badge sf-badge--${product.badge}`}>{badgeLabels[product.badge]}</span>}
       <button className="sf-icon-button sf-favorite" type="button" onClick={() => onFavorite(product.id)} aria-label={`${favorite ? 'Убрать' : 'Добавить'} «${product.name}» ${favorite ? 'из избранного' : 'в избранное'}`} aria-pressed={favorite}><Heart size={20} fill={favorite ? 'currentColor' : 'none'} /></button>
       <button className="sf-compare-button" type="button" onClick={() => onCompare(product.id)} aria-pressed={compared} aria-label={`${compared ? 'Убрать из сравнения' : 'Сравнить'}: ${product.name}`} title={compared ? 'Убрать из сравнения' : 'Сравнить'}><ArrowLeftRight size={19} aria-hidden="true" /></button>

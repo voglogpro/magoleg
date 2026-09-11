@@ -21,7 +21,9 @@ describe('customer account', () => {
     vi.mocked(fetch).mockResolvedValue(json({ username: 'owner', csrfToken: 'owner-token' }));
     const storage = vi.spyOn(Storage.prototype, 'setItem');
     render(<Account account={null} csrfToken="" onChange={vi.fn()} />);
-    expect(await screen.findByRole('link', { name: /Панель управления/ })).toHaveAttribute('href', '/admin');
+    const panel = await screen.findByRole('link', { name: /Панель управления/ });
+    expect(panel).toHaveAttribute('href', '/admin');
+    expect(panel).not.toHaveAttribute('target');
     expect(screen.queryByLabelText('Пароль')).not.toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith('/api/admin/session', expect.objectContaining({ credentials: 'same-origin' }));
     expect(storage).not.toHaveBeenCalled();
@@ -70,12 +72,11 @@ describe('customer account', () => {
 
   it('sends the owner to the management panel instead of the shopper view', async () => {
     vi.mocked(fetch).mockImplementation(async () => json({ role: 'owner', username: 'owner', csrfToken: 'token' }));
-    const open = vi.fn();
-    vi.stubGlobal('open', open);
     render(<Account account={null} csrfToken="" onChange={vi.fn()} />);
     fillSignIn('owner', 'owner-password');
-    expect(await screen.findByRole('link', { name: /Панель управления/ })).toHaveAttribute('href', '/admin');
-    expect(open).toHaveBeenCalledWith('/admin', '_blank', 'noopener');
+    const panel = await screen.findByRole('link', { name: /Панель управления/ });
+    expect(panel).toHaveAttribute('href', '/admin');
+    expect(panel).not.toHaveAttribute('target');
   });
 
   it('shows only the inquiries the server links to this account', async () => {

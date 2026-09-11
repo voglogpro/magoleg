@@ -64,6 +64,12 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.reload();
   await page.waitForSelector('.sf-product-card');
   check(await page.locator('.sf-city-dialog').count() === 0, `${width}: the city is asked only once`);
+  const cardGallery = page.locator('.sf-card-gallery').first();
+  check(await cardGallery.count() > 0, `${width}: multi-photo products are swipeable without opening the detail page`);
+  const galleryRoute = page.url();
+  await cardGallery.locator('.sf-card-gallery__track').evaluate(node => { node.scrollLeft = node.clientWidth; });
+  await page.waitForFunction(() => document.querySelector('.sf-card-gallery__dots .is-active')?.previousElementSibling !== null);
+  check(page.url() === galleryRoute, `${width}: swiping a product photo keeps the shopper in the product list`);
   await page.screenshot({ path: `${output}/home-${width}.png`, fullPage: true });
   check(await page.locator('.sf-search').count() === 0, `${width}: no catalogue search field`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: home no overflow`);
@@ -218,7 +224,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.locator('.sf-login-form [name=password]').fill('owner-password');
   await page.locator('.sf-login-form button[type=submit]').click();
   await page.waitForSelector('.sf-account-card a[href="/admin"]');
-  check(await page.locator('.sf-account-card a[href="/admin"]').getAttribute('target') === '_blank', `${width}: owner panel escapes Mini App frame`);
+  check(await page.locator('.sf-account-card a[href="/admin"]').getAttribute('target') === null, `${width}: owner panel stays in the current iOS browser tab`);
   await page.goto(`${base}/#home`);
   await page.waitForSelector('.sf-product-card');
   check(await page.locator('.sf-bottom-nav a[href="#favorites"]').count() === 0, `${width}: favourites left the bottom bar`);

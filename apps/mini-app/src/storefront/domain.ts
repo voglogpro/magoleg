@@ -10,7 +10,8 @@ export const cargoLabel = (value: number | null) => value === null ? 'Уточн
 
 export const money = (value: number | null) => value === null ? 'Цена по запросу' : new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value);
 export const effectiveLicense = (product: Product) => product.license_verified === true ? product.license : 'unknown';
-export const productImage = (value: string) => /^\/media\/[a-zA-Z0-9_./-]+$/.test(value) && !value.includes('..') ? value : '';
+export const productImage = (value: string) => (/^\/media\/[a-zA-Z0-9_./-]+$/.test(value)
+  || /^\/products\/kugoo-current\/[a-z0-9-]+\.(?:jpg|jpeg|png|webp)$/.test(value)) && !value.includes('..') ? value : '';
 export const phoneLink = (value: string) => {
   const digits = value.replace(/[^0-9]/g, '');
   return digits.length >= 7 && digits.length <= 15 ? `tel:${value.trim().startsWith('+') ? '+' : ''}${digits}` : '';

@@ -50,6 +50,7 @@ ACCOUNT_SESSION_AGE = 60 * 24 * 60 * 60
 ACCOUNT_SESSION_IDLE = 30 * 24 * 60 * 60
 ACCOUNT_SESSIONS_PER_CUSTOMER = 6
 MEDIA_NAME = re.compile(r"[a-f0-9]{32}\.webp\Z")
+STATIC_PRODUCT_IMAGE = re.compile(r"/products/kugoo-current/[a-z0-9-]+\.(?:jpg|jpeg|png|webp)\Z")
 PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
 DEFAULT_SETTINGS: dict[str, Any] = {
@@ -284,6 +285,7 @@ class Store:
             connection.execute("CREATE INDEX IF NOT EXISTS inquiries_customer ON inquiries(customer_id, created_at)")
             connection.execute("INSERT OR IGNORE INTO settings(id,data) VALUES(1,?)",
                                (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),))
+            self.restore_catalog(connection)
         if os.name != "nt":
             self.database.chmod(0o600)
         encoded = os.getenv("ADMIN_PASSWORD_HASH", "")
@@ -303,6 +305,63 @@ class Store:
             connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (time.time(),))
             connection.execute("DELETE FROM customer_sessions WHERE expires_at <= ?", (time.time(),))
         self.dummy_hash = await asyncio.to_thread(hash_password, secrets.token_urlsafe(32))
+
+    def restore_catalog(self, connection: sqlite3.Connection) -> None:
+        """Restore the versioned public catalogue after a BotHost database loss.
+
+        This deliberately makes new researched models *preorder* cards. Existing cards keep
+        their owner-managed stock, publication state and uploaded gallery.
+        """
+        manifest = Path(__file__).with_name("catalog-kugoo-current.json")
+        if not manifest.is_file():
+            return
+        raw = manifest.read_bytes()
+        version = hashlib.sha256(raw).hexdigest()
+        key = "catalog-kugoo-current-version"
+        seen = connection.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+        if seen and seen["value"] == version:
+            return
+        try:
+            cards = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            LOGGER.error("Current catalogue manifest is invalid; restoration skipped.")
+            return
+        if not isinstance(cards, list):
+            LOGGER.error("Current catalogue manifest must contain a list; restoration skipped.")
+            return
+        for source in cards:
+            if not isinstance(source, dict) or not isinstance(source.get("name"), str):
+                LOGGER.error("Current catalogue contains an invalid product; restoration skipped.")
+                return
+        for source in cards:
+            name = source["name"]
+            matches = connection.execute("SELECT id,data FROM products WHERE json_extract(data, '$.name')=?", (name,)).fetchall()
+            if len(matches) > 1:
+                LOGGER.warning("Catalogue restoration skipped duplicate product: %s", name)
+                continue
+            card = {key: value for key, value in source.items() if key != "photo_files"}
+            files = source.get("photo_files", [])
+            images = [value.removeprefix("../apps/mini-app/public") for value in files if isinstance(value, str)]
+            if not all(STATIC_PRODUCT_IMAGE.fullmatch(value) for value in images):
+                LOGGER.warning("Catalogue restoration skipped invalid static image path: %s", name)
+                continue
+            if matches:
+                # Data research may age, operational owner choices must not be overwritten.
+                previous = json.loads(matches[0]["data"])
+                card.pop("published", None)
+                card.pop("stock_status", None)
+                card.pop("image_url", None)
+                product = self.product(card, previous)
+                connection.execute("UPDATE products SET data=?,published=?,updated_at=? WHERE id=?",
+                                   (json.dumps(product, ensure_ascii=False), int(product["published"]),
+                                    product["updated_at"], product["id"]))
+            else:
+                card.update(images=images, image_url=images[0] if images else "", published=True,
+                            stock_status="preorder")
+                product = self.product(card)
+                connection.execute("INSERT INTO products(id,data,published,updated_at) VALUES(?,?,?,?)",
+                                   (product["id"], json.dumps(product, ensure_ascii=False), 1, product["updated_at"]))
+        connection.execute("INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)", (key, version))
 
     def settings(self, connection: sqlite3.Connection | None = None) -> dict[str, Any]:
         if connection is None:
@@ -445,8 +504,9 @@ class Store:
         for photo in photos:
             photo = text_value(photo, "Фото", 100)
             filename = photo.removeprefix("/media/")
-            require(photo.startswith("/media/") and bool(MEDIA_NAME.fullmatch(filename))
-                    and (self.uploads / filename).is_file(), "Сначала загрузите изображение через кабинет.")
+            media_upload = photo.startswith("/media/") and bool(MEDIA_NAME.fullmatch(filename)) and (self.uploads / filename).is_file()
+            require(media_upload or bool(STATIC_PRODUCT_IMAGE.fullmatch(photo)),
+                    "Сначала загрузите изображение через кабинет.")
             if photo not in seen:
                 seen.append(photo)
         values["images"] = seen
