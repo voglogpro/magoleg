@@ -137,17 +137,28 @@ async def analytics(request):
     params = {'ids': str(COUNTER), 'date1': str(date2-timedelta(days=int(days)-1)), 'date2': str(date2), 'limit': '10'}
     try:
         async with ClientSession(timeout=ClientTimeout(total=15), headers={'Authorization': f'OAuth {token}'}) as session:
-            async def report(metrics, dimensions=None):
+            async def report(metrics, dimensions=None, *, filters=None, daily=False):
                 query = {**params, 'metrics': metrics}
                 if dimensions:
                     query.update(dimensions=dimensions, sort='-' + metrics.split(',')[0])
+                if filters:
+                    query['filters'] = filters
+                if daily:
+                    query.update(sort='ym:s:date', limit=days)
                 async with session.get('https://api-metrika.yandex.net/stat/v1/data', params=query, allow_redirects=False) as response:
                     if response.status != 200:
                         raise ValueError('report unavailable')
                     data = await response.json()
                     return {'totals': data.get('totals', []), 'data': data.get('data', []), 'sampled': data.get('sampled', False)}
-            totals, sources, pages = await asyncio.gather(report('ym:s:visits,ym:s:users,ym:s:pageviews,ym:s:bounceRate'), report('ym:s:visits', 'ym:s:trafficSource'), report('ym:pv:pageviews', 'ym:pv:URL'))
-        result = {'connected': True, 'totals': totals, 'sources': sources, 'pages': pages, 'updated_at': now_iso()}
+            totals, sources, pages, engaged, daily = await asyncio.gather(
+                report('ym:s:visits,ym:s:users,ym:s:pageviews,ym:s:bounceRate,ym:s:avgVisitDurationSeconds'),
+                report('ym:s:visits', 'ym:s:trafficSource'),
+                report('ym:pv:pageviews', 'ym:pv:URL'),
+                report('ym:s:visits,ym:s:users', filters='ym:s:visitDuration>60'),
+                report('ym:s:visits,ym:s:users,ym:s:pageviews', 'ym:s:date', daily=True),
+            )
+        result = {'connected': True, 'totals': totals, 'sources': sources, 'pages': pages,
+                  'engaged': engaged, 'daily': daily, 'updated_at': now_iso()}
         store._metrika_cache = {**getattr(store, '_metrika_cache', {}), days: (time.monotonic(), result)}
         return web.json_response({**common, **result})
     except (ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError):

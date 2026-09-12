@@ -8,7 +8,7 @@ import tempfile
 import time
 import unittest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiohttp import CookieJar, FormData, web
 from aiohttp.test_utils import TestClient, TestServer
@@ -728,6 +728,48 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.client.post('/api/account/logout', headers=headers)
         await self.register(contact='second@example.com')
         self.assertEqual((await (await self.client.get('/api/account/cart')).json())['items'], [])
+
+    async def test_customer_crm_metrika_duration_daily_and_cache(self):
+        await self.assert_error(await self.client.get('/api/admin/analytics'), 401)
+        await self.login()
+        upstream = MagicMock()
+        queries = []
+
+        def report_response(url, *, params, allow_redirects):
+            self.assertEqual(url, 'https://api-metrika.yandex.net/stat/v1/data')
+            self.assertFalse(allow_redirects)
+            queries.append(params)
+            totals = [100, 80, 240, 15, 125]
+            if params.get('filters'):
+                self.assertEqual(params['filters'], 'ym:s:visitDuration>60')
+                totals = [25, 20]
+            response = MagicMock(status=200)
+            response.json = AsyncMock(return_value={'totals': totals, 'data': [], 'sampled': False})
+            context = MagicMock()
+            context.__aenter__ = AsyncMock(return_value=response)
+            context.__aexit__ = AsyncMock(return_value=False)
+            return context
+
+        upstream.get.side_effect = report_response
+        with patch.dict(os.environ, {'YANDEX_METRIKA_TOKEN': 'isolated-fake-token'}), patch('customer_crm.ClientSession') as client_session:
+            client_session.return_value.__aenter__.return_value = upstream
+            result = await (await self.client.get('/api/admin/analytics?days=30')).json()
+            self.assertTrue(result['connected'])
+            self.assertEqual(result['engaged']['totals'], [25, 20])
+            self.assertEqual(result['totals']['totals'][4], 125)
+            self.assertEqual(len(queries), 5)
+            daily = next(q for q in queries if q.get('dimensions') == 'ym:s:date')
+            self.assertEqual(daily['sort'], 'ym:s:date')
+            self.assertEqual(daily['limit'], '30')
+            self.assertEqual((datetime.fromisoformat(daily['date2']) - datetime.fromisoformat(daily['date1'])).days, 29)
+            cached = await (await self.client.get('/api/admin/analytics?days=30')).json()
+            self.assertEqual(cached, result)
+            self.assertEqual(len(queries), 5)
+            self.assertNotIn('isolated-fake-token', json.dumps(result))
+            upstream.get.side_effect = ValueError('isolated-fake-token upstream failure')
+            failed = await (await self.client.get('/api/admin/analytics?days=7')).json()
+            self.assertFalse(failed['connected'])
+            self.assertNotIn('isolated-fake-token', json.dumps(failed))
 
     async def test_customer_crm_validation_and_disconnected_metrics(self):
         await self.register()

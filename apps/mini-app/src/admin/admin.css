@@ -16,6 +16,11 @@
 .crm-app button, .crm-app a { -webkit-tap-highlight-color: transparent; }
 .crm-app button { cursor: pointer; }
 .crm-app button:disabled { opacity: .5; cursor: wait; }
+.crm-traffic-table { max-height: 360px; overflow: auto; }
+.crm-traffic-table table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.crm-traffic-table th, .crm-traffic-table td { padding: 10px 8px; border-bottom: 1px solid var(--crm-line); text-align: right; white-space: nowrap; }
+.crm-traffic-table th:first-child { text-align: left; }
+.crm-traffic-table thead th { position: sticky; top: 0; background: var(--crm-panel); }
 .crm-app :is(button, a, input, textarea, select):focus-visible { outline: 2px solid #ff923d; outline-offset: 3px; }
 .crm-app :is(h1, h2, h3, p) { margin: 0; }
 .crm-app h1 { font: 700 clamp(25px, 3vw, 34px)/1.2 Montserrat, Inter, sans-serif; letter-spacing: -.03em; }
