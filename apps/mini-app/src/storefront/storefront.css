@@ -444,6 +444,8 @@
 .sf-store .sf-footer__documents a:nth-child(1) { width: 250px; max-width: 78vw; }
 .sf-store .sf-footer__documents a:nth-child(2) { width: 200px; max-width: 68vw; }
 .sf-store .sf-footer__documents a:nth-child(3) { width: 160px; max-width: 58vw; border-bottom: 0; }
+.sf-store .sf-footer__guides { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; }
+.sf-store .sf-footer__guides a { color: #d7d9de; text-decoration: underline; text-decoration-color: #ffffff24; text-underline-offset: 4px; }
 .sf-store .sf-footer a:hover { color: #ff984e; }
 .sf-store .sf-footer__requisites { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 14px; width: 100%; padding: 16px 18px; border: 1px solid #ffffff0d; border-radius: 14px; background: #ffffff05; line-height: 1.55; }
 .sf-store .sf-footer__requisites strong { flex-basis: 100%; color: #cfd2d7; font-weight: 650; }

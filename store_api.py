@@ -406,6 +406,44 @@ class Store:
         # Keys retired from DEFAULT_SETTINGS stop being served, even if a row still holds them.
         return {key: stored.get(key, default) for key, default in DEFAULT_SETTINGS.items()}
 
+    @staticmethod
+    def _public_product(row: sqlite3.Row) -> dict[str, Any]:
+        """Return a catalogue card with defaults used by every public surface."""
+        product = {
+            "tags": [], "badge": "", "cargo_l": None, "payload_kg": None,
+            "drive": "unknown", **json.loads(row["data"]),
+        }
+        # Cards saved before galleries existed carry their single photo as a
+        # one-photo gallery. Keep API, HTML pages and feeds on the same shape.
+        product.setdefault(
+            "images", [product["image_url"]] if product.get("image_url") else []
+        )
+        return product
+
+    def public_products(
+        self, connection: sqlite3.Connection | None = None
+    ) -> list[dict[str, Any]]:
+        """Return all published products in the storefront's normal order."""
+        if connection is None:
+            with self.connect() as opened:
+                return self.public_products(opened)
+        rows = connection.execute(
+            "SELECT data FROM products WHERE published=1 ORDER BY updated_at DESC,id"
+        ).fetchall()
+        return [self._public_product(row) for row in rows]
+
+    def public_product(
+        self, product_id: str, connection: sqlite3.Connection | None = None
+    ) -> dict[str, Any] | None:
+        """Return one published product, never exposing an unpublished card."""
+        if connection is None:
+            with self.connect() as opened:
+                return self.public_product(product_id, opened)
+        row = connection.execute(
+            "SELECT data FROM products WHERE id=? AND published=1", (product_id,)
+        ).fetchone()
+        return self._public_product(row) if row else None
+
     def check_origin(self, request: web.Request) -> None:
         require(request.headers.get("Sec-Fetch-Site") != "cross-site", "Запрос с другого сайта запрещён.", 403)
         supplied = request.headers.get("Origin")
@@ -760,14 +798,15 @@ async def account_inquiries(request: web.Request) -> web.Response:
 
 async def list_products(request: web.Request) -> web.Response:
     public = request.path == "/api/products"
-    with request.app[STORE_KEY].connect() as connection:
-        rows = connection.execute("SELECT data FROM products WHERE published=1 ORDER BY updated_at DESC,id" if public
-                                  else "SELECT data FROM products ORDER BY updated_at DESC,id").fetchall()
-    products = [{"tags": [], "badge": "", "cargo_l": None, "payload_kg": None, "drive": "unknown",
-                 **json.loads(row["data"])} for row in rows]
-    for product in products:
-        # Cards saved before galleries existed carry their single photo as a one-photo gallery.
-        product.setdefault("images", [product["image_url"]] if product["image_url"] else [])
+    store = request.app[STORE_KEY]
+    if public:
+        products = store.public_products()
+    else:
+        with store.connect() as connection:
+            rows = connection.execute(
+                "SELECT data FROM products ORDER BY updated_at DESC,id"
+            ).fetchall()
+        products = [store._public_product(row) for row in rows]
     return web.json_response({"products": products})
 
 

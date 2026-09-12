@@ -216,6 +216,11 @@ export function Storefront() {
           <a href="#offer">Публичная оферта</a>
           <a href="#returns">Обмен и возврат</a>
         </nav>
+        <nav className="sf-footer__guides" aria-label="Гайды по выбору электротранспорта">
+          <a href="/guides/elektrovelosipedy-dlya-skautov">Электровелосипеды для скаутов</a>
+          <a href="/guides/elektrotransport-dlya-kurerov">Электротранспорт для курьеров</a>
+          <a href="/guides/elektrovelosipedy-s-bolshim-zapasom-hoda">Модели с большим запасом хода</a>
+        </nav>
         <section className="sf-footer__requisites" aria-label="Реквизиты продавца">
           <strong>{seller.short}</strong>
           <span>ИНН {seller.inn}</span>

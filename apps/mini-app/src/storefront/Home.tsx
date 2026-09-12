@@ -66,7 +66,7 @@ export function Home({ products, settings, picks, chosen, featured, catalogState
       </section>
       {products.length > 0 && <div className="sf-home-catalog-cta"><div><h2>Найдите свой электротранспорт</h2><p>Сравните модели по запасу хода, мощности и цене.</p></div><a className="sf-button" href="#catalog">Перейти в каталог <ArrowRight size={16} /></a></div>}
       <TelegramPromo settings={settings} />
-      <nav className="sf-store-links" aria-label="Информация для покупателя"><a href="#delivery"><strong>Доставка по России</strong><span>Сроки по округам, от 3 дней</span></a><a href="#payment"><strong>Оплата и документы</strong><span>Способы расчёта и порядок заказа</span></a><a href="#about"><strong>О магазине</strong><span>Информация и реквизиты</span></a><a href="#guide"><strong>Помощь с выбором</strong><span>Подберём под ваши задачи</span></a></nav>
+      <nav className="sf-store-links" aria-label="Информация для покупателя"><a href="#delivery"><strong>Доставка по России</strong><span>Сроки по округам, от 3 дней</span></a><a href="#payment"><strong>Оплата и документы</strong><span>Способы расчёта и порядок заказа</span></a><a href="#about"><strong>О магазине</strong><span>Информация и реквизиты</span></a><a href="#guide"><strong>Помощь с выбором</strong><span>Подберём под ваши задачи</span></a><a href="/guides"><strong>Гайды по электротранспорту</strong><span>Критерии и модели из каталога</span></a></nav>
     </div>
   </>;
 }

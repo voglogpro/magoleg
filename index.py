@@ -11,7 +11,21 @@ from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
 from aiohttp import web
-from store_api import setup_store
+from seo_pages import (
+    GUIDES,
+    product_path,
+    public_catalog_data,
+    public_origin,
+    render_catalog,
+    render_guide,
+    render_guides_index,
+    render_llms,
+    render_merchant_feed,
+    render_product,
+    render_sitemap,
+    render_spa_shell,
+)
+from store_api import STORE_KEY, setup_store
 
 
 LOGGER = logging.getLogger("gshop.bot")
@@ -119,6 +133,82 @@ def create_web_app(static_dir: Path | None = None) -> web.Application:
     async def health(_: web.Request) -> web.Response:
         return web.json_response({"status": "ok", "service": "gshop"})
 
+    def catalogue(request: web.Request):
+        store = request.app[STORE_KEY]
+        with store.connect() as connection:
+            return store.public_products(connection), store.settings(connection)
+
+    async def seo_catalogue(request: web.Request) -> web.Response:
+        products, settings = catalogue(request)
+        return web.Response(
+            text=render_catalog(products, settings, public_origin()),
+            content_type="text/html",
+        )
+
+    async def seo_product(request: web.Request) -> web.Response:
+        store = request.app[STORE_KEY]
+        product = store.public_product(request.match_info["product_id"])
+        if product is None:
+            raise web.HTTPNotFound(text="Товар не найден", content_type="text/plain")
+        canonical = product_path(product)
+        if request.path != canonical:
+            raise web.HTTPMovedPermanently(location=canonical)
+        return web.Response(
+            text=render_product(product, store.settings(), public_origin()),
+            content_type="text/html",
+        )
+
+    async def seo_guides(request: web.Request) -> web.Response:
+        products, settings = catalogue(request)
+        return web.Response(
+            text=render_guides_index(products, settings, public_origin()),
+            content_type="text/html",
+        )
+
+    async def seo_guide(request: web.Request) -> web.Response:
+        slug = request.match_info["slug"]
+        if slug not in GUIDES:
+            raise web.HTTPNotFound(text="Материал не найден", content_type="text/plain")
+        products, settings = catalogue(request)
+        page = render_guide(slug, products, settings, public_origin())
+        assert page is not None
+        return web.Response(text=page, content_type="text/html")
+
+    async def sitemap(request: web.Request) -> web.Response:
+        products, _ = catalogue(request)
+        return web.Response(
+            text=render_sitemap(products, public_origin()),
+            content_type="application/xml",
+            headers={"Cache-Control": "public, max-age=900"},
+        )
+
+    async def robots(_: web.Request) -> web.Response:
+        body = f"User-agent: *\nAllow: /\n\nSitemap: {public_origin()}/sitemap.xml\n"
+        return web.Response(text=body, content_type="text/plain")
+
+    async def llms(request: web.Request) -> web.Response:
+        products, settings = catalogue(request)
+        return web.Response(
+            text=render_llms(products, settings, public_origin()),
+            content_type="text/plain",
+            headers={"Cache-Control": "public, max-age=900"},
+        )
+
+    async def ai_products(request: web.Request) -> web.Response:
+        products, settings = catalogue(request)
+        return web.json_response(
+            public_catalog_data(products, settings, public_origin()),
+            headers={"Cache-Control": "public, max-age=900"},
+        )
+
+    async def merchant_feed(request: web.Request) -> web.Response:
+        products, settings = catalogue(request)
+        return web.Response(
+            text=render_merchant_feed(products, settings, public_origin()),
+            content_type="application/xml",
+            headers={"Cache-Control": "public, max-age=900"},
+        )
+
     async def storefront(request: web.Request) -> web.StreamResponse:
         relative_path = request.match_info.get("path", "")
         if relative_path == "admin" or relative_path.startswith("admin/"):
@@ -136,11 +226,32 @@ def create_web_app(static_dir: Path | None = None) -> web.Application:
             if Path(relative_path).suffix:
                 raise web.HTTPNotFound()
 
-        return web.FileResponse(index_file)
+        products, settings = catalogue(request)
+        response = web.Response(
+            text=render_spa_shell(
+                index_file.read_text(encoding="utf-8"),
+                products,
+                settings,
+                public_origin(),
+            ),
+            content_type="text/html",
+        )
+        if relative_path:
+            response.headers["X-Robots-Tag"] = "noindex, follow"
+        return response
 
     app = web.Application(middlewares=[security_headers])
     app.router.add_get("/health", health)
     setup_store(app)
+    app.router.add_get("/catalog", seo_catalogue)
+    app.router.add_get("/catalog/{product_id}/{slug}", seo_product)
+    app.router.add_get("/guides", seo_guides)
+    app.router.add_get("/guides/{slug}", seo_guide)
+    app.router.add_get("/sitemap.xml", sitemap)
+    app.router.add_get("/robots.txt", robots)
+    app.router.add_get("/llms.txt", llms)
+    app.router.add_get("/ai/products.json", ai_products)
+    app.router.add_get("/merchant-feed.xml", merchant_feed)
     app.router.add_get("/{path:.*}", storefront)
     return app
 
