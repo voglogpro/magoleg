@@ -695,7 +695,7 @@ async def admin_logout(request: web.Request) -> web.Response:
 
 
 def account_payload(row: sqlite3.Row) -> dict[str, Any]:
-    return {"account": {"name": row["name"], "contact": row["contact"], "city": row["city"]}}
+    return {"account": {"id": row["id"], "name": row["name"], "contact": row["contact"], "city": row["city"]}}
 
 
 async def account_state(request: web.Request) -> web.Response:
@@ -1130,5 +1130,7 @@ def setup_store(app: web.Application) -> None:
     app.router.add_get("/api/admin/inquiries", list_inquiries)
     app.router.add_patch("/api/admin/inquiries/{id}", update_inquiry)
     app.router.add_get("/media/{filename}", media)
+    from customer_crm import setup as setup_customer_crm
+    setup_customer_crm(app)
     app.router.add_route("*", "/api/{tail:.*}", api_not_found)
     app.router.add_route("*", "/media/{tail:.*}", api_not_found)

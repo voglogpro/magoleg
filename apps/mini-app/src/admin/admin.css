@@ -181,3 +181,26 @@
 .crm-app .crm-checklist__done > span:first-child { color: #8fd4a5; }
 .crm-app .crm-checklist__done b { color: #8fd4a5; }
 @media (max-width: 560px) { .crm-app .crm-checklist li { grid-template-columns: 18px minmax(0, 1fr); } .crm-app .crm-checklist li b { grid-column: 2; } }
+.crm-customer-search { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 20px; }
+.crm-customer-search label { flex: 1; min-width: 190px; display: grid; gap: 8px; }
+.crm-customer-search input { width: 100%; padding: 12px; background: #17191c; color: #e4e6eb; border: 1px solid #45474c; border-radius: 6px; font: inherit; }
+.crm-customer-list { display: grid; gap: 20px; margin: 18px 0; }
+.crm-customer-card { padding: 22px; border: 1px solid #383b40; background: #1b1d21; border-radius: 8px; min-width: 0; overflow-wrap: anywhere; margin-bottom: 16px; }
+.crm-customer-card header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.crm-customer-card h2 { font-size: 21px; margin: 0 0 8px; }
+.crm-customer-card h3 { font-size: 17px; margin-top: 20px; }
+.crm-customer-card p { line-height: 1.5; }
+.crm-customer-facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 20px 0; }
+.crm-customer-facts dt { color: #aeb3bb; font-size: 13px; margin-bottom: 6px; }
+.crm-customer-facts dd { margin: 0; }
+.crm-customer-cart { list-style: none; padding: 0; }
+.crm-customer-cart li { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid #35373c; }
+.crm-customer-cart img { width: 76px; height: 76px; object-fit: contain; flex-shrink: 0; background: #111315; border-radius: 6px; }
+.crm-customer-cart a { color: #ffab6e; }
+.crm-stat-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 14px; margin: 16px 0 26px; }
+.crm-stat-grid > div { display: grid; gap: 12px; padding: 20px; border: 1px solid #383b40; border-radius: 6px; background: #1b1d21; }
+.crm-stat-grid strong { font-size: 30px; }
+.crm-report-list { padding: 0; list-style: none; }
+.crm-report-list li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #383b40; }
+.crm-tabs { flex-wrap: wrap; }
+@media(max-width:600px) { .crm-customer-card { padding: 16px; } .crm-customer-facts { grid-template-columns: 1fr; } }

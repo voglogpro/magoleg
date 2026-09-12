@@ -92,7 +92,7 @@ export const defaultSettings: ShopSettings = {
 };
 export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
 
-export type AccountProfile = { name: string; contact: string; city: string };
+export type AccountProfile = { id?: string; name: string; contact: string; city: string };
 /** Remembered once per browser: the shop asks for a destination, then stops asking. */
 export type CityChoice = { name: string; asked: boolean };
 export const popularCities = ['Москва', 'Санкт-Петербург', 'Краснодар', 'Екатеринбург', 'Новосибирск', 'Казань', 'Ростов-на-Дону', 'Сочи'];

@@ -76,7 +76,7 @@ export function InquiryForm({ settings, items, account = null, city = '', onCity
     <a href="#contact">Контакты магазина</a>
   </div>;
 
-  return <form className="sf-inquiry" onSubmit={handleSubmit} aria-label="Заявка в магазин">
+  return <form className="sf-inquiry ym-hide-content" onSubmit={handleSubmit} aria-label="Заявка в магазин">
     <h3>{items.length ? 'Оформление заказа' : 'Задать вопрос магазину'}</h3>
     <p className="sf-muted">{items.length
       ? 'Доставка по России включена в стоимость товара. После подтверждения наличия магазин пришлёт ссылку или QR-код для оплаты через СБП.'

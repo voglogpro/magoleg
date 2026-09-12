@@ -41,12 +41,14 @@ async def security_headers(request: web.Request, handler):
         response = error
         caught = error
     admin = request.path == "/admin" or request.path.startswith("/admin/")
-    frame_ancestors = "'none'" if admin else "'self' https://web.telegram.org"
-    script_sources = "'self'" if admin else "'self' https://telegram.org"
+    frame_ancestors = "'none'" if admin else "'self' https://web.telegram.org https://metrika.yandex.ru https://metrica.yandex.ru"
+    script_sources = "'self'" if admin else "'self' https://telegram.org https://mc.yandex.ru https://mc.yandex.com https://yastatic.net"
+    analytics_sources = "" if admin else " https://mc.yandex.ru https://mc.yandex.com https://mc.webvisor.org https://mc.webvisor.com https://*.mc.yandex.ru https://*.mc.yandex.com"
+    frame_sources = "'none'" if admin else "'self' blob: https://mc.yandex.ru"
     response.headers["Content-Security-Policy"] = (
         f"default-src 'self'; script-src {script_sources}; style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; "
-        f"object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors {frame_ancestors}"
+        f"img-src 'self' data: blob:{analytics_sources}; font-src 'self'; connect-src 'self'{analytics_sources}; "
+        f"frame-src {frame_sources}; child-src {frame_sources}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors {frame_ancestors}"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

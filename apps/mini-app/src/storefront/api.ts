@@ -106,6 +106,12 @@ export async function getAccountInquiries(signal?: AbortSignal) {
   return Array.isArray(data.inquiries) ? data.inquiries : [];
 }
 
+export function customerRequest<T>(path: 'cart' | 'preferences', body?: unknown, csrfToken = '', signal?: AbortSignal) {
+  return request<T>(`/api/account/${path}`, { method: body === undefined ? 'GET' : 'POST', signal,
+    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+}
+
 export async function submitInquiry(payload: InquiryPayload, idempotencyKey: string): Promise<Inquiry> {
   const data = await request<{ inquiry: Inquiry }>('/api/inquiries', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(payload),

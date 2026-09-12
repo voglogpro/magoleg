@@ -4,6 +4,8 @@ import { getAccountInquiries, getOwnerSession, registerAccount, signIn, signOut,
 import { CityDatalist } from './CityPicker';
 import { money } from './domain';
 import type { AccountInquiry, AccountProfile } from './types';
+import { CustomerPreferences } from './CustomerData';
+import { trackGoal } from './Analytics';
 
 const statusLabels: Record<AccountInquiry['status'], string> = {
   new: 'Магазин получил заявку', contacted: 'Магазин связался с вами', closed: 'Заявка закрыта',
@@ -52,7 +54,7 @@ function History() {
 function Card({ icon: Icon, eyebrow, title, children }: {
   icon: typeof UserRound; eyebrow: string; title: string; children: React.ReactNode;
 }) {
-  return <section className="sf-account-card" aria-labelledby="sf-account-title">
+  return <section className="sf-account-card ym-hide-content" aria-labelledby="sf-account-title">
     <header className="sf-account-card__head">
       <span className="sf-account-card__icon" aria-hidden="true"><Icon size={22} /></span>
       <div><p className="sf-account-card__eyebrow">{eyebrow}</p><h2 id="sf-account-title">{title}</h2></div>
@@ -104,6 +106,7 @@ export function Account({ account, csrfToken, city = '', restoring = false, onCh
       }
       if (result.account?.city) onCity?.(result.account.city);
       setName(''); setContact('');
+      trackGoal(mode === 'register' ? 'registration' : 'customer_login');
       onChange();
     } catch (reason) {
       setError(errorText(reason));
@@ -140,6 +143,7 @@ export function Account({ account, csrfToken, city = '', restoring = false, onCh
     {error && <p className="sf-error" role="alert">{error}</p>}
     <h3 className="sf-history-title">Мои заявки</h3>
     <History />
+    <CustomerPreferences csrfToken={csrfToken} />
     <button className="sf-text-button sf-account-leave" onClick={leave} disabled={busy}><LogOut size={16} />{busy ? 'Выходим…' : 'Выйти из аккаунта'}</button>
   </Card>;
 

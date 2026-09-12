@@ -21,7 +21,7 @@ WORKDIR /opt/magoleg/runtime
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py index.py seo_pages.py store_api.py docs/catalog-kugoo-current.json docs/catalog-kugoo-bikes-2026.json ./
+COPY main.py index.py seo_pages.py store_api.py customer_crm.py docs/catalog-kugoo-current.json docs/catalog-kugoo-bikes-2026.json ./
 COPY scripts/ ./scripts/
 COPY --from=frontend /build/dist /opt/magoleg/public
 

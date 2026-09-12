@@ -1,0 +1,20 @@
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { useCustomerCart } from './CustomerData';
+import { customerRequest } from './api';
+vi.mock('./api', () => ({ customerRequest: vi.fn() }));
+afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); });
+it('restores a server cart, saves mutations, and never leaks it to the next account or guest', async () => {
+  const request = vi.mocked(customerRequest);
+  request.mockResolvedValue({ saved: true, items: [{ product_id: 'model', quantity: 2 }] });
+  const { result, rerender } = renderHook(({ account }) => useCustomerCart(account, 'csrf', true), { initialProps: { account: { id: 'first', name: 'First', contact: 'first@example.com', city: '' } as { id: string; name: string; contact: string; city: string } | null } });
+  await waitFor(() => expect(result.current.cart).toHaveLength(1));
+  act(() => result.current.setCart([]));
+  await waitFor(() => expect(request).toHaveBeenCalledWith('cart', { items: [] }, 'csrf'));
+  request.mockResolvedValue({ saved: false, items: [] });
+  rerender({ account: { id: 'second', name: 'Second', contact: 'second@example.com', city: '' } });
+  expect(result.current.cart).toEqual([]);
+  await waitFor(() => expect(result.current.ready).toBe(true));
+  rerender({ account: null });
+  expect(result.current.cart).toEqual([]);
+});

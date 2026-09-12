@@ -696,6 +696,55 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         }, headers={"Origin": self.origin})
         return response
 
+    async def test_customer_crm_cart_preferences_and_access(self):
+        await self.assert_error(await self.client.get('/api/admin/customers'), 401)
+        await self.assert_error(await self.client.get('/api/account/cart'), 401)
+        await self.assert_error(await self.client.get('/api/admin/analytics'), 401)
+        await self.register(contact='shopper@example.com', name='Покупатель')
+        state = await (await self.client.get('/api/account')).json()
+        headers = {'Origin': self.origin, 'X-CSRF-Token': state['csrfToken']}
+        with self.client.server.app[STORE_KEY].connect() as db:
+            db.execute('INSERT INTO products VALUES(?,?,1,?)', ('test-model', json.dumps({'id': 'test-model', 'name': 'Test model', 'price': 1000}), '2026-09-12'))
+        items = [{'product_id': 'test-model', 'quantity': 2}]
+        await self.assert_error(await self.client.post('/api/account/cart', json={'items': items}, headers={'Origin': self.origin}), 403)
+        saved = await self.client.post('/api/account/cart', json={'items': items}, headers=headers)
+        self.assertEqual(saved.status, 200, await saved.text())
+        self.assertEqual((await (await self.client.get('/api/account/cart')).json())['items'], items)
+        prefs = await (await self.client.get('/api/account/preferences')).json()
+        self.assertEqual(prefs['email'], 'shopper@example.com')
+        self.assertFalse(prefs['marketing'])
+        response = await self.client.post('/api/account/preferences', json={'email': 'shopper@example.com', 'marketing': True}, headers=headers)
+        self.assertEqual(response.status, 200, await response.text())
+        self.assertTrue((await response.json())['marketing'])
+        await self.login()
+        owners = await (await self.client.get('/api/admin/customers?q=покупатель')).json()
+        self.assertEqual(owners['total'], 1)
+        self.assertEqual(owners['customers'][0]['cart'][0]['name'], 'Test model')
+        self.assertNotIn('password_hash', owners['customers'][0])
+        response = await self.client.post('/api/account/preferences', json={'email': 'shopper@example.com', 'marketing': False}, headers=headers)
+        self.assertFalse((await response.json())['marketing'])
+        with self.client.server.app[STORE_KEY].connect() as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM customer_consent_log').fetchone()[0], 2)
+        await self.client.post('/api/account/logout', headers=headers)
+        await self.register(contact='second@example.com')
+        self.assertEqual((await (await self.client.get('/api/account/cart')).json())['items'], [])
+
+    async def test_customer_crm_validation_and_disconnected_metrics(self):
+        await self.register()
+        state = await (await self.client.get('/api/account')).json()
+        headers = {'Origin': self.origin, 'X-CSRF-Token': state['csrfToken']}
+        for body in ({'items': [{'product_id': 'x', 'quantity': True}]}, {'items': [], 'customer_id': 'another'}, {'items': 'wrong'}):
+            await self.assert_error(await self.client.post('/api/account/cart', json=body, headers=headers), 400)
+        for body in ({'email': '', 'marketing': True}, {'email': 'not email', 'marketing': False}, {'email': 'x@example.com', 'marketing': 'yes'}):
+            await self.assert_error(await self.client.post('/api/account/preferences', json=body, headers=headers), 400)
+        await self.login()
+        with patch.dict(os.environ, {'YANDEX_METRIKA_TOKEN': ''}):
+            result = await (await self.client.get('/api/admin/analytics')).json()
+        self.assertFalse(result['connected'])
+        self.assertEqual(result['counter'], 112522333)
+        self.assertEqual(result['local']['customers'], 1)
+        await self.assert_error(await self.client.get('/api/admin/analytics?days=999'), 400)
+
     async def test_account_registration_creates_a_session_and_normalizes_the_contact(self):
         response = await self.register()
         self.assertEqual(response.status, 200, await response.text())

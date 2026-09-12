@@ -5,6 +5,7 @@ import { productDraft, uploadSizeError, validateProduct, validateUpload, type Pr
 import { activePickLabels as tagLabels, badgeLabels, categoryLabels, defaultSettings, driveLabels, type PaymentStatus, type ProductTag } from '../storefront/types';
 import { paymentStatusLabels } from '../storefront/Payment';
 import './admin.css';
+import { Customers, AnalyticsPanel } from './CustomerPanels';
 
 const paymentFields = [
   ['payment_sbp', 'СБП (по QR или ссылке)'], ['payment_card', 'Картой онлайн'], ['payment_installment', 'Рассрочка и кредит'],
@@ -25,8 +26,8 @@ export function paymentChecklist(settings: ShopSettings) {
 
 type Request = <T>(path: string, options?: Parameters<typeof adminRequest>[1]) => Promise<T>;
 type PanelProps = { request: Request; onDirty: (value: boolean) => void; onBusy: (value: boolean) => void };
-type Tab = 'products' | 'inquiries' | 'settings';
-const tabLabels: Record<Tab, string> = { products: 'Товары', inquiries: 'Заявки', settings: 'Магазин и документы' };
+type Tab = 'products' | 'inquiries' | 'customers' | 'analytics' | 'settings';
+const tabLabels: Record<Tab, string> = { products: 'Товары', inquiries: 'Заявки', customers: 'Покупатели', analytics: 'Статистика', settings: 'Магазин и документы' };
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Не удалось выполнить действие.';
 const discardMessage = 'Есть несохранённые изменения. Покинуть страницу без сохранения?';
 /** Mirrors MAX_PHOTOS in store_api.py, so the form stops before the server refuses the card. */
@@ -424,7 +425,7 @@ export function AdminApp() {
     {checking ? <main className="crm-loading" role="status">Проверяем доступ…</main> : !session ? <Login key={error} initialError={error} onLogin={value => { setSession(value); setError(''); }}/>
       : <><header className="crm-header"><a className="crm-brand" href="/" onClick={event => { if (busy || (dirtyRef.current && !window.confirm(discardMessage))) event.preventDefault(); }}>G-PARTNER <span>Управление</span></a><div className="crm-header-actions"><span className="crm-username">{session.username}</span><a className="crm-button" href="/">Открыть сайт</a><button className="crm-button" disabled={busy} onClick={() => void logout()}>Выйти</button></div></header>
         <nav className="crm-tabs" aria-label="Разделы управления">{(Object.keys(tabLabels) as Tab[]).map(key => <button key={key} type="button" disabled={busy} aria-current={tab === key ? 'page' : undefined} onClick={() => switchTab(key)}>{tabLabels[key]}</button>)}</nav>
-        <main className="crm-main">{error && <Notice error>{error}</Notice>}{tab === 'products' ? <Products request={request} onDirty={onDirty} onBusy={onBusy}/> : tab === 'settings' ? <Settings request={request} onDirty={onDirty} onBusy={onBusy}/> : <Inquiries request={request} onDirty={onDirty} onBusy={onBusy}/>}</main>
+        <main className="crm-main">{error && <Notice error>{error}</Notice>}{tab === 'customers' ? <Customers request={request}/> : tab === 'analytics' ? <AnalyticsPanel request={request}/> : tab === 'products' ? <Products request={request} onDirty={onDirty} onBusy={onBusy}/> : tab === 'settings' ? <Settings request={request} onDirty={onDirty} onBusy={onBusy}/> : <Inquiries request={request} onDirty={onDirty} onBusy={onBusy}/>}</main>
       </>}
   </div>;
 }

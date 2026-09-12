@@ -193,7 +193,7 @@ def _page(
 <title>{_e(title)}</title><meta name="description" content="{_e(description)}"><meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="canonical" href="{_e(canonical)}"><meta property="og:type" content="website"><meta property="og:locale" content="ru_RU">
 <meta property="og:site_name" content="{_e(shop)}"><meta property="og:title" content="{_e(title)}"><meta property="og:description" content="{_e(description)}"><meta property="og:url" content="{_e(canonical)}">
-{_verification_meta()}<style>{_STYLE}</style><script type="application/ld+json">{_json_script({"@context": "https://schema.org", "@graph": graph})}</script></head>
+{_verification_meta()}<style>{_STYLE}</style><script type="application/ld+json">{_json_script({"@context": "https://schema.org", "@graph": graph})}</script><script defer src="/analytics-public.js"></script></head>
 <body><header><div class="wrap"><a class="brand" href="/">G<span>•</span>PARTNER</a><nav aria-label="Основное меню"><a href="/catalog">Каталог</a><a href="/guides">Гайды</a><a href="/#delivery">Доставка</a><a href="/#contact">Контакты</a></nav></div></header>
 <main>{body}</main><footer><div class="wrap"><div><strong>{_e(shop)}</strong><br>Электротранспорт с доставкой по России</div><nav aria-label="Полезные материалы"><a href="/guides/elektrovelosipedy-dlya-skautov">Для скаутов</a><a href="/guides/elektrotransport-dlya-kurerov">Для курьеров</a><a href="/guides/elektrovelosipedy-s-bolshim-zapasom-hoda">Большой запас хода</a><a href="/llms.txt">Данные для ИИ</a></nav></div></footer></body></html>'''
 
