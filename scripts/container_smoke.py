@@ -98,7 +98,12 @@ def inspect_http(base: str) -> None:
         script_status, _, source = get(base, script)
         check(script_status == 200 and len(source) > 100, "Built frontend asset was not served.")
     status, _, body = get(base, "/api/products")
-    check(status == 200 and json.loads(body) == {"products": []}, "Fresh catalog was not empty.")
+    products = json.loads(body).get("products")
+    # A fresh deployment restores the bundled catalogue into its empty data
+    # directory. The smoke check cares about a valid public response; requiring
+    # an empty list contradicted that intentional restore behaviour.
+    check(status == 200 and isinstance(products, list) and bool(products),
+          "Bundled catalog was not restored on a fresh deployment.")
     for path in ("/api/admin/session", "/api/admin/products", "/api/admin/settings", "/api/admin/inquiries"):
         status, _, body = get(base, path)
         check(status in (401, 503) and isinstance(json.loads(body).get("error"), str),

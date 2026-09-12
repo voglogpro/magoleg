@@ -124,12 +124,13 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await page.locator('.sf-filter-toggle .sf-count').innerText() === '2', `${width}: filter icon counts hidden filters`);
   await page.locator('.sf-results-heading button').click();
   check(await countIs('.sf-product-card', 4), `${width}: reset all`);
-  await page.locator('.sf-quick-stock input').check();
+  const inStock = page.getByRole('checkbox', { name: 'В наличии' });
+  await inStock.check();
   check(await countIs('.sf-product-card', 2), `${width}: quick availability filter`);
   await page.reload();
   await page.waitForSelector('.sf-product-card');
-  check(await page.locator('.sf-quick-stock input').isChecked(), `${width}: availability filter survives reload in URL`);
-  await page.locator('.sf-quick-stock input').uncheck();
+  check(await page.getByRole('checkbox', { name: 'В наличии' }).isChecked(), `${width}: availability filter survives reload in URL`);
+  await page.getByRole('checkbox', { name: 'В наличии' }).uncheck();
   check(await countIs('.sf-product-card', 4), `${width}: availability filter resets`);
   await page.locator('.sf-category-tabs button').filter({ hasText: 'Квадроциклы' }).click();
   check(await countIs('.sf-product-card', 0), `${width}: empty ATV category never substitutes unrelated vehicles`);
