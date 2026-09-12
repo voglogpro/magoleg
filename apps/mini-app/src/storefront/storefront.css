@@ -193,6 +193,7 @@
 .sf-store .sf-results-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; min-height: 58px; gap: 4px 12px; padding: 6px 0; }
 .sf-store .sf-quick-stock { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; cursor: pointer; }
 .sf-store .sf-quick-stock input { width: 18px; height: 18px; margin: 0; accent-color: var(--sf-orange); }
+.sf-store .sf-quick-availability { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .sf-store .sf-results-heading p { color: var(--sf-muted); font-size: 14px; }
 .sf-store .sf-results-heading button { font-size: 13px; }
 .sf-store .sf-active-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
@@ -434,12 +435,21 @@
 .sf-store .sf-menu__socials a:hover { background: #262a30; }
 .sf-store .sf-menu__pay { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; border-top: 1px solid #a54d20; padding-top: 18px; }
 .sf-store .sf-menu__pay li { border: 1px solid var(--sf-line); border-radius: 8px; padding: 6px 12px; color: #c8d0d8; font-size: 12px; font-weight: 600; }
-.sf-store .sf-footer { border-top: 1px solid var(--sf-deep-line); padding: 28px 16px; background: var(--sf-deep); color: #9a9ca5; font-size: 13px; }
-.sf-store .sf-footer > div { max-width: 1232px; margin: auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px 30px; }
-.sf-store .sf-footer > div > span { color: var(--sf-muted); }
-.sf-store .sf-footer nav { display: flex; flex-wrap: wrap; gap: 0 20px; }
-.sf-store .sf-footer a { display: flex; align-items: center; min-height: 44px; }
+.sf-store .sf-footer { border-top: 1px solid #ffffff10; padding: 34px 16px 30px; background: radial-gradient(circle at 50% 0, #171d23 0, var(--sf-deep) 58%); color: #9a9ca5; font-size: 13px; }
+.sf-store .sf-footer__inner { width: min(100%, 620px); margin: auto; display: grid; justify-items: center; gap: 18px; text-align: center; }
+.sf-store .sf-footer__brand { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: #f4f5f7; font: italic 800 18px/1 Montserrat, Inter, sans-serif; letter-spacing: -.035em; }
+.sf-store .sf-footer__brand img { width: 30px; height: 34px; object-fit: contain; }
+.sf-store .sf-footer__documents { display: grid; justify-items: center; gap: 0; }
+.sf-store .sf-footer__documents a { display: flex; align-items: center; justify-content: center; min-height: 42px; border-bottom: 1px solid #ffffff0d; color: #d7d9de; }
+.sf-store .sf-footer__documents a:nth-child(1) { width: 250px; max-width: 78vw; }
+.sf-store .sf-footer__documents a:nth-child(2) { width: 200px; max-width: 68vw; }
+.sf-store .sf-footer__documents a:nth-child(3) { width: 160px; max-width: 58vw; border-bottom: 0; }
 .sf-store .sf-footer a:hover { color: #ff984e; }
+.sf-store .sf-footer__requisites { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 14px; width: 100%; padding: 16px 18px; border: 1px solid #ffffff0d; border-radius: 14px; background: #ffffff05; line-height: 1.55; }
+.sf-store .sf-footer__requisites strong { flex-basis: 100%; color: #cfd2d7; font-weight: 650; }
+.sf-store .sf-footer__requisites span { position: relative; overflow-wrap: anywhere; }
+.sf-store .sf-footer__requisites span + span::before { content: '·'; position: absolute; left: -9px; color: #59616b; }
+.sf-store .sf-footer__copyright { color: #6f757e; font-size: 12px; }
 .sf-store .sf-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); padding: 5px 7px calc(5px + env(safe-area-inset-bottom, 0px)); min-height: 67px; background: var(--sf-deep); border-top: 1px solid var(--sf-deep-line); z-index: 60; }
 .sf-store .sf-bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 56px; color: #b8b9c0; font-size: 10px; line-height: 1.3; }
 .sf-store .sf-bottom-nav a[aria-current=page] { color: #ff8b38; }
@@ -627,9 +637,11 @@
   .sf-store *, .sf-store *::before, .sf-store *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
 
-/* Подвал: только обязательные документы и строка реквизитов продавца. */
-.sf-store .sf-footer > div { flex-direction: column; align-items: flex-start; gap: 4px 30px; }
-.sf-store .sf-footer__legal { max-width: 80ch; line-height: 1.6; overflow-wrap: anywhere; }
+/* Подвал: документы собраны перевёрнутой пирамидой, реквизиты — отдельным компактным блоком. */
+@media (max-width: 459px) {
+  .sf-store .sf-footer__requisites { display: grid; gap: 5px; }
+  .sf-store .sf-footer__requisites span + span::before { content: none; }
+}
 /* Документы: списки внутри разделов и таблица реквизитов продавца. */
 .sf-store .sf-document-intro { margin-bottom: 14px; line-height: 1.75; }
 .sf-store .sf-doc-facts { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }

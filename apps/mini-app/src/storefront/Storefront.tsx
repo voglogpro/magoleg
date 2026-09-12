@@ -6,7 +6,7 @@ import { CityBar, CityPicker } from './CityPicker';
 import { Home } from './Home';
 import { PickCards } from './PickCards';
 import { cargoLabel, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, powerLabel, powerTotal, sanitizeCart, sanitizeCity, sanitizeIds, smartPicks } from './domain';
-import { sellerLine } from './legal-texts';
+import { seller } from './legal-texts';
 import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
@@ -158,7 +158,14 @@ export function Storefront() {
           <div><h2>Цена, ₽</h2><div className="sf-price-fields"><label><span>От</span><input type="number" inputMode="decimal" min={0} max={999999999} step="0.01" value={filters.min} onChange={event => updateFilters({ min: event.target.value })} /></label><label><span>До</span><input type="number" inputMode="decimal" min={0} max={999999999} step="0.01" value={filters.max} onChange={event => updateFilters({ max: event.target.value })} /></label></div>{filters.min && filters.max && Number(filters.min) > Number(filters.max) && <p className="sf-error">Цена «От» должна быть не больше цены «До».</p>}<label className="sf-stock-filter">Наличие<select value={filters.stock} onChange={event => updateFilters({ stock: event.target.value as Filters['stock'] })}><option value="all">Любое</option>{Object.entries(stockLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div>
           <div className="sf-filter-panel__actions"><button className="sf-button" onClick={() => setFiltersOpen(false)}>Показать товары</button><button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить фильтры</button></div>
         </section>
-        <div className="sf-results-heading"><p aria-live="polite">{loading ? 'Загрузка…' : `Найдено моделей: ${filtered.length}`}</p><label className="sf-quick-stock"><input type="checkbox" checked={filters.stock === 'in-stock'} onChange={event => updateFilters({ stock: event.target.checked ? 'in-stock' : 'all' })} />В наличии</label>{activeFilterCount > 0 && <button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить всё</button>}</div>
+        <div className="sf-results-heading">
+          <p aria-live="polite">{loading ? 'Загрузка…' : `Найдено моделей: ${filtered.length}`}</p>
+          <div className="sf-quick-availability" role="group" aria-label="Фильтр по наличию">
+            <label className="sf-quick-stock"><input type="checkbox" checked={filters.stock === 'in-stock'} onChange={event => updateFilters({ stock: event.target.checked ? 'in-stock' : 'all' })} />В наличии</label>
+            <label className="sf-quick-stock"><input type="checkbox" checked={filters.stock === 'preorder'} onChange={event => updateFilters({ stock: event.target.checked ? 'preorder' : 'all' })} />Под заказ</label>
+          </div>
+          {activeFilterCount > 0 && <button className="sf-text-button" onClick={() => navigate('#catalog', true)}>Сбросить всё</button>}
+        </div>
         {activeFilterCount > 0 && <div className="sf-active-filters" aria-label="Выбранные фильтры">
           {filters.category !== 'all' && <button onClick={() => updateFilters({ category: 'all' })}>{categoryLabels[filters.category]}<X size={14} aria-label="Убрать фильтр" /></button>}
           {filters.tag !== 'all' && <button onClick={() => updateFilters({ tag: 'all' })}>{tagLabels[filters.tag]}<X size={14} aria-label="Убрать подборку" /></button>}
@@ -199,9 +206,24 @@ export function Storefront() {
       {!Object.hasOwn(titles, path) && !isProduct && <Empty title="Такой страницы нет">Вернитесь в каталог или выберите раздел в меню магазина.</Empty>}
     </main>
     <footer className="sf-footer">
-      <div>
-        <nav aria-label="Документы магазина"><a href="#offer">Публичная оферта</a><a href="#privacy">Политика конфиденциальности</a><a href="#returns">Обмен и возврат</a></nav>
-        <p className="sf-footer__legal">{sellerLine}</p>
+      <div className="sf-footer__inner">
+        <a className="sf-footer__brand" href="#home" aria-label={`${settings.shop_name} — главная`}>
+          <img src="/brand/gpartner-mark-v2-512.png" width="36" height="36" alt="" draggable={false} />
+          <span>{settings.shop_name}</span>
+        </a>
+        <nav className="sf-footer__documents" aria-label="Документы магазина">
+          <a href="#privacy">Политика конфиденциальности</a>
+          <a href="#offer">Публичная оферта</a>
+          <a href="#returns">Обмен и возврат</a>
+        </nav>
+        <section className="sf-footer__requisites" aria-label="Реквизиты продавца">
+          <strong>{seller.short}</strong>
+          <span>ИНН {seller.inn}</span>
+          <span>ОГРНИП {seller.ogrnip}</span>
+          <span>Р/с {seller.account}</span>
+          <span>{seller.bank}</span>
+        </section>
+        <p className="sf-footer__copyright">© {new Date().getFullYear()} {seller.brand}</p>
       </div>
     </footer>
     <nav className="sf-bottom-nav" aria-label="Основная навигация">{[
