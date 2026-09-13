@@ -23,6 +23,9 @@ const check = (condition, message) => { assert.ok(condition, message); assertion
 
 for (const width of [320, 390, 768, 900, 1440]) {
   const context = await browser.newContext({ viewport: { width, height: width < 900 ? 844 : 1000 } });
+  // The consent dialog has its own unit coverage. Keep it from covering catalogue
+  // controls while this suite exercises navigation and filters.
+  await context.addInitScript(() => localStorage.setItem('gpartner.analytics-consent.v1', 'no'));
   // Storefront regression must not wait on Telegram's external network. This suite
   // covers shopping, not the native Telegram bridge; test that bridge on a device.
   await context.route('https://telegram.org/js/telegram-web-app.js', route => route.fulfill({ contentType: 'application/javascript', body: '/* Telegram bridge excluded from the deterministic browser suite. */' }));
