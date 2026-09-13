@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Payment } from './Payment';
 import { defaultSettings, type ShopSettings } from './types';
 
@@ -9,7 +9,7 @@ const withSettings = (patch: Partial<ShopSettings> = {}) => ({ ...defaultSetting
 describe('раздел оплаты', () => {
   it('по умолчанию предлагает только СБП', () => {
     render(<Payment settings={withSettings()} />);
-    expect(screen.getByText('Система быстрых платежей (СБП)')).toBeInTheDocument();
+    expect(screen.getByText('СБП')).toBeInTheDocument();
     expect(screen.getByText('Доступно')).toBeInTheDocument();
     expect(screen.queryByText('Банковской картой онлайн')).toBeNull();
     expect(screen.queryByText('Рассрочка и кредит')).toBeNull();
@@ -19,6 +19,10 @@ describe('раздел оплаты', () => {
 
   it('объясняет порядок оплаты по ссылке или QR-коду и включённую доставку', () => {
     render(<Payment settings={withSettings()} />);
+    const accordion = screen.getByText('СБП').closest('details');
+    expect(accordion).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByText('СБП'));
+    expect(accordion).toHaveAttribute('open');
     expect(screen.getByText(/ссылку или QR-код на оплату/)).toBeInTheDocument();
     expect(screen.getByText(/Стоимость доставки уже включена в цену товара/)).toBeInTheDocument();
   });
@@ -34,6 +38,14 @@ describe('раздел оплаты', () => {
     render(<Payment settings={withSettings({ payment_card: 'on', payment_provider: 'Тестовый сервис' })} />);
     expect(screen.queryByText('Банковской картой онлайн')).toBeNull();
     expect(screen.queryByText(/Тестовый сервис/)).toBeNull();
+  });
+
+  it('показывает только четыре согласованных способа оплаты', () => {
+    render(<Payment settings={withSettings({ payment_dolyame: 'preparing', payment_installment: 'preparing', payment_credit: 'preparing', payment_invoice: 'on', payment_on_delivery: 'on' })} />);
+    expect(screen.getAllByRole('group')).toHaveLength(4);
+    for (const title of ['СБП', 'Долями', 'Рассрочка', 'Кредит']) expect(screen.getByText(title)).toBeInTheDocument();
+    expect(screen.queryByText('Счёт для организаций')).toBeNull();
+    expect(screen.queryByText('Оплата при получении')).toBeNull();
   });
 
   it('показывает порядок заказа и предупреждение о безопасности расчётов', () => {

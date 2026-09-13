@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Banknote, Building2, CalendarClock, CreditCard, FileCheck2, QrCode, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { CalendarClock, ChevronDown, CreditCard, FileCheck2, QrCode, ShieldCheck, type LucideIcon } from 'lucide-react';
 import type { PaymentStatus, ShopSettings } from './types';
 
 export const paymentStatusLabels: Record<PaymentStatus, string> = {
@@ -13,7 +13,7 @@ export function paymentMethods(settings: ShopSettings): Method[] {
   const partner = settings.payment_installment_partner.trim();
   return [
     {
-      id: 'sbp', title: 'Система быстрых платежей (СБП)', icon: QrCode, status: settings.payment_sbp,
+      id: 'sbp', title: 'СБП', icon: QrCode, status: settings.payment_sbp,
       text: 'Перевод по QR-коду или ссылке в приложении вашего банка. Комиссия с покупателя не взимается, деньги поступают на расчётный счёт продавца.',
       ready: 'После подтверждения заказа магазин присылает ссылку или QR-код на оплату. Проверьте получателя и сумму до подтверждения перевода.',
     },
@@ -33,16 +33,6 @@ export function paymentMethods(settings: ShopSettings): Method[] {
       text: partner ? `Заявка на покупку в кредит оформляется у партнёра: ${partner}.`
         : 'Заявка на покупку в кредит оформляется у банка-партнёра.',
       ready: 'Решение, ставку, полную стоимость кредита и график платежей сообщает банк.',
-    },
-    {
-      id: 'invoice', title: 'Счёт для организаций', icon: Building2, status: settings.payment_invoice,
-      text: 'Безналичная оплата по счёту для ИП и юридических лиц с закрывающими документами.',
-      ready: 'Пришлите реквизиты в заявке — выставим счёт и договор.',
-    },
-    {
-      id: 'on-delivery', title: 'Оплата при получении', icon: Banknote, status: settings.payment_on_delivery,
-      text: 'Расчёт в момент выдачи заказа, если перевозчик и товар допускают такой способ.',
-      ready: 'Доступность подтверждается для конкретного города и модели.',
     },
   ];
 }
@@ -65,16 +55,17 @@ export function Payment({ settings }: { settings: ShopSettings }) {
 
     <section className="sf-info-section" aria-labelledby="payment-methods-title">
       <h2 id="payment-methods-title">Способы оплаты</h2>
-      <ul className="sf-pay-grid">
-        {methods.map((method, index) => <li className={`sf-pay-card sf-pay-card--${method.status}`} key={method.id} style={{ '--sf-step': index } as CSSProperties}>
-          <span className="sf-pay-card__icon" aria-hidden="true"><method.icon size={20} /></span>
-          <h3>{method.title}</h3>
-          <p className={`sf-status sf-status--${method.status}`}>{paymentStatusLabels[method.status]}</p>
-          <p>{method.text}</p>
-          <p className="sf-muted">{method.status === 'on' ? method.ready : 'Пока способ не подключён: магазин не принимает по нему деньги и не передаёт данные банку.'}</p>
-        </li>)}
-        {methods.length === 0 && <li className="sf-pay-card sf-pay-card--preparing"><h3>Способы оплаты уточняются</h3><p>Магазин подтвердит доступные варианты расчёта до оформления заказа.</p></li>}
-      </ul>
+      <div className="sf-pay-grid">
+        {methods.map((method, index) => <details className={`sf-pay-card sf-pay-card--${method.status}`} key={method.id} style={{ '--sf-step': index } as CSSProperties}>
+          <summary>
+            <span className="sf-pay-card__icon" aria-hidden="true"><method.icon size={20} /></span>
+            <span className="sf-pay-card__heading"><strong>{method.title}</strong><span className={`sf-status sf-status--${method.status}`}>{paymentStatusLabels[method.status]}</span></span>
+            <ChevronDown className="sf-pay-card__chevron" size={20} aria-hidden="true" />
+          </summary>
+          <div className="sf-pay-card__body"><p>{method.text}</p><p className="sf-muted">{method.status === 'on' ? method.ready : 'Пока способ не подключён: магазин не принимает по нему деньги и не передаёт данные банку.'}</p></div>
+        </details>)}
+        {methods.length === 0 && <div className="sf-pay-card sf-pay-card--preparing"><h3>Способы оплаты уточняются</h3><p>Магазин подтвердит доступные варианты расчёта до оформления заказа.</p></div>}
+      </div>
       {settings.payment && <p className="sf-preserve-lines">{settings.payment}</p>}
     </section>
 

@@ -10,7 +10,6 @@ import { Customers, AnalyticsPanel } from './CustomerPanels';
 const paymentFields = [
   ['payment_sbp', 'СБП (по QR или ссылке)'], ['payment_dolyame', 'Долями'],
   ['payment_installment', 'Рассрочка'], ['payment_credit', 'Кредит'],
-  ['payment_invoice', 'Счёт для организаций'], ['payment_on_delivery', 'Оплата при получении'],
 ] as const;
 
 /** Что владелец должен заполнить, прежде чем объявлять оплату рабочей. Совпадает с проверкой сервера. */

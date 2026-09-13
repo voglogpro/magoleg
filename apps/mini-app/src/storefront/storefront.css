@@ -604,13 +604,21 @@
 .sf-store .sf-info-cta > div { flex: 1 1 220px; min-width: 0; }
 .sf-store .sf-info-cta strong { font-size: 16px; font-weight: 650; }
 .sf-store .sf-info-cta .sf-text-button { flex: 0 0 auto; text-decoration: none; }
-/* Оплата: карточка способа несёт статус, поэтому «доступно» нельзя перепутать с «готовим». */
-.sf-store .sf-pay-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 18px 0 16px; padding: 0; list-style: none; }
-.sf-store .sf-pay-card { display: flex; min-width: 0; flex-direction: column; gap: 8px; padding: 18px 16px; border: 1px solid var(--sf-line); border-radius: 8px; background: var(--sf-surface); animation: sf-rise .4s both; animation-delay: calc(var(--sf-step, 0) * 55ms); }
+/* Компактная оплата: сначала только четыре названия, условия раскрываются по нажатию. */
+.sf-store .sf-pay-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 18px 0 16px; padding: 0; }
+.sf-store .sf-pay-card { min-width: 0; border: 1px solid var(--sf-line); border-radius: 12px; background: var(--sf-surface); overflow: hidden; animation: sf-rise .4s both; animation-delay: calc(var(--sf-step, 0) * 55ms); }
 .sf-store .sf-pay-card--on { border-color: #4d6b52; background: linear-gradient(180deg, #182018, var(--sf-surface)); }
+.sf-store .sf-pay-card summary { display: grid; grid-template-columns: 40px minmax(0, 1fr) 28px; align-items: center; gap: 12px; min-height: 70px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.sf-store .sf-pay-card summary::-webkit-details-marker { display: none; }
+.sf-store .sf-pay-card summary:hover { background: #ffffff05; }
 .sf-store .sf-pay-card__icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 10px; background: rgba(255,107,0,.12); color: var(--sf-orange); }
-.sf-store .sf-pay-card h3 { font-size: 17px; }
-.sf-store .sf-pay-card p { font-size: 14px; line-height: 1.6; color: #c6c7ce; }
+.sf-store .sf-pay-card__heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.sf-store .sf-pay-card__heading strong { font-size: 16px; }
+.sf-store .sf-pay-card__chevron { color: var(--sf-muted); transition: transform .2s ease; }
+.sf-store .sf-pay-card[open] .sf-pay-card__chevron { transform: rotate(180deg); }
+.sf-store .sf-pay-card__body { display: grid; gap: 8px; padding: 0 16px 16px 66px; border-top: 1px solid #ffffff0a; }
+.sf-store .sf-pay-card__body p { padding-top: 12px; font-size: 13px; line-height: 1.55; color: #c6c7ce; }
+.sf-store .sf-pay-card__body p + p { padding-top: 0; }
 .sf-store .sf-status { display: inline-flex; align-self: flex-start; align-items: center; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 650; }
 .sf-store .sf-status--on { background: rgba(120,190,140,.15); color: #9fd6ac; }
 .sf-store .sf-status--preparing { background: rgba(255,107,0,.13); color: #ff984e; }
