@@ -21,3 +21,11 @@ data/
 *.sqlite3-wal
 *.sqlite3-shm
 .crm-test-data/
+
+# Ключи и запросы на сертификаты не попадают в репозиторий.
+*.key
+*.pem
+*.pfx
+*.p12
+*.sig
+g-partner.p10

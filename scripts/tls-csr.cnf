@@ -1,0 +1,49 @@
+# Заготовка запроса на TLS-сертификат для g-partner.ru (ветка RSA).
+#
+#   openssl req -new -newkey rsa:2048 -keyout g-partner.key -out g-partner.p10 \
+#     -config scripts/tls-csr.cnf -nodes
+#
+# Для ГОСТ Р 34.10-2012 этот файл не подходит: запрос создаётся средствами КриптоПро CSP,
+# см. docs/SECURITY-CERTIFICATE.md. Состав полей ниже нужно сверить с инструкцией сервиса —
+# у разных услуг обязательный набор различается.
+#
+# Закрытый ключ g-partner.key остаётся на машине владельца и в репозиторий не попадает.
+
+[ req ]
+default_md         = sha256
+prompt             = no
+distinguished_name = subject
+req_extensions     = extensions
+oid_section        = new_oids
+utf8               = yes
+string_mask        = utf8only
+
+# Имена для отраслевых OID. Записывать их прямо в секции субъекта нельзя: OpenSSL считает
+# всё до первой точки номером-префиксом для повторяющихся полей, и «1.2.643.3.131.1.1»
+# уходит в запрос как «2.643.3.131.1.1» — заявление с таким ИНН завернут.
+[ new_oids ]
+INN    = 1.2.643.3.131.1.1
+OGRNIP = 1.2.643.100.5
+
+[ subject ]
+C                      = RU
+ST                     = 23 Краснодарский край
+L                      = Новороссийск
+street                 = с. Борисовка, пер. Горный, д. 4Б
+O                      = ИП Свиридова А.Ю.
+CN                     = g-partner.ru
+emailAddress           = infog-partner@mail.ru
+# ИНН физического лица (ИП) и ОГРНИП. СНИЛС здесь намеренно не указан:
+# это персональные данные владельца, их место — форма на портале, а не репозиторий.
+INN                    = 231518680513
+OGRNIP                 = 326237500411962
+
+[ extensions ]
+basicConstraints = CA:FALSE
+keyUsage         = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName   = @names
+
+[ names ]
+DNS.1 = g-partner.ru
+DNS.2 = www.g-partner.ru
