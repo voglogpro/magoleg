@@ -14,6 +14,8 @@ function completeForm() {
   fireEvent.change(screen.getByLabelText('Телефон, email или @Telegram'), { target: { value: '+79001234567' } });
   const city = screen.queryByLabelText('Город доставки');
   if (city) fireEvent.change(city, { target: { value: 'Москва' } });
+  const pvz = screen.queryByRole('textbox', { name: /Пункт выдачи СДЭК/ });
+  if (pvz) fireEvent.change(pvz, { target: { value: 'MSK123, ул. Тестовая, 1' } });
   fireEvent.click(screen.getByRole('checkbox'));
 }
 
@@ -34,7 +36,7 @@ describe('guest inquiry', () => {
     const call = vi.mocked(fetch).mock.calls[0];
     const options = call[1]!;
     expect(call[0]).toBe('/api/inquiries');
-    expect(JSON.parse(options.body as string)).toEqual({ name: 'Анна', contact: '+79001234567', city: 'Москва', message: '', items, consent: true });
+    expect(JSON.parse(options.body as string)).toEqual({ name: 'Анна', contact: '+79001234567', city: 'Москва', cdek_pvz: 'MSK123, ул. Тестовая, 1', payment_method: 'sbp', message: '', items, consent: true });
     expect((options.headers as Record<string, string>)['Idempotency-Key']).toMatch(/^[\da-f-]{36}$/);
     expect(screen.queryByRole('button', { name: 'Перейти к оплате' })).not.toBeInTheDocument();
   });

@@ -43,6 +43,10 @@ export function Delivery({ settings, city = '', onCity }: { settings: ShopSettin
   };
   return <>
     <p className="sf-lead">Отправляем технику по всей России: посчитайте срок до своего города за один шаг.</p>
+    <aside className="sf-cdek-notice">
+      <MapPin size={22} aria-hidden="true" />
+      <div><strong>Получение в пункте выдачи СДЭК</strong><p>При оформлении заказа обязательно укажите код или полный адрес удобного ПВЗ. Выбрать пункт можно на <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener noreferrer">официальной карте СДЭК</a>.</p></div>
+    </aside>
     <section className="sf-delivery-calculator" aria-labelledby="delivery-city-title">
       <div className="sf-delivery-calculator__head">
         <span className="sf-delivery-calculator__icon" aria-hidden="true"><Truck size={22} /></span>

@@ -25,10 +25,21 @@ export function paymentMethods(settings: ShopSettings): Method[] {
       ready: 'Ссылка на оплату приходит после подтверждения наличия и итоговой суммы.',
     },
     {
-      id: 'installment', title: 'Рассрочка и кредит', icon: CalendarClock, status: settings.payment_installment,
+      id: 'dolyame', title: 'Долями', icon: CalendarClock, status: settings.payment_dolyame,
+      text: 'Оплата покупки частями через сервис Т‑Банка. Точный график и доступность будут показаны до подтверждения.',
+      ready: 'Переход к оформлению откроется на защищённой странице сервиса.',
+    },
+    {
+      id: 'installment', title: 'Рассрочка', icon: CalendarClock, status: settings.payment_installment,
       text: partner ? `Оформление у партнёра: ${partner}. Решение принимает банк, магазин на него не влияет.`
         : 'Оформление через банк-партнёр. Решение принимает банк, магазин на него не влияет.',
-      ready: 'Условия, ставку и переплату банк раскрывает до подписания договора.',
+      ready: 'Срок, ставку и итоговую стоимость банк раскрывает до подписания договора.',
+    },
+    {
+      id: 'credit', title: 'Кредит', icon: CreditCard, status: settings.payment_credit,
+      text: partner ? `Заявка на покупку в кредит оформляется у партнёра: ${partner}.`
+        : 'Заявка на покупку в кредит оформляется у банка-партнёра.',
+      ready: 'Решение, ставку, полную стоимость кредита и график платежей сообщает банк.',
     },
     {
       id: 'invoice', title: 'Счёт для организаций', icon: Building2, status: settings.payment_invoice,

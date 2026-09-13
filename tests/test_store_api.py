@@ -115,9 +115,12 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.login()
         public = await self.client.get("/api/settings")
         defaults = (await public.json())["settings"]
-        # По умолчанию работает только СБП: остальные способы владелец включает сам.
+        # СБП работает, а финансовые продукты показаны только как готовящиеся к подключению.
         self.assertEqual(defaults["payment_sbp"], "on")
         self.assertEqual(defaults["payment_card"], "off")
+        self.assertEqual(defaults["payment_dolyame"], "preparing")
+        self.assertEqual(defaults["payment_installment"], "preparing")
+        self.assertEqual(defaults["payment_credit"], "preparing")
         self.assertEqual(defaults["payment_on_delivery"], "off")
         for values in ({"payment_card": "yes"}, {"payment_invoice": ""}, {"payment_sbp": "включено"}):
             response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
@@ -515,7 +518,8 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.client.put(f"/api/admin/products/{product['id']}", json={"price": 70000.25}, headers=self.headers)
         response = await self.client.post("/api/inquiries", json={
             "name": "Customer", "contact": "+7 999 111 22 33", "message": "Please confirm stock.",
-            "city": "Краснодар", "items": [{"product_id": product["id"], "quantity": 2}], "consent": True,
+            "city": "Краснодар", "cdek_pvz": "KSD123, ул. Тестовая, 1",
+            "items": [{"product_id": product["id"], "quantity": 2}], "consent": True,
         }, headers={"Origin": self.origin})
         self.assertEqual(response.status, 201, await response.text())
         receipt = (await response.json())["inquiry"]
@@ -525,6 +529,8 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         inquiry = (await listing.json())["inquiries"][0]
         self.assertEqual(inquiry["items"][0]["price"], 70000.25)
         self.assertEqual(inquiry["contact"], "+7 999 111 22 33")
+        self.assertEqual(inquiry["cdek_pvz"], "KSD123, ул. Тестовая, 1")
+        self.assertEqual(inquiry["payment_method"], "sbp")
         self.assertIn("consent_at", inquiry)
         response = await self.client.patch(f"/api/admin/inquiries/{inquiry['id']}", json={"status": "contacted"}, headers=self.headers)
         self.assertEqual((await response.json())["inquiry"]["status"], "contacted")
@@ -874,7 +880,8 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         product = await self.published_product()
         await self.enable_inquiries()
         order = {"name": "Customer", "contact": "+7 999 111 22 33", "message": "Please confirm stock.",
-                 "city": "Казань", "items": [{"product_id": product["id"], "quantity": 1}], "consent": True}
+                 "city": "Казань", "cdek_pvz": "KZN456, ул. Тестовая, 2",
+                 "items": [{"product_id": product["id"], "quantity": 1}], "consent": True}
         anonymous = await self.client.post("/api/inquiries", json=order, headers={"Origin": self.origin})
         self.assertEqual(anonymous.status, 201, await anonymous.text())
         await self.assert_error(await self.client.get("/api/account/inquiries"), 401)

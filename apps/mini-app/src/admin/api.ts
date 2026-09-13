@@ -32,6 +32,8 @@ export type Inquiry = {
   name: string;
   contact: string;
   city: string;
+  cdek_pvz?: string;
+  payment_method?: 'sbp' | 'dolyame' | 'installment' | 'credit';
   message: string;
   items: { product_id: string; name: string; price: number; quantity: number; image_url: string }[];
   total: number;

@@ -60,8 +60,8 @@ MANIFEST_ONLY_FIELDS = frozenset({"photo_files", "replace_photos"})
 PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "shop_name": "G-Partner", "phone": "",
-    "telegram": "", "telegram_channel": "", "address": "", "hours": "", "delivery": "",
+    "shop_name": "G-Partner", "phone": "+7 (988) 414-87-54",
+    "telegram": "@GpartnerStore", "telegram_channel": "", "address": "", "hours": "", "delivery": "",
     "payment": "", "legal_name": "", "legal_details": "", "warranty": "",
     "inquiries_enabled": False,
     "delivery_origin": "", "delivery_schedule": "", "return_address": "",
@@ -69,14 +69,16 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "contacts_document": "",
     # Способы расчёта. "on" публикуется как рабочий, поэтому включается только вместе
     # с реквизитами продавца: покупатель не должен видеть оплату, которой ещё нет.
-    "payment_sbp": "on", "payment_card": "off", "payment_installment": "off",
+    "payment_sbp": "on", "payment_card": "off", "payment_dolyame": "preparing",
+    "payment_installment": "preparing", "payment_credit": "preparing",
     "payment_invoice": "off", "payment_on_delivery": "off",
-    "payment_provider": "", "payment_installment_partner": "", "payment_receipt": "",
+    "payment_provider": "Т-Бизнес", "payment_installment_partner": "Т-Банк", "payment_receipt": "",
 }
-PAYMENT_STATUS_FIELDS = ("payment_sbp", "payment_card", "payment_installment", "payment_invoice", "payment_on_delivery")
+PAYMENT_STATUS_FIELDS = ("payment_sbp", "payment_card", "payment_dolyame", "payment_installment", "payment_credit", "payment_invoice", "payment_on_delivery")
 PAYMENT_STATUSES = ("off", "preparing", "on")
 PAYMENT_LABELS = {
-    "payment_sbp": "оплаты через СБП", "payment_card": "оплаты картой", "payment_installment": "рассрочки и кредита",
+    "payment_sbp": "оплаты через СБП", "payment_card": "оплаты картой", "payment_dolyame": "оплаты Долями",
+    "payment_installment": "рассрочки", "payment_credit": "кредита",
     "payment_invoice": "счёта для организаций", "payment_on_delivery": "оплаты при получении",
 }
 PRODUCT_CATEGORIES = ("kick-scooter", "scooter", "e-bike", "atv", "parts", "accessories")
@@ -302,6 +304,23 @@ class Store:
             connection.execute("CREATE INDEX IF NOT EXISTS inquiries_customer ON inquiries(customer_id, created_at)")
             connection.execute("INSERT OR IGNORE INTO settings(id,data) VALUES(1,?)",
                                (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),))
+            # One-time launch migration: fill only values that the owner has not
+            # already configured. Later CRM changes remain authoritative.
+            launch_key = "launch-contacts-payments-2026-09-13"
+            if connection.execute("SELECT 1 FROM meta WHERE key=?", (launch_key,)).fetchone() is None:
+                row = connection.execute("SELECT data FROM settings WHERE id=1").fetchone()
+                launch = json.loads(row["data"])
+                for key, value in {
+                    "phone": "+7 (988) 414-87-54", "telegram": "@GpartnerStore",
+                    "payment_provider": "Т-Бизнес", "payment_installment_partner": "Т-Банк",
+                }.items():
+                    if not launch.get(key):
+                        launch[key] = value
+                for key in ("payment_dolyame", "payment_installment", "payment_credit"):
+                    if launch.get(key, "off") == "off":
+                        launch[key] = "preparing"
+                connection.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(launch, ensure_ascii=False),))
+                connection.execute("INSERT INTO meta(key,value) VALUES(?,?)", (launch_key, now_iso()))
             self.restore_catalog(connection)
             self.restore_catalog(
                 connection,
@@ -909,8 +928,9 @@ def payment_blockers(settings: dict[str, Any]) -> list[str]:
     missing = []
     if settings["payment_card"] == "on" and not settings["payment_provider"]:
         missing.append("название платёжного сервиса")
-    if settings["payment_installment"] == "on" and not settings["payment_installment_partner"]:
-        missing.append("банк-партнёр для рассрочки")
+    if any(settings[key] == "on" for key in ("payment_dolyame", "payment_installment", "payment_credit")) \
+            and not settings["payment_installment_partner"]:
+        missing.append("банк-партнёр для Долями, рассрочки или кредита")
     return missing
 
 
@@ -1000,12 +1020,15 @@ async def create_inquiry(request: web.Request) -> web.Response:
     # Behind BotHost many customers share one proxy IP. Keep a broad peer ceiling
     # and a separate per-contact limit instead of denying the sixth real customer.
     store.rate_limit(request, "inquiry-peer", 60, 600)
-    require(not (set(data) - {"name", "contact", "city", "message", "items", "consent"}), "Неизвестные поля заявки.")
+    require(not (set(data) - {"name", "contact", "city", "cdek_pvz", "payment_method", "message", "items", "consent"}), "Неизвестные поля заявки.")
     require(data.get("consent") is True, "Нужно согласие на обработку данных для ответа на заявку.")
     name = text_value(data.get("name"), "Имя", 100, 2)
     contact = text_value(data.get("contact"), "Контакт", 150, 5)
     message = text_value(data.get("message", ""), "Комментарий", 3000)
     city = text_value(data.get("city", ""), "Город доставки", 80)
+    cdek_pvz = text_value(data.get("cdek_pvz", ""), "Пункт выдачи СДЭК", 300)
+    payment_method = text_value(data.get("payment_method", "sbp"), "Способ оплаты", 24, 1)
+    require(payment_method in ("sbp", "dolyame", "installment", "credit"), "Выберите доступный способ оплаты.")
     require(valid_phone(contact) or
             bool(re.fullmatch(r"@?[A-Za-z][A-Za-z0-9_]{4,31}", contact)) or
             bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact)),
@@ -1021,6 +1044,7 @@ async def create_inquiry(request: web.Request) -> web.Response:
     require(isinstance(requested, list) and len(requested) <= 30, "В заявке допускается не больше 30 моделей.")
     require(bool(requested) or len(message) >= 10, "Выберите товар или опишите вопрос (от 10 символов).")
     require(not requested or len(city) >= 2, "Укажите город доставки — магазин отправляет заказы по России.")
+    require(not requested or len(cdek_pvz) >= 3, "Укажите адрес или код пункта выдачи СДЭК.")
     with store.connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
         # The second check is inside the write transaction: concurrent retries
@@ -1047,7 +1071,8 @@ async def create_inquiry(request: web.Request) -> web.Response:
             items.append({"product_id": product_id, "name": product["name"], "price": product["price"],
                           "quantity": quantity, "image_url": product["image_url"]})
         timestamp = now_iso()
-        inquiry = {"id": secrets.token_hex(16), "name": name, "contact": contact, "city": city, "message": message,
+        inquiry = {"id": secrets.token_hex(16), "name": name, "contact": contact, "city": city,
+                   "cdek_pvz": cdek_pvz, "payment_method": payment_method, "message": message,
                    "items": items, "total": float(total.quantize(Decimal(".01"))), "status": "new",
                    "created_at": timestamp, "updated_at": timestamp, "consent_at": timestamp}
         connection.execute("INSERT INTO inquiries(id,data,status,created_at,updated_at,customer_id) VALUES(?,?,?,?,?,?)",

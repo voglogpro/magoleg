@@ -83,7 +83,7 @@ try {
     await page.goto(`${base}/#consent`);
     await page.locator('.sf-info-section').first().waitFor();
     assert.equal(await page.locator('.sf-document-draft').count(), 0);
-    assert.match(await page.locator('main').innerText(), /infog-partner@mail\.ru/);
+    assert.match(await page.locator('main').innerText(), /supp\.g-partner@mail\.com/);
     await page.goto(`${base}/#returns`);
     await page.locator('.sf-document-draft').waitFor();
     await page.getByText(/Возврат товара не прекращает кредитный договор автоматически/).waitFor();

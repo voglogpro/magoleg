@@ -34,7 +34,7 @@ export type Product = {
 /** Способ расчёта объявляется рабочим только после подтверждения владельцем в CRM. */
 export type PaymentStatus = 'off' | 'preparing' | 'on';
 export const paymentStatuses: PaymentStatus[] = ['off', 'preparing', 'on'];
-export const paymentStatusFields = ['payment_sbp', 'payment_card', 'payment_installment', 'payment_invoice', 'payment_on_delivery'] as const;
+export const paymentStatusFields = ['payment_sbp', 'payment_card', 'payment_dolyame', 'payment_installment', 'payment_credit', 'payment_invoice', 'payment_on_delivery'] as const;
 
 export type ShopSettings = {
   shop_name: string;
@@ -59,7 +59,9 @@ export type ShopSettings = {
   contacts_document: string;
   payment_sbp: PaymentStatus;
   payment_card: PaymentStatus;
+  payment_dolyame: PaymentStatus;
   payment_installment: PaymentStatus;
+  payment_credit: PaymentStatus;
   payment_invoice: PaymentStatus;
   payment_on_delivery: PaymentStatus;
   payment_provider: string;
@@ -70,7 +72,8 @@ export type ShopSettings = {
 export type CartItem = { product_id: string; quantity: number };
 export const MAX_QUANTITY = 20;
 export const MAX_CART_MODELS = 30;
-export type InquiryPayload = { name: string; contact: string; city: string; message: string; items: CartItem[]; consent: true };
+export type PaymentChoice = 'sbp' | 'dolyame' | 'installment' | 'credit';
+export type InquiryPayload = { name: string; contact: string; city: string; cdek_pvz: string; payment_method: PaymentChoice; message: string; items: CartItem[]; consent: true };
 export type Inquiry = { id: string; total: number | null; status: string };
 export type Filters = {
   category: Category | 'all';
@@ -87,8 +90,9 @@ export const defaultSettings: ShopSettings = {
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
   delivery_origin: '', delivery_schedule: '', return_address: '',
   privacy_document: '', consent_document: '', offer_document: '', returns_document: '', contacts_document: '',
-  payment_sbp: 'on', payment_card: 'off', payment_installment: 'off', payment_invoice: 'off',
-  payment_on_delivery: 'off', payment_provider: '', payment_installment_partner: '', payment_receipt: '',
+  payment_sbp: 'on', payment_card: 'off', payment_dolyame: 'off', payment_installment: 'off',
+  payment_credit: 'off', payment_invoice: 'off', payment_on_delivery: 'off',
+  payment_provider: '', payment_installment_partner: '', payment_receipt: '',
 };
 export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
 

@@ -8,7 +8,8 @@ import './admin.css';
 import { Customers, AnalyticsPanel } from './CustomerPanels';
 
 const paymentFields = [
-  ['payment_sbp', 'СБП (по QR или ссылке)'], ['payment_card', 'Картой онлайн'], ['payment_installment', 'Рассрочка и кредит'],
+  ['payment_sbp', 'СБП (по QR или ссылке)'], ['payment_card', 'Картой онлайн'], ['payment_dolyame', 'Долями'],
+  ['payment_installment', 'Рассрочка'], ['payment_credit', 'Кредит'],
   ['payment_invoice', 'Счёт для организаций'], ['payment_on_delivery', 'Оплата при получении'],
 ] as const;
 
@@ -373,7 +374,7 @@ function Inquiries({ request, onBusy }: PanelProps) {
     <label className="crm-inquiry-filter">Статус заявки<select value={filter} disabled={loading || Boolean(busyId)} onChange={event => { setFilter(event.target.value); setPage(1); setMessage(''); }}><option value="all">Все заявки</option><option value="new">Новые</option><option value="contacted">Связались</option><option value="closed">Закрытые</option></select></label>
     {loading ? <p role="status">Загружаем заявки…</p> : error ? null : !inquiries.length ? <div className="crm-empty"><h2>{filter !== 'all' ? 'В этом статусе заявок нет' : 'Заявок пока нет'}</h2><p>{filter !== 'all' ? 'Выберите другой статус, чтобы увидеть обращения.' : 'Здесь появятся обращения после публикации товаров и включения приёма заявок в настройках магазина.'}</p></div> : <div className="crm-inquiry-list">{inquiries.map(inquiry => <article className="crm-inquiry" key={inquiry.id}>
       <div className="crm-inquiry-head"><div><h2>{inquiry.name}</h2><p className="crm-help">{formatDate(inquiry.created_at)} · № {inquiry.id}</p></div><label>Статус<select aria-label={`Статус заявки ${inquiry.id}`} value={inquiry.status} disabled={Boolean(busyId)} onChange={event => void changeStatus(inquiry.id, event.target.value as Inquiry['status'])}><option value="new">Новая</option><option value="contacted">Связались</option><option value="closed">Закрыта</option></select></label></div>
-      <dl className="crm-contact-data"><dt>Связаться с покупателем</dt><dd>{inquiry.contact}</dd><dt>Город доставки</dt><dd>{inquiry.city || 'не указан'}</dd>{inquiry.message && <><dt>Комментарий</dt><dd>{inquiry.message}</dd></>}</dl>
+      <dl className="crm-contact-data"><dt>Связаться с покупателем</dt><dd>{inquiry.contact}</dd><dt>Город доставки</dt><dd>{inquiry.city || 'не указан'}</dd><dt>ПВЗ СДЭК</dt><dd>{inquiry.cdek_pvz || 'не указан'}</dd><dt>Оплата</dt><dd>{{ sbp: 'СБП', dolyame: 'Долями', installment: 'Рассрочка', credit: 'Кредит' }[inquiry.payment_method || 'sbp']}</dd>{inquiry.message && <><dt>Комментарий</dt><dd>{inquiry.message}</dd></>}</dl>
       <div className="crm-inquiry-items">{inquiry.items.map((item, index) => <div key={`${item.product_id}-${index}`}><span>{item.name}<small>{item.quantity} шт. × {formatPrice(item.price)}</small></span><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}</div><p className="crm-inquiry-total">Сумма товаров <strong>{formatPrice(inquiry.total)}</strong></p>
     </article>)}</div>}
     {!loading && !error && total > 0 && <nav className="crm-pagination" aria-label="Страницы заявок">

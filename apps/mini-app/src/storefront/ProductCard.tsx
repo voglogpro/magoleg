@@ -1,5 +1,5 @@
 import { useRef, useState, type MouseEvent, type PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, CreditCard, Heart, ShoppingCart } from 'lucide-react';
 import { effectiveLicense, money, powerLabel, productImage } from './domain';
 import { badgeLabels, categoryLabels, licenseShort, stockLabels, vehicleCategories, type Product } from './types';
 
@@ -75,9 +75,10 @@ function ProductCardGallery({ product, href }: { product: Product; href: string 
   </div>;
 }
 
-export function ProductCard({ product, favorite, compared, inCart, onFavorite, onCompare, onAdd }: {
+export function ProductCard({ product, favorite, compared, inCart, financeAvailable = false, onFavorite, onCompare, onAdd, onFinance }: {
   product: Product; favorite: boolean; compared: boolean; inCart: boolean;
-  onFavorite: (id: string) => void; onCompare: (id: string) => void; onAdd: (id: string) => void;
+  financeAvailable?: boolean; onFavorite: (id: string) => void; onCompare: (id: string) => void;
+  onAdd: (id: string) => void; onFinance?: (id: string) => void;
 }) {
   const href = `#product/${encodeURIComponent(product.id)}`;
   // The category is already printed above the title; keep the full model name in details and accessibility text.
@@ -101,6 +102,7 @@ export function ProductCard({ product, favorite, compared, inCart, onFavorite, o
       <strong className="sf-product-price">{money(product.price)}</strong>
       <div className="sf-card-actions">
       {inCart ? <a className="sf-button sf-button--secondary" href="#cart">В корзине</a> : <button className="sf-button" type="button" disabled={product.stock_status === 'out-of-stock'} onClick={() => onAdd(product.id)}><ShoppingCart size={17} aria-hidden="true" />{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}
+      {financeAvailable && onFinance && product.stock_status !== 'out-of-stock' && <button className="sf-finance-button" type="button" onClick={() => onFinance(product.id)}><CreditCard size={16} aria-hidden="true" />Купить в рассрочку / кредит</button>}
       </div>
     </div>
   </article>;

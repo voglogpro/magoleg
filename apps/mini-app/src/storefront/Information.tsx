@@ -18,7 +18,7 @@ export function ContactLinks({ settings }: { settings: ShopSettings }) {
   return <div className="sf-contact-links">
     {phone && <a className="sf-button sf-button--secondary" href={phone}>{settings.phone}</a>}
     {telegram && <a className="sf-button sf-button--secondary" href={telegram} target="_blank" rel="noopener noreferrer">Написать в Telegram</a>}
-    {!phone && !telegram && <p className="sf-muted">Контакты магазина готовятся к публикации.</p>}
+    <a className="sf-button sf-button--secondary" href={`mailto:${seller.email}`}>Почта поддержки</a>
   </div>;
 }
 
@@ -71,7 +71,7 @@ export function Information({ topic, settings, city = '', onCity }: { topic: str
       <p className="sf-lead">{settings.shop_name}</p>
       {settings.contacts_document
         ? <div className="sf-document-body sf-preserve-lines">{settings.contacts_document}</div>
-        : <section className="sf-info-section"><h2>Как с нами связаться</h2><p>Электронная почта для обращений, гарантийных случаев и возврата: <a href={`mailto:${seller.email}`}>{seller.email}</a>.</p><p>Ответ приходит на тот же адрес. Не отправляйте реквизиты карты и коды подтверждения в письме.</p></section>}
+        : <section className="sf-info-section"><h2>Как с нами связаться</h2><p>Поддержка покупателей: <a href={`mailto:${seller.email}`}>{seller.email}</a>, телефон {settings.phone || '+7 (988) 414-87-54'}, Telegram <a href="https://t.me/GpartnerStore" target="_blank" rel="noopener noreferrer">@GpartnerStore</a>.</p><p>Ответ приходит на тот же контакт. Не отправляйте реквизиты карты и коды подтверждения в письме.</p></section>}
       <ContactLinks settings={settings} />
       {settings.address && <Paragraph title="Адрес" text={settings.address} fallback="" />}
       {settings.hours && <Paragraph title="Время работы" text={settings.hours} fallback="" />}
