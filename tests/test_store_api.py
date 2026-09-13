@@ -545,7 +545,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.assert_error(await self.client.post("/api/inquiries", json={**payload, "items": [
             {"product_id": "a" * 32, "quantity": 1, "price": 1},
         ]}), 400)
-        await self.assert_error(await self.client.post("/api/inquiries", json={**payload, "city": "Москва", "items": [
+        await self.assert_error(await self.client.post("/api/inquiries", json={**payload, "city": "Москва", "cdek_pvz": "MSK123", "items": [
             {"product_id": "a" * 32, "quantity": 1},
         ]}), 409)
         # A cart without a destination cannot be quoted for a country-wide shop.
