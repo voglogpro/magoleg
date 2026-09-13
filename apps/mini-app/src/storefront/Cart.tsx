@@ -3,7 +3,7 @@ import { ArrowRight, ChevronRight, Clock3, CreditCard, MapPin, Package, ShieldCh
 import { cartTotal, catalogHref, money } from './domain';
 import { cityKey, parseDeliverySchedule } from './delivery-estimates';
 import { findDeliveryZone, zoneTerm } from './delivery-zones';
-import { ProductPhoto } from './ProductCard';
+import { FinancePreview, ProductPhoto } from './ProductCard';
 import { categoryLabels, MAX_QUANTITY, stockLabels, type CartItem, type Product, type ShopSettings } from './types';
 
 /** The approved cart reference supplies the layout; all commercial data comes from the store. */
@@ -49,7 +49,7 @@ export function Cart({ items, products, settings, city, onCity, onRetry, onQuant
         {summary.unknownPrices > 0 && <p className="sf-muted">Для {summary.unknownPrices} шт. цена будет уточнена. Это не полная сумма заявки.</p>}
       </section>
       {!settings.inquiries_enabled ? <a className="sf-button sf-cart-primary" href="#contact"><CreditCard size={23} />Связаться с магазином</a> : <button className="sf-button sf-cart-primary" onClick={startInquiry} disabled={summary.unavailable > 0}><CreditCard size={23} />Перейти к оформлению</button>}
-      {financeAvailable && <a className="sf-button sf-button--finance sf-cart-finance" href={settings.inquiries_enabled ? '#cart?finance=1' : '#payment'} aria-label="Кредит и рассрочка" onClick={settings.inquiries_enabled ? startInquiry : undefined}><CreditCard size={20} />Купить в рассрочку / кредит</a>}
+      {financeAvailable && <FinancePreview price={summary.unknownPrices ? null : summary.knownTotal} />}
       <p className="sf-cart-reassurance"><ShieldCheck size={15} /><span>Без списания денег · Наличие подтвердит магазин</span></p>
       <section className="sf-cart-delivery sf-cart-panel" aria-label="Получение заказа">
         <div className="sf-cart-delivery-title"><MapPin size={28} /><div><h2>Доставка и получение</h2><p>Выберите удобный город получения</p></div></div>

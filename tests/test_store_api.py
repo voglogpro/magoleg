@@ -125,20 +125,16 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         for values in ({"payment_card": "yes"}, {"payment_invoice": ""}, {"payment_sbp": "включено"}):
             response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
             await self.assert_error(response, 400)
-        # Карту нельзя объявить рабочей без названия платёжного сервиса.
+        # Оплата банковской картой отключена и не может быть снова включена из CRM.
         response = await self.client.put("/api/admin/settings", json={"payment_card": "on"}, headers=self.headers)
         await self.assert_error(response, 400)
         response = await self.client.put("/api/admin/settings", json={
             "payment_card": "on", "payment_provider": "Тестовый платёжный сервис",
             "payment_receipt": "Чек направляется покупателю.",
         }, headers=self.headers)
-        self.assertEqual(response.status, 200, await response.text())
-        saved = (await (await self.client.get("/api/settings")).json())["settings"]
-        self.assertEqual(saved["payment_card"], "on")
-        self.assertEqual(saved["payment_provider"], "Тестовый платёжный сервис")
-        # Рассрочка без банка-партнёра остаётся необъявленной.
-        response = await self.client.put("/api/admin/settings", json={"payment_installment": "on"}, headers=self.headers)
         await self.assert_error(response, 400)
+        saved = (await (await self.client.get("/api/settings")).json())["settings"]
+        self.assertEqual(saved["payment_card"], "off")
 
     async def test_drive_payload_and_licence_categories_round_trip(self):
         await self.login()

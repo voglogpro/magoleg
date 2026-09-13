@@ -24,15 +24,16 @@ describe('раздел оплаты', () => {
   });
 
   it('не выдаёт неподключённый способ за рабочий', () => {
-    render(<Payment settings={withSettings({ payment_sbp: 'off', payment_card: 'preparing' })} />);
+    render(<Payment settings={withSettings({ payment_sbp: 'off', payment_installment: 'preparing' })} />);
     expect(screen.getByText('Готовим подключение')).toBeInTheDocument();
     expect(screen.queryByText('Доступно')).toBeNull();
     expect(screen.getByText(/Сейчас сайт принимает заявку без списания денег/)).toBeInTheDocument();
   });
 
-  it('называет подтверждённый платёжный сервис, когда карта включена', () => {
+  it('не показывает оплату банковской картой даже для старой настройки', () => {
     render(<Payment settings={withSettings({ payment_card: 'on', payment_provider: 'Тестовый сервис' })} />);
-    expect(screen.getByText(/Оплата через платёжный сервис Тестовый сервис/)).toBeInTheDocument();
+    expect(screen.queryByText('Банковской картой онлайн')).toBeNull();
+    expect(screen.queryByText(/Тестовый сервис/)).toBeNull();
   });
 
   it('показывает порядок заказа и предупреждение о безопасности расчётов', () => {

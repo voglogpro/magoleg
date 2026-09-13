@@ -23,7 +23,7 @@ const menuTitles: Record<string, string> = {
 
 /** Короткая подпись для значка оплаты: полное название способа в плашку не помещается. */
 const payBadges: Record<string, string> = {
-  sbp: 'СБП', card: 'Картой', installment: 'Рассрочка', invoice: 'Счёт', 'on-delivery': 'При получении',
+  sbp: 'СБП', dolyame: 'Долями', installment: 'Рассрочка', credit: 'Кредит', invoice: 'Счёт', 'on-delivery': 'При получении',
 };
 
 export function ShopMenu({ settings }: { settings: ShopSettings }) {

@@ -1,5 +1,5 @@
 import { useRef, useState, type MouseEvent, type PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, CreditCard, Heart, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, ShoppingCart } from 'lucide-react';
 import { effectiveLicense, money, powerLabel, productImage } from './domain';
 import { badgeLabels, categoryLabels, licenseShort, stockLabels, vehicleCategories, type Product } from './types';
 
@@ -75,10 +75,23 @@ function ProductCardGallery({ product, href }: { product: Product; href: string 
   </div>;
 }
 
-export function ProductCard({ product, favorite, compared, inCart, financeAvailable = false, onFavorite, onCompare, onAdd, onFinance }: {
+export function FinancePreview({ price, compact = false }: { price: number | null; compact?: boolean }) {
+  if (price === null) return null;
+  const part = (months: number) => money(Math.ceil(price / months));
+  return <aside className={`sf-finance-preview${compact ? ' sf-finance-preview--compact' : ''}`} aria-label="Предварительный расчёт оплаты частями">
+    <dl>
+      <div><dt>Долями</dt><dd>4 × {part(4)}</dd></div>
+      <div><dt>Рассрочка</dt><dd>12 × {part(12)}</dd></div>
+      <div><dt>{compact ? 'Кредит, ориентир' : 'Кредит*'}</dt><dd>от {part(24)}/мес. × 24</dd></div>
+    </dl>
+    {!compact && <p>*Предварительно без учёта ставки банка. Точный платёж, ставка и полная стоимость будут указаны Т‑Банком до подписания договора.</p>}
+  </aside>;
+}
+
+export function ProductCard({ product, favorite, compared, inCart, financeAvailable = false, onFavorite, onCompare, onAdd }: {
   product: Product; favorite: boolean; compared: boolean; inCart: boolean;
   financeAvailable?: boolean; onFavorite: (id: string) => void; onCompare: (id: string) => void;
-  onAdd: (id: string) => void; onFinance?: (id: string) => void;
+  onAdd: (id: string) => void;
 }) {
   const href = `#product/${encodeURIComponent(product.id)}`;
   // The category is already printed above the title; keep the full model name in details and accessibility text.
@@ -100,9 +113,9 @@ export function ProductCard({ product, favorite, compared, inCart, financeAvaila
       </dl>
       {vehicleCategories.includes(product.category) && license !== 'unknown' && <p className="sf-license-caption">{licenseShort[license]}</p>}
       <strong className="sf-product-price">{money(product.price)}</strong>
+      {financeAvailable && product.stock_status !== 'out-of-stock' && <FinancePreview price={product.price} compact />}
       <div className="sf-card-actions">
       {inCart ? <a className="sf-button sf-button--secondary" href="#cart">В корзине</a> : <button className="sf-button" type="button" disabled={product.stock_status === 'out-of-stock'} onClick={() => onAdd(product.id)}><ShoppingCart size={17} aria-hidden="true" />{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}
-      {financeAvailable && onFinance && product.stock_status !== 'out-of-stock' && <button className="sf-finance-button" type="button" onClick={() => onFinance(product.id)}><CreditCard size={16} aria-hidden="true" />Купить в рассрочку / кредит</button>}
       </div>
     </div>
   </article>;

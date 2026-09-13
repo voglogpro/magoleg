@@ -53,6 +53,7 @@ export function filterProducts(products: Product[], filters: Filters) {
     && (filters.tag === 'all' || product.tags.includes(filters.tag))
     && (filters.license === 'all' || effectiveLicense(product) === filters.license)
     && (filters.stock === 'all' || product.stock_status === filters.stock)
+    && (!filters.sale || product.badge === 'best-price' || product.badge === 'value')
     && (minimum === null || (product.price !== null && product.price >= minimum))
     && (maximum === null || (product.price !== null && product.price <= maximum)));
   const scores = filters.sort === 'value' ? valueScores(matched) : null;
@@ -111,6 +112,7 @@ export function parseFilters(search: string): Filters {
     tag: get('tag', ['all', ...Object.keys(tagLabels)], 'all') as Filters['tag'],
     license: get('license', ['all', 'a', 'm', 'not-required', 'required', 'unknown'], 'all') as Filters['license'],
     stock: get('stock', ['all', 'in-stock', 'preorder', 'out-of-stock'], 'all') as Filters['stock'],
+    sale: params.get('sale') === '1',
     min: amount('min'), max: amount('max'),
     sort: get('sort', ['featured', 'value', 'price-asc', 'price-desc', 'name'], 'featured') as Filters['sort'],
   };
@@ -123,6 +125,7 @@ export function catalogHref(patch: Partial<Filters> = {}) {
   if (filters.tag !== 'all') params.set('tag', filters.tag);
   if (filters.license !== 'all') params.set('license', filters.license);
   if (filters.stock !== 'all') params.set('stock', filters.stock);
+  if (filters.sale) params.set('sale', '1');
   if (filters.min) params.set('min', filters.min);
   if (filters.max) params.set('max', filters.max);
   if (filters.sort !== 'featured') params.set('sort', filters.sort);

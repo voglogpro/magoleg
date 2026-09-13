@@ -41,6 +41,11 @@ describe('catalogue filtering', () => {
     expect(filterProducts([product, other], { ...defaultFilters, tag: 'courier' })).toEqual([product]);
     expect(filterProducts([product, other], { ...defaultFilters, tag: 'women' })).toEqual([]);
   });
+  it('opens discounts only for cards marked as best price or value', () => {
+    const sale = { ...product, id: 'sale', badge: 'best-price' as const };
+    expect(filterProducts([product, sale], { ...defaultFilters, sale: true })).toEqual([sale]);
+    expect(catalogHref({ sale: true })).toBe('#catalog?sale=1');
+  });
   it('round-trips shareable filter URLs and rejects invalid parameters', () => {
     const filters = { ...defaultFilters, category: 'scooter' as const, tag: 'courier' as const, license: 'required' as const, min: '5000', sort: 'price-asc' as const };
     expect(parseFilters(catalogHref(filters).split('?')[1])).toEqual(filters);

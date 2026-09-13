@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, Home as HomeIcon, Menu, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Trash2, UserRound, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowLeftRight, Heart, Home as HomeIcon, Menu, MessageCircle, PackageOpen, Search, ShoppingBag, SlidersHorizontal, Trash2, UserRound, X, type LucideIcon } from 'lucide-react';
 import { Account } from './Account';
 import { Cart } from './Cart';
 import { CityBar, CityPicker } from './CityPicker';
 import { Home } from './Home';
 import { PickCards } from './PickCards';
-import { cargoLabel, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, powerLabel, powerTotal, sanitizeCity, sanitizeIds, smartPicks } from './domain';
+import { cargoLabel, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, powerLabel, powerTotal, sanitizeCity, sanitizeIds, smartPicks, telegramLink } from './domain';
 import { Analytics, trackCommerce, trackGoal } from './Analytics';
 import { useCustomerCart } from './CustomerData';
 import { seller } from './legal-texts';
 import { useAccount, useHashRoute, useStoreData, useStored } from './hooks';
 import { Information, infoTitles } from './Information';
 import { InquiryConfirmation, InquiryForm } from './InquiryForm';
-import { ProductCard, ProductGallery, ProductPhoto } from './ProductCard';
+import { FinancePreview, ProductCard, ProductGallery, ProductPhoto } from './ProductCard';
 import { ShopMenu } from './ShopMenu';
 import { activePickLabels, categoryLabels, driveLabels, licenseLabels, MAX_CART_MODELS, MAX_QUANTITY, stockLabels, tagLabels, vehicleCategories, type Filters, type Inquiry, type Product } from './types';
 import './storefront.css';
@@ -61,7 +61,8 @@ export function Storefront() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const selectedFavorites = products.filter(product => favorites.includes(product.id));
   const selectedCompare = compare.map(id => products.find(product => product.id === id)).filter((product): product is Product => Boolean(product));
-  const activeFilterCount = [filters.category !== 'all', filters.tag !== 'all', filters.license !== 'all', filters.stock !== 'all', Boolean(filters.min || filters.max)].filter(Boolean).length;
+  const activeFilterCount = [filters.category !== 'all', filters.tag !== 'all', filters.license !== 'all', filters.stock !== 'all', filters.sale, Boolean(filters.min || filters.max)].filter(Boolean).length;
+  const supportChat = telegramLink(settings.telegram) || 'https://t.me/GpartnerStore';
   const isProduct = path.startsWith('product/');
   let productId = '';
   if (isProduct) { try { productId = decodeURIComponent(path.slice(8)); } catch { /* Invalid deep link is rendered as not found. */ } }
@@ -108,12 +109,6 @@ export function Storefront() {
     trackCommerce('add', product);
     setNotice('Товар добавлен в корзину. Там можно уточнить наличие и получение.');
   };
-  const buyOnFinance = (id: string) => {
-    const product = products.find(item => item.id === id);
-    if (!product || product.stock_status === 'out-of-stock') { setNotice('Сейчас эту модель нельзя оформить.'); return; }
-    addToCart(id);
-    navigate('#cart?finance=1');
-  };
   const removeCart = (id: string) => { trackCommerce('remove', products.find(p => p.id === id), cart.find(p => p.product_id === id)?.quantity || 1); setCart(previous => previous.filter(item => item.product_id !== id)); setNotice('Товар удалён из корзины.'); };
   const changeQuantity = (id: string, quantity: number) => {
     const next = Math.max(1, Math.min(MAX_QUANTITY, quantity));
@@ -122,7 +117,7 @@ export function Storefront() {
     setCart(previous => previous.map(item => item.product_id === id ? { ...item, quantity: next } : item));
   };
   const cards = (items: Product[]) => <div className={`sf-product-grid${path === 'catalog' && layout === 'list' ? ' sf-product-grid--list' : ''}`}>
-    {items.map(product => <ProductCard key={product.id} product={product} favorite={favorites.includes(product.id)} compared={compare.includes(product.id)} inCart={cart.some(item => item.product_id === product.id)} financeAvailable={[settings.payment_dolyame, settings.payment_installment, settings.payment_credit].some(status => status !== 'off')} onFavorite={toggleFavorite} onCompare={toggleCompare} onAdd={addToCart} onFinance={buyOnFinance} />)}
+    {items.map(product => <ProductCard key={product.id} product={product} favorite={favorites.includes(product.id)} compared={compare.includes(product.id)} inCart={cart.some(item => item.product_id === product.id)} financeAvailable={[settings.payment_dolyame, settings.payment_installment, settings.payment_credit].some(status => status !== 'off')} onFavorite={toggleFavorite} onCompare={toggleCompare} onAdd={addToCart} />)}
   </div>;
   const catalogState = loading ? <p className="sf-loading" role="status">Загружаем каталог…</p> : error ? <div className="sf-empty" role="alert"><h2>Каталог временно недоступен</h2><p>{error}</p><button className="sf-button" onClick={retry}>Повторить загрузку</button></div> : null;
   const featured = [...products.filter(product => product.featured), ...products.filter(product => !product.featured)].slice(0, 4);
@@ -134,7 +129,7 @@ export function Storefront() {
       <div className="sf-header__inner">
         <a className="sf-icon-button sf-mobile-only" href="#menu" aria-label="Открыть меню"><Menu size={23} /></a>
         <a className="sf-brand" href="#home" aria-label={`${settings.shop_name} — главная`}><img src="/brand/gpartner-mark-v2-512.png" width="40" height="40" alt="" draggable={false} /><span>{settings.shop_name}</span></a>
-        <nav className="sf-desktop-nav" aria-label="Разделы магазина"><a href="#catalog" aria-current={path === 'catalog' ? 'page' : undefined}>Каталог</a><a href="#picks" aria-current={path === 'picks' ? 'page' : undefined}>Подборки</a><a href="#delivery" aria-current={path === 'delivery' ? 'page' : undefined}>Доставка</a><a href="#payment" aria-current={path === 'payment' ? 'page' : undefined}>Оплата</a><a href="#about" aria-current={path === 'about' ? 'page' : undefined}>О магазине</a><a href="#contact" aria-current={path === 'contact' ? 'page' : undefined}>Контакты</a></nav>
+        <nav className="sf-desktop-nav" aria-label="Разделы магазина"><a href="#catalog" aria-current={path === 'catalog' && !filters.sale ? 'page' : undefined}>Каталог</a><a href="#catalog?sale=1" aria-current={path === 'catalog' && filters.sale ? 'page' : undefined}>Скидки</a><a href="#picks" aria-current={path === 'picks' ? 'page' : undefined}>Подборки</a><a href="#delivery" aria-current={path === 'delivery' ? 'page' : undefined}>Доставка</a><a href="#payment" aria-current={path === 'payment' ? 'page' : undefined}>Оплата</a><a href="#about" aria-current={path === 'about' ? 'page' : undefined}>О магазине</a><a href="#contact" aria-current={path === 'contact' ? 'page' : undefined}>Контакты</a></nav>
         <div className="sf-header-actions">
           <a className="sf-icon-button" href="#favorites" aria-label={`Избранное: ${favorites.length}`} aria-current={path === 'favorites' ? 'page' : undefined}><Heart size={22} />{favorites.length > 0 && <span className="sf-count">{favorites.length}</span>}</a>
           <a className="sf-icon-button sf-desktop-only" href="#compare" aria-label={`Сравнение: ${compare.length}`}><ArrowLeftRight size={22} /></a>
@@ -145,7 +140,7 @@ export function Storefront() {
     </header>
 
     <CityBar city={city} onOpen={() => setCityOpen(true)} />
-    {path === 'home' && <nav className="sf-mobile-shortcuts" aria-label="Быстрый переход"><a href="#catalog">Каталог</a><a href="#picks">Подборки</a><a href="#delivery">Доставка</a><a href="#about">О магазине</a></nav>}
+    {path === 'home' && <nav className="sf-mobile-shortcuts" aria-label="Быстрый переход"><a href="#catalog">Каталог</a><a href="#catalog?sale=1">Скидки</a><a href="#picks">Подборки</a><a href="#delivery">Доставка</a><a href="#about">О магазине</a></nav>}
     <main id="sf-content" className={`sf-main sf-page-${isProduct ? 'product' : path}${['profile', 'cart', 'payment', 'contact', 'guide'].includes(path) ? ' ym-hide-content' : ''}`} tabIndex={-1} ref={contentRef}>
       {cartError && <div className="sf-settings-error" role="alert"><span>{cartError}</span><button onClick={retryCart}>Повторить</button></div>}
       {path !== 'home' && <div className="sf-page-heading"><a href={isProduct ? '#catalog' : '#home'} className="sf-back" aria-label={isProduct ? 'Вернуться в каталог' : 'На главную'}><ArrowLeft size={20} /><span>{isProduct ? 'Каталог' : 'Главная'}</span></a><h1>{title}</h1>{path === 'cart' && cart.length > 0 && <button className="sf-icon-button sf-cart-clear" aria-label="Очистить корзину" onClick={() => { setCart([]); setNotice('Корзина очищена.'); }}><Trash2 size={22} /></button>}</div>}
@@ -177,6 +172,7 @@ export function Storefront() {
         <div className="sf-results-heading">
           <p aria-live="polite">{loading ? 'Загрузка…' : `Найдено моделей: ${filtered.length}`}</p>
           <div className="sf-quick-availability" role="group" aria-label="Фильтр по наличию">
+            <label className="sf-quick-stock"><input type="checkbox" checked={filters.sale} onChange={event => updateFilters({ sale: event.target.checked })} />Скидки</label>
             <label className="sf-quick-stock"><input type="checkbox" checked={filters.stock === 'in-stock'} onChange={event => updateFilters({ stock: event.target.checked ? 'in-stock' : 'all' })} />В наличии</label>
             <label className="sf-quick-stock"><input type="checkbox" checked={filters.stock === 'preorder'} onChange={event => updateFilters({ stock: event.target.checked ? 'preorder' : 'all' })} />Под заказ</label>
           </div>
@@ -187,6 +183,7 @@ export function Storefront() {
           {filters.tag !== 'all' && <button onClick={() => updateFilters({ tag: 'all' })}>{tagLabels[filters.tag]}<X size={14} aria-label="Убрать подборку" /></button>}
           {filters.license !== 'all' && <button onClick={() => updateFilters({ license: 'all' })}>{licenseLabels[filters.license]}<X size={14} aria-label="Убрать фильтр" /></button>}
           {filters.stock !== 'all' && <button onClick={() => updateFilters({ stock: 'all' })}>{stockLabels[filters.stock]}<X size={14} aria-label="Убрать фильтр" /></button>}
+          {filters.sale && <button onClick={() => updateFilters({ sale: false })}>Скидки<X size={14} aria-label="Убрать фильтр" /></button>}
           {(filters.min || filters.max) && <button onClick={() => updateFilters({ min: '', max: '' })}>{filters.min ? `От ${filters.min} ₽` : ''} {filters.max ? `До ${filters.max} ₽` : ''}<X size={14} aria-label="Убрать цену" /></button>}
         </div>}
         {catalogState || (filtered.length ? cards(filtered) : products.length ? <div className="sf-empty"><h2>По этим условиям моделей нет</h2><p>Попробуйте изменить бюджет, категорию или поисковый запрос.</p><button className="sf-button" onClick={() => navigate('#catalog', true)}>Показать все модели</button></div> : <Empty title="Каталог готовится к открытию" action={false}>Магазин ещё не опубликовал товары. Фотографии, описания и цены появятся здесь после загрузки ассортимента.</Empty>)}
@@ -195,7 +192,7 @@ export function Storefront() {
 
       {isProduct && (catalogState || (currentProduct ? <div className="sf-product-detail">
         <ProductGallery key={currentProduct.id} product={currentProduct} />
-        <div className="sf-product-detail__summary"><p className="sf-product-category">{categoryLabels[currentProduct.category]}</p><p className={`sf-stock sf-stock--${currentProduct.stock_status}`}>{stockLabels[currentProduct.stock_status]}</p><strong className="sf-detail-price">{money(currentProduct.price)}</strong><p className="sf-muted">Наличие, комплектацию и условия получения подтвердит магазин.</p><div className="sf-detail-actions">{cart.some(item => item.product_id === currentProduct.id) ? <a className="sf-button" href="#cart">Перейти в корзину</a> : <button className="sf-button" disabled={currentProduct.stock_status === 'out-of-stock'} onClick={() => addToCart(currentProduct.id)}>{currentProduct.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'Добавить в корзину'}</button>}{[settings.payment_dolyame, settings.payment_installment, settings.payment_credit].some(status => status !== 'off') && currentProduct.stock_status !== 'out-of-stock' && <button className="sf-button sf-button--finance" onClick={() => buyOnFinance(currentProduct.id)}>Купить в рассрочку / кредит</button>}<button className="sf-button sf-button--secondary" aria-pressed={favorites.includes(currentProduct.id)} onClick={() => toggleFavorite(currentProduct.id)}>{favorites.includes(currentProduct.id) ? 'В избранном' : 'В избранное'}</button><button className="sf-text-button" aria-pressed={compare.includes(currentProduct.id)} onClick={() => toggleCompare(currentProduct.id)}>{compare.includes(currentProduct.id) ? 'Убрать из сравнения' : 'Добавить в сравнение'}</button></div><dl className="sf-detail-specs">{([['Запас хода', currentProduct.range_km, 'км'], ['Максимальная скорость', currentProduct.speed_kmh, 'км/ч'], ['Вес устройства', currentProduct.weight_kg, 'кг'], ['Грузоподъёмность', currentProduct.payload_kg, 'кг']] as const).map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{value === null ? 'Уточняется' : `${value} ${unit}`}</dd></div>)}
+        <div className="sf-product-detail__summary"><p className="sf-product-category">{categoryLabels[currentProduct.category]}</p><p className={`sf-stock sf-stock--${currentProduct.stock_status}`}>{stockLabels[currentProduct.stock_status]}</p><strong className="sf-detail-price">{money(currentProduct.price)}</strong>{[settings.payment_dolyame, settings.payment_installment, settings.payment_credit].some(status => status !== 'off') && currentProduct.stock_status !== 'out-of-stock' && <FinancePreview price={currentProduct.price} />}<p className="sf-muted">Наличие, комплектацию и условия получения подтвердит магазин.</p><div className="sf-detail-actions">{cart.some(item => item.product_id === currentProduct.id) ? <a className="sf-button" href="#cart">Перейти в корзину</a> : <button className="sf-button" disabled={currentProduct.stock_status === 'out-of-stock'} onClick={() => addToCart(currentProduct.id)}>{currentProduct.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'Добавить в корзину'}</button>}<button className="sf-button sf-button--secondary" aria-pressed={favorites.includes(currentProduct.id)} onClick={() => toggleFavorite(currentProduct.id)}>{favorites.includes(currentProduct.id) ? 'В избранном' : 'В избранное'}</button><button className="sf-text-button" aria-pressed={compare.includes(currentProduct.id)} onClick={() => toggleCompare(currentProduct.id)}>{compare.includes(currentProduct.id) ? 'Убрать из сравнения' : 'Добавить в сравнение'}</button></div><dl className="sf-detail-specs">{([['Запас хода', currentProduct.range_km, 'км'], ['Максимальная скорость', currentProduct.speed_kmh, 'км/ч'], ['Вес устройства', currentProduct.weight_kg, 'кг'], ['Грузоподъёмность', currentProduct.payload_kg, 'кг']] as const).map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{value === null ? 'Уточняется' : `${value} ${unit}`}</dd></div>)}
           {currentProduct.drive !== 'unknown' && <div><dt>Привод</dt><dd>{driveLabels[currentProduct.drive]}</dd></div>}
           <div><dt>Мощность{currentProduct.drive === 'dual' ? ' (на мотор)' : ''}</dt><dd>{currentProduct.power_w === null ? 'Уточняется' : powerLabel(currentProduct)}</dd></div>
           {currentProduct.drive === 'dual' && powerTotal(currentProduct) !== null && <div><dt>Суммарная мощность</dt><dd>{`${powerTotal(currentProduct)} Вт`}</dd></div>}
@@ -248,6 +245,7 @@ export function Storefront() {
         <p className="sf-footer__copyright">© {new Date().getFullYear()} {seller.brand}</p>
       </div>
     </footer>
+    <a className="sf-support-chat" href={supportChat} target="_blank" rel="noopener noreferrer" aria-label="Открыть чат с поддержкой в Telegram"><MessageCircle size={22} aria-hidden="true" /><span>Поддержка</span></a>
     <Analytics path={path} product={currentProduct} covered={cityOpen || filtersOpen} />
     <nav className="sf-bottom-nav" aria-label="Основная навигация">{[
       { path: 'home', label: 'Главная', icon: HomeIcon }, { path: 'catalog', label: 'Каталог', icon: Search }, { path: 'cart', label: 'Корзина', icon: ShoppingBag }, { path: 'compare', label: 'Сравнить', icon: ArrowLeftRight }, { path: 'profile', label: 'Профиль', icon: UserRound },

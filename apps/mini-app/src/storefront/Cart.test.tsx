@@ -20,7 +20,10 @@ describe('корзина по референсу использует реаль
   });
   it('показывает рассрочку и срок доставки только из настроек', () => {
     render(<Cart {...props} settings={{ ...defaultSettings, payment_installment: 'on', delivery_schedule: 'Москва;4;6;от 900 ₽' }} />);
-    expect(screen.getByRole('link', { name: 'Кредит и рассрочка' })).toHaveAttribute('href', '#payment');
+    expect(screen.queryByRole('link', { name: 'Кредит и рассрочка' })).toBeNull();
+    const finance = screen.getByLabelText('Предварительный расчёт оплаты частями');
+    expect(finance).toHaveTextContent('12 × 2 742 ₽');
+    expect(finance).toHaveTextContent('от 1 371 ₽/мес. × 24');
     // Строка магазина задаёт срок, но не стоимость: её покупателю уже включили в цену.
     expect(screen.getByText('Ориентировочно: 4–6 дн.')).toBeInTheDocument();
     expect(screen.queryByText('от 900 ₽')).toBeNull();

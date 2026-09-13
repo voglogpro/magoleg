@@ -80,6 +80,7 @@ export type Filters = {
   tag: ProductTag | 'all';
   license: License | 'all';
   stock: Stock | 'all';
+  sale: boolean;
   min: string;
   max: string;
   sort: 'featured' | 'value' | 'price-asc' | 'price-desc' | 'name';
@@ -94,7 +95,7 @@ export const defaultSettings: ShopSettings = {
   payment_credit: 'off', payment_invoice: 'off', payment_on_delivery: 'off',
   payment_provider: '', payment_installment_partner: '', payment_receipt: '',
 };
-export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', min: '', max: '', sort: 'featured' };
+export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', sale: false, min: '', max: '', sort: 'featured' };
 
 export type AccountProfile = { id?: string; name: string; contact: string; city: string };
 /** Remembered once per browser: the shop asks for a destination, then stops asking. */

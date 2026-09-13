@@ -8,7 +8,7 @@ import './admin.css';
 import { Customers, AnalyticsPanel } from './CustomerPanels';
 
 const paymentFields = [
-  ['payment_sbp', 'СБП (по QR или ссылке)'], ['payment_card', 'Картой онлайн'], ['payment_dolyame', 'Долями'],
+  ['payment_sbp', 'СБП (по QR или ссылке)'], ['payment_dolyame', 'Долями'],
   ['payment_installment', 'Рассрочка'], ['payment_credit', 'Кредит'],
   ['payment_invoice', 'Счёт для организаций'], ['payment_on_delivery', 'Оплата при получении'],
 ] as const;
@@ -21,7 +21,6 @@ export function paymentChecklist(settings: ShopSettings) {
     { label: 'Адрес для возврата товаров', done: Boolean(settings.return_address.trim()) },
     { label: 'Порядок обмена и возврата товара', done: Boolean(settings.returns_document.trim()) },
     { label: 'Порядок выдачи кассового чека', done: Boolean(settings.payment_receipt.trim()) },
-    { label: 'Платёжный сервис — только если включена оплата картой', done: settings.payment_card !== 'on' || Boolean(settings.payment_provider.trim()) },
   ];
 }
 

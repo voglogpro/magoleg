@@ -10,19 +10,12 @@ type Method = { id: string; title: string; icon: LucideIcon; status: PaymentStat
 
 /** Способ оплаты объявляется доступным только когда владелец подтвердил это в CRM. */
 export function paymentMethods(settings: ShopSettings): Method[] {
-  const provider = settings.payment_provider.trim();
   const partner = settings.payment_installment_partner.trim();
   return [
     {
       id: 'sbp', title: 'Система быстрых платежей (СБП)', icon: QrCode, status: settings.payment_sbp,
       text: 'Перевод по QR-коду или ссылке в приложении вашего банка. Комиссия с покупателя не взимается, деньги поступают на расчётный счёт продавца.',
       ready: 'После подтверждения заказа магазин присылает ссылку или QR-код на оплату. Проверьте получателя и сумму до подтверждения перевода.',
-    },
-    {
-      id: 'card', title: 'Банковской картой онлайн', icon: CreditCard, status: settings.payment_card,
-      text: provider ? `Оплата через платёжный сервис ${provider}. Реквизиты карты вводятся на защищённой странице сервиса, магазину они не передаются.`
-        : 'Оплата через платёжный сервис на его защищённой странице. Реквизиты карты магазину не передаются.',
-      ready: 'Ссылка на оплату приходит после подтверждения наличия и итоговой суммы.',
     },
     {
       id: 'dolyame', title: 'Долями', icon: CalendarClock, status: settings.payment_dolyame,

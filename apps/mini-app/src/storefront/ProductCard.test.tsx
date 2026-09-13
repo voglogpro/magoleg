@@ -30,4 +30,13 @@ describe('catalogue product photos', () => {
     expect(container.querySelector('.sf-card-gallery')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: `Подробнее: ${single.name}` })).toHaveAttribute('href', '#product/scooter');
   });
+
+  it('shows payment amounts without a separate finance button', () => {
+    render(<ProductCard product={product} favorite={false} compared={false} inCart={false} financeAvailable
+      onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={vi.fn()} />);
+    const finance = screen.getByLabelText('Предварительный расчёт оплаты частями');
+    expect(finance).toHaveTextContent('4 × 12 475 ₽');
+    expect(finance).toHaveTextContent('12 × 4 159 ₽');
+    expect(screen.queryByRole('button', { name: /рассрочку|кредит/i })).toBeNull();
+  });
 });
