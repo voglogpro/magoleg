@@ -226,7 +226,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
   accountState = { account: { name: 'Проверка', contact: '+79001234567', city: 'Краснодар' }, csrfToken: 'qa-token' };
   await page.locator('.sf-login-form button[type=submit]').click();
   await page.waitForSelector('.sf-account-orders');
-  check((await page.locator('.sf-account-card').innerText()).includes('+79001234567'), `${width}: registered shopper sees their account`);
+  check((await page.locator('.sf-account-dashboard').innerText()).includes('+79001234567'), `${width}: registered shopper sees their account`);
   accountState = { account: null };
   await page.locator('.sf-account-leave').click();
   await page.waitForSelector('.sf-login-form');
