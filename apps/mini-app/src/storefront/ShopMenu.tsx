@@ -2,7 +2,6 @@ import { ChevronRight, Headset, Megaphone, Phone, Send } from 'lucide-react';
 import { phoneLink, telegramLink } from './domain';
 import { infoTitles } from './Information';
 import { seller } from './legal-texts';
-import { paymentMethods } from './Payment';
 import type { ShopSettings } from './types';
 
 /**
@@ -21,16 +20,10 @@ const menuTitles: Record<string, string> = {
   consent: 'Согласие на обработку данных',
 };
 
-/** Короткая подпись для значка оплаты: полное название способа в плашку не помещается. */
-const payBadges: Record<string, string> = {
-  sbp: 'СБП', dolyame: 'Долями', installment: 'Рассрочка', credit: 'Кредит', invoice: 'Счёт', 'on-delivery': 'При получении',
-};
-
 export function ShopMenu({ settings }: { settings: ShopSettings }) {
   const telegram = telegramLink(settings.telegram);
   const channel = telegramLink(settings.telegram_channel);
   const phone = phoneLink(settings.phone);
-  const accepted = paymentMethods(settings).filter(method => method.status === 'on');
   return <nav className="sf-menu" aria-label="Все разделы">
     <div className="sf-menu__brand">
       <img src="/brand/gpartner-mark-v2-512.png" width="52" height="52" alt="" draggable={false} />
@@ -56,10 +49,5 @@ export function ShopMenu({ settings }: { settings: ShopSettings }) {
       {phone && <a href={phone} aria-label={`Позвонить: ${settings.phone}`}><Phone size={20} aria-hidden="true" /></a>}
     </div>}
 
-    {/* Реквизиты продавца печатает подвал магазина — он идёт сразу под меню,
-        и повторять ту же строку здесь значило бы показать её дважды на одном экране. */}
-    {accepted.length > 0 && <ul className="sf-menu__pay" aria-label="Способы оплаты">
-      {accepted.map(method => <li key={method.id}>{payBadges[method.id] || method.title}</li>)}
-    </ul>}
   </nav>;
 }

@@ -34,10 +34,14 @@ export type Inquiry = {
   city: string;
   cdek_pvz?: string;
   payment_method?: 'sbp' | 'dolyame' | 'installment' | 'credit';
+  payment_status?: string;
+  payment_id?: string;
+  tracking_number?: string;
+  paid_at?: string;
   message: string;
   items: { product_id: string; name: string; price: number; quantity: number; image_url: string }[];
   total: number;
-  status: 'new' | 'contacted' | 'closed';
+  status: 'new' | 'awaiting_payment' | 'paid' | 'processing' | 'shipped' | 'completed' | 'cancelled' | 'contacted' | 'closed';
   created_at: string;
   updated_at: string;
 };

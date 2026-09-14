@@ -209,3 +209,10 @@
 .crm-report-list li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #383b40; }
 .crm-tabs { flex-wrap: wrap; }
 @media(max-width:600px) { .crm-customer-card { padding: 16px; } .crm-customer-facts { grid-template-columns: 1fr; } }
+
+
+/* Tracking number is edited next to the order, not hidden in general settings. */
+.crm-tracking-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 16px 0; padding: 14px; border: 1px solid #343740; border-radius: 10px; background: #111318; }
+.crm-tracking-form label { display: grid; flex: 1 1 260px; gap: 7px; color: #aeb3be; font-size: 13px; }
+.crm-tracking-form input { min-height: 44px; padding: 10px 12px; border: 1px solid #4a4e59; border-radius: 7px; background: #171a20; color: #f3f4f7; font: inherit; }
+.crm-tracking-form input:focus { border-color: #ff6b00; outline: none; }

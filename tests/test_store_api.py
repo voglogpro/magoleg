@@ -15,7 +15,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from PIL import Image, PngImagePlugin
 
 from store_api import (ACCOUNT_COOKIE, ACCOUNT_SESSION_AGE, COOKIE_NAME, MAX_UPLOAD, STORE_KEY,
-                       hash_password, setup_store, valid_phone, verify_password)
+                       hash_password, setup_store, tbank_token, valid_phone, verify_password)
 
 TEST_PASSWORD = "isolated-test-password-only"
 CUSTOMER_PASSWORD = "isolated-customer-password"
@@ -27,6 +27,17 @@ class PasswordTests(unittest.TestCase):
             self.assertTrue(valid_phone(phone), phone)
         for phone in ("-------", "( ) - -", "123456", "1234567890123456", "١٢٣٤٥٦٧", "++1234567", "123+4567"):
             self.assertFalse(valid_phone(phone), phone)
+
+    def test_tbank_token_matches_official_root_fields_algorithm(self):
+        payload = {
+            "TerminalKey": "MerchantTerminalKey", "Amount": 19200, "OrderId": "00000",
+            "Description": "Подарочная карта на 1000 рублей",
+            "DATA": {"Email": "a@test.com"}, "Receipt": {"Items": []},
+        }
+        self.assertEqual(
+            tbank_token(payload, "11111111111111"),
+            "72dd466f8ace0a37a1f740ce5fb78101712bc0665d91a8108c7c8a0ccd426db2",
+        )
 
     def test_salted_scrypt_password_and_failure(self):
         encoded = hash_password(TEST_PASSWORD)
@@ -115,10 +126,10 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.login()
         public = await self.client.get("/api/settings")
         defaults = (await public.json())["settings"]
-        # СБП работает, а финансовые продукты показаны только как готовящиеся к подключению.
+        # СБП работает, «Долями» временно выключено, остальные финансовые продукты готовятся.
         self.assertEqual(defaults["payment_sbp"], "on")
         self.assertEqual(defaults["payment_card"], "off")
-        self.assertEqual(defaults["payment_dolyame"], "preparing")
+        self.assertEqual(defaults["payment_dolyame"], "off")
         self.assertEqual(defaults["payment_installment"], "preparing")
         self.assertEqual(defaults["payment_credit"], "preparing")
         self.assertEqual(defaults["payment_on_delivery"], "off")

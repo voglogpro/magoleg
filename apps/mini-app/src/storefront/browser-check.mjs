@@ -176,8 +176,8 @@ for (const width of [320, 390, 768, 900, 1440]) {
     check(await page.locator(`.sf-consent a[href="${href}"][target=_blank]`).count() === 1, `${width}: ${href} opens from the order form`);
   await page.locator('[name=consent]').check();
   check(await page.locator('.sf-inquiry button[type=submit]').isEnabled(), `${width}: accepting the documents unlocks payment`);
-  check((await page.locator('.sf-inquiry').innerText()).includes('включена в стоимость товара'), `${width}: delivery is stated as included`);
-  check((await page.locator('.sf-cart-summary dl').innerText()).includes('Включена в цену товара'), `${width}: the summary repeats the included delivery`);
+  check((await page.locator('.sf-inquiry').innerText()).includes('Оплата доставки осуществляется при получении'), `${width}: delivery is paid on receipt`);
+  check((await page.locator('.sf-cart-summary dl').innerText()).includes('Оплата при получении'), `${width}: the summary excludes delivery from online total`);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${output}/cart-${width}.png`, fullPage: true });
   await page.locator('.sf-inquiry button[type=submit]').click();

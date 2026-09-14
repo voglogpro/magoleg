@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, ClipboardList, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowRight, ClipboardList, LogOut, PackageCheck, ShieldCheck, Truck, UserRound } from 'lucide-react';
 import { getAccountInquiries, getOwnerSession, registerAccount, signIn, signOut, signOutOwner, type OwnerSession } from './api';
 import { CityDatalist } from './CityPicker';
 import { money } from './domain';
@@ -8,7 +8,9 @@ import { CustomerPreferences } from './CustomerData';
 import { trackGoal } from './Analytics';
 
 const statusLabels: Record<AccountInquiry['status'], string> = {
-  new: 'Магазин получил заявку', contacted: 'Магазин связался с вами', closed: 'Заявка закрыта',
+  new: 'Заказ принят', awaiting_payment: 'Ожидается оплата', paid: 'Оплачено',
+  processing: 'Сборка на складе', shipped: 'Передано в доставку', completed: 'Получено',
+  cancelled: 'Отменено', contacted: 'Магазин связался с вами', closed: 'Заявка закрыта',
 };
 const errorText = (reason: unknown) => reason instanceof Error ? reason.message : 'Не удалось выполнить действие. Повторите попытку.';
 const formatDate = (value: string) => {
@@ -42,6 +44,15 @@ function History() {
         <span className="sf-history__date">{formatDate(inquiry.created_at)}</span>
       </div>
       {inquiry.city && <p className="sf-history__city">Доставка в город {inquiry.city}</p>}
+      {['paid', 'processing', 'shipped', 'completed'].includes(inquiry.status) && <div className="sf-order-progress" aria-label="Этапы выполнения заказа">
+        <span className="is-active"><PackageCheck size={18} aria-hidden="true" /><small>Оплачено</small></span>
+        <i aria-hidden="true" />
+        <span className={['processing', 'shipped', 'completed'].includes(inquiry.status) ? 'is-active' : ''}><PackageCheck size={18} aria-hidden="true" /><small>Сборка</small></span>
+        <i aria-hidden="true" />
+        <span className={['shipped', 'completed'].includes(inquiry.status) ? 'is-active' : ''}><Truck size={18} aria-hidden="true" /><small>Доставка</small></span>
+      </div>}
+      {['paid', 'processing'].includes(inquiry.status) && <p className="sf-order-instruction">Ваш заказ принят! Сборка и отправка товара со склада производителя занимает до 3 рабочих дней. Как только посылка будет передана в транспортную службу, в этом заказе появится трек-номер для отслеживания.</p>}
+      {inquiry.tracking_number && <p className="sf-order-track"><Truck size={17} aria-hidden="true" /><span>Трек-номер посылки</span><strong>{inquiry.tracking_number}</strong></p>}
       <ul className="sf-history__items">{inquiry.items.map(item => <li key={item.product_id}><span>{item.name}</span><b>{item.quantity} шт.</b></li>)}</ul>
       <div className="sf-history__foot">
         <span>Заявка №{inquiry.id.slice(0, 8)}</span>

@@ -18,7 +18,7 @@ export function Cart({ items, products, settings, city, onCity, onRetry, onQuant
   const estimate = parseDeliverySchedule(settings.delivery_schedule).find(row => cityKey(row.city) === cityKey(city));
   const zone = findDeliveryZone(city);
   const term = estimate ? zoneTerm(estimate) : zone ? zoneTerm(zone) : null;
-  const financeAvailable = [settings.payment_dolyame, settings.payment_installment, settings.payment_credit].some(status => status !== 'off');
+  const financeAvailable = [settings.payment_installment, settings.payment_credit].some(status => status === 'on');
   const startInquiry = () => {
     formRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
     formRef.current?.querySelector<HTMLInputElement>('input[name="name"]')?.focus({ preventScroll: true });
@@ -44,18 +44,18 @@ export function Cart({ items, products, settings, city, onCity, onRetry, onQuant
     </section>
     <aside className="sf-cart-checkout" aria-label="Итог и оформление">
       <section className="sf-cart-summary sf-cart-panel" aria-label="Стоимость товаров">
-        <dl><div><dt>Товары ({count})</dt><dd>{money(summary.knownTotal)}</dd></div><div><dt>Доставка</dt><dd>Включена в цену товара</dd></div><div><dt>Оплата</dt><dd>{settings.payment_sbp === 'on' ? 'СБП после подтверждения' : 'По согласованию с магазином'}</dd></div></dl>
+        <dl><div><dt>Товары ({count})</dt><dd>{money(summary.knownTotal)}</dd></div><div><dt>Доставка</dt><dd>Оплата при получении</dd></div><div><dt>Оплата</dt><dd>{settings.payment_sbp === 'on' ? 'СБП на защищённой странице' : 'По согласованию с магазином'}</dd></div></dl>
         <p className="sf-cart-total"><span>{summary.unknownPrices ? 'Известная стоимость' : 'Итого за товары'}</span><strong>{money(summary.knownTotal)}</strong></p>
         {summary.unknownPrices > 0 && <p className="sf-muted">Для {summary.unknownPrices} шт. цена будет уточнена. Это не полная сумма заявки.</p>}
       </section>
       {!settings.inquiries_enabled ? <a className="sf-button sf-cart-primary" href="#contact"><CreditCard size={23} />Связаться с магазином</a> : <button className="sf-button sf-cart-primary" onClick={startInquiry} disabled={summary.unavailable > 0}><CreditCard size={23} />Перейти к оформлению</button>}
       {financeAvailable && <FinancePreview price={summary.unknownPrices ? null : summary.knownTotal} />}
-      <p className="sf-cart-reassurance"><ShieldCheck size={15} /><span>Без списания денег · Наличие подтвердит магазин</span></p>
+      <p className="sf-cart-reassurance"><ShieldCheck size={15} /><span>Безопасная оплата · Доставка не входит в онлайн-чек</span></p>
       <section className="sf-cart-delivery sf-cart-panel" aria-label="Получение заказа">
         <div className="sf-cart-delivery-title"><MapPin size={28} /><div><h2>Доставка и получение</h2><p>Выберите удобный город получения</p></div></div>
         <button className="sf-cart-destination" onClick={onCity}><span className="sf-cart-destination-icon"><Package size={23} /></span><span><strong>{city || 'Выбрать город'}</strong><small>Адрес ПВЗ СДЭК укажите в форме заказа</small></span><ChevronRight size={20} /></button>
         <p className="sf-cart-delivery-term"><Clock3 size={17} /><span>{term ? `Ориентировочно: ${term}` : 'Срок доставки уточним для вашего города'}</span></p>
-        <p className="sf-cart-delivery-term"><Package size={17} /><span>Доставка СДЭК до пункта выдачи уже включена в стоимость товара</span></p>
+        <p className="sf-cart-delivery-term"><Package size={17} /><span>Оплата доставки осуществляется при получении</span></p>
         <a className="sf-cart-delivery-link" href="#delivery">Условия доставки <ChevronRight size={15} /></a>
       </section>
       <div className="sf-cart-form sf-cart-panel" ref={formRef}>{children}</div>

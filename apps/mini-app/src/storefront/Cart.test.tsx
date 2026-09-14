@@ -13,10 +13,10 @@ describe('корзина по референсу использует реаль
     expect(screen.getByRole('link', { name: 'Связаться с магазином' })).toHaveAttribute('href', '#contact');
     expect(screen.queryByText('Бесплатно')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Кредит и рассрочка' })).toBeNull();
-    // Оферта включает доставку в цену товара, поэтому отдельной суммы за неё нет.
-    expect(screen.getByText('Включена в цену товара')).toBeInTheDocument();
-    expect(screen.getByText('СБП после подтверждения')).toBeInTheDocument();
-    expect(screen.getByText(/Доставка СДЭК до пункта выдачи уже включена/)).toBeInTheDocument();
+    // Доставка не входит в онлайн-платёж и оплачивается при получении.
+    expect(screen.getByText('Оплата при получении')).toBeInTheDocument();
+    expect(screen.getByText('СБП на защищённой странице')).toBeInTheDocument();
+    expect(screen.getByText('Оплата доставки осуществляется при получении')).toBeInTheDocument();
   });
   it('показывает рассрочку и срок доставки только из настроек', () => {
     render(<Cart {...props} settings={{ ...defaultSettings, payment_installment: 'on', delivery_schedule: 'Москва;4;6;от 900 ₽' }} />);
@@ -24,7 +24,7 @@ describe('корзина по референсу использует реаль
     const finance = screen.getByLabelText('Предварительный расчёт оплаты частями');
     expect(finance).toHaveTextContent('12 × 2 742 ₽');
     expect(finance).toHaveTextContent('от 1 371 ₽/мес. × 24');
-    // Строка магазина задаёт срок, но не стоимость: её покупателю уже включили в цену.
+    // Строка магазина задаёт срок; расчёт перевозчика не входит в онлайн-чек.
     expect(screen.getByText('Ориентировочно: 4–6 дн.')).toBeInTheDocument();
     expect(screen.queryByText('от 900 ₽')).toBeNull();
   });

@@ -12,7 +12,7 @@ it('waits for permission, masks forms, disables replay in the account, and allow
   expect(window.ym).toHaveBeenCalledWith(COUNTER, 'init', expect.objectContaining({ defer: true, webvisor: true, ecommerce: 'dataLayer' }));
   expect(screen.getByLabelText('Private email')).toHaveClass('ym-disable-keys');
   expect(JSON.stringify(ym.mock.calls)).not.toContain('secret@example.com');
-  view.rerender(<Analytics path="profile" />);
+  view.rerender(<Analytics path="profile" showSettings />);
   expect(window.ym).toHaveBeenCalledWith(COUNTER, 'init', expect.objectContaining({ webvisor: false, clickmap: false, trackLinks: false }));
   fireEvent.click(screen.getByText('Настройки аналитики'));
   fireEvent.click(screen.getByText('Без аналитики'));

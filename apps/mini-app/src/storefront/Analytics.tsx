@@ -15,7 +15,7 @@ export function trackCommerce(action: 'detail' | 'add' | 'remove', product: Prod
   trackGoal(action === 'detail' ? 'product_view' : action === 'add' ? 'add_to_cart' : 'remove_from_cart');
 }
 
-export function Analytics({ path, product, covered = false }: { path: string; product?: Product; covered?: boolean }) {
+export function Analytics({ path, product, covered = false, showSettings = false }: { path: string; product?: Product; covered?: boolean; showSettings?: boolean }) {
   const [allowed, setAllowed] = useState(analyticsAllowed);
   const [open, setOpen] = useState(() => { try { return !localStorage.getItem(KEY); } catch { return true; } });
   const privatePage = ['profile', 'cart', 'payment', 'contact', 'guide'].includes(path);
@@ -53,5 +53,5 @@ export function Analytics({ path, product, covered = false }: { path: string; pr
     try { localStorage.setItem(KEY, value ? 'yes' : 'no'); } catch { /* Do not start without saved consent. */ }
     setAllowed(value && analyticsAllowed()); setOpen(false);
   }
-  return <div className="sf-analytics-settings"><button className="sf-text-button" onClick={() => setOpen(true)}>Настройки аналитики</button>{open && !covered && <aside className="sf-analytics-banner ym-hide-content" aria-label="Настройки аналитики"><strong>Помогите сделать магазин удобнее</strong><p>С вашего разрешения Яндекс Метрика собирает статистику просмотров и действий, включая запись взаимодействий Вебвизором. Поля форм и личный кабинет исключены. Можно отказаться — магазин продолжит работать.</p><a href="#analytics-policy" onClick={() => setOpen(false)}>Подробнее об аналитике</a><div><button className="sf-button sf-button--secondary" onClick={() => choose(false)}>Без аналитики</button><button className="sf-button" onClick={() => choose(true)}>Разрешить</button></div></aside>}</div>;
+  return <div className={`sf-analytics-settings${showSettings ? '' : ' sf-analytics-settings--hidden'}`}>{showSettings && <button className="sf-text-button" onClick={() => setOpen(true)}>Настройки аналитики</button>}{open && !covered && <aside className="sf-analytics-banner ym-hide-content" aria-label="Настройки аналитики"><strong>Помогите сделать магазин удобнее</strong><p>С вашего разрешения Яндекс Метрика собирает статистику просмотров и действий, включая запись взаимодействий Вебвизором. Поля форм и личный кабинет исключены. Можно отказаться — магазин продолжит работать.</p><a href="#analytics-policy" onClick={() => setOpen(false)}>Подробнее об аналитике</a><div><button className="sf-button sf-button--secondary" onClick={() => choose(false)}>Без аналитики</button><button className="sf-button" onClick={() => choose(true)}>Разрешить</button></div></aside>}</div>;
 }

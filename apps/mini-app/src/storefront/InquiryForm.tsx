@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { submitInquiry } from './api';
+import { getOrderStatus, submitInquiry } from './api';
 import { CityDatalist } from './CityPicker';
 import { money } from './domain';
 import { type AccountProfile, type CartItem, type Inquiry, type PaymentChoice, type ShopSettings } from './types';
@@ -8,15 +8,51 @@ const paymentChoiceLabels: Record<PaymentChoice, string> = {
   sbp: 'СБП', dolyame: 'Долями', installment: 'Рассрочка', credit: 'Кредит',
 };
 
+export const ORDER_ACCEPTED_TEXT = 'Ваш заказ принят! Сборка и отправка товара со склада производителя занимает до 3 рабочих дней. Как только посылка будет передана в транспортную службу, в этом заказе появится трек-номер для отслеживания.';
+
 export function InquiryConfirmation({ inquiry }: { inquiry: Inquiry }) {
-  return <div className="sf-confirmation" role="status">
-    <h3>Заявка получена</h3>
+  const paid = ['paid', 'processing', 'shipped', 'completed'].includes(inquiry.status);
+  return <div className={`sf-confirmation${paid ? ' sf-confirmation--paid' : ''}`} role="status">
+    <h3>{paid ? 'Заказ успешно оформлен' : 'Заявка получена'}</h3>
     <p>Номер: <strong>{inquiry.id}</strong></p>
-    <p>Магазин получил заказ и свяжется по указанному контакту. Деньги пока не списаны.</p>
-    {inquiry.total !== null && <p>Сумма по каталогу: <strong>{money(inquiry.total)}</strong>. Доставка включена в стоимость товара.</p>}
-    <p>После подтверждения наличия магазин пришлёт ссылку или QR-код для оплаты через СБП. Проверьте получателя и сумму до подтверждения перевода: реквизиты карты и коды подтверждения магазин никогда не запрашивает.</p>
-    <a className="sf-button sf-button--secondary" href="#catalog">Продолжить выбор</a>
+    {paid
+      ? <p className="sf-confirmation__instruction">{ORDER_ACCEPTED_TEXT}</p>
+      : <p>Магазин получил заявку и свяжется по указанному контакту. Если выбран онлайн-платёж, деньги ещё не списаны.</p>}
+    {inquiry.total !== null && <p>Стоимость товаров: <strong>{money(inquiry.total)}</strong>. Оплата доставки осуществляется при получении и не входит в сумму онлайн-платежа.</p>}
+    {inquiry.tracking_number && <p className="sf-confirmation__track">Трек-номер: <strong>{inquiry.tracking_number}</strong></p>}
+    {!paid && <p>После подтверждения наличия магазин сообщит дальнейшие шаги. Реквизиты карты и коды подтверждения сотрудники магазина никогда не запрашивают.</p>}
+    <a className="sf-button sf-button--secondary" href={paid ? '#profile' : '#catalog'}>{paid ? 'Открыть мои заказы' : 'Продолжить выбор'}</a>
   </div>;
+}
+
+export function PaymentResult({ orderId }: { orderId: string }) {
+  const [order, setOrder] = useState<Inquiry | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!orderId) { setError('Номер заказа не найден в ссылке оплаты.'); return; }
+    let cancelled = false;
+    let timer = 0;
+    let attempt = 0;
+    const load = async () => {
+      try {
+        const current = await getOrderStatus(orderId);
+        if (cancelled) return;
+        setOrder(current);
+        if (!['paid', 'processing', 'shipped', 'completed', 'cancelled'].includes(current.status) && ++attempt < 6) {
+          timer = window.setTimeout(load, 1500);
+        }
+      } catch (reason) {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Не удалось проверить оплату.');
+      }
+    };
+    void load();
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [orderId]);
+
+  if (error) return <div className="sf-confirmation" role="alert"><h3>Не удалось проверить заказ</h3><p>{error}</p><a className="sf-button sf-button--secondary" href="#profile">Открыть мои заказы</a></div>;
+  if (!order) return <p className="sf-loading" role="status">Проверяем оплату…</p>;
+  if (!['paid', 'processing', 'shipped', 'completed'].includes(order.status)) return <div className="sf-confirmation" role="status"><h3>Платёж подтверждается</h3><p>Банк ещё передаёт результат оплаты. Статус заказа обновится автоматически; его также можно проверить в личном кабинете.</p><a className="sf-button sf-button--secondary" href="#profile">Открыть мои заказы</a></div>;
+  return <InquiryConfirmation inquiry={order} />;
 }
 
 export function InquiryForm({ settings, items, account = null, city = '', preferredPayment = 'sbp', onCity, blocked = false, onSuccess }: {
@@ -36,6 +72,11 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
   const submitting = useRef(false);
   const submission = useRef({ signature: '', key: '' });
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const availablePayments = ([
+    ['sbp', settings.payment_sbp], ['installment', settings.payment_installment], ['credit', settings.payment_credit],
+  ] as [PaymentChoice, ShopSettings['payment_sbp']][]).filter(([, status]) => status === 'on');
+  const effectivePayment = availablePayments.some(([value]) => value === paymentMethod)
+    ? paymentMethod : availablePayments[0]?.[0] || 'sbp';
 
   // The account and the chosen city may arrive after this form mounts; never overwrite typed text.
   useEffect(() => {
@@ -61,12 +102,17 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
     }
     submitting.current = true; setPending(true);
     try {
-      const payload = { name: name.trim(), contact: trimmedContact, city: destination.trim(), cdek_pvz: cdekPvz.trim(), payment_method: paymentMethod, message: message.trim(), items, consent: true as const };
+      const payload = { name: name.trim(), contact: trimmedContact, city: destination.trim(), cdek_pvz: cdekPvz.trim(), payment_method: effectivePayment, message: message.trim(), items, consent: true as const };
       // Remember the destination so the next order does not ask again.
       if (payload.city && payload.city !== city) onCity?.(payload.city);
       const signature = JSON.stringify(payload);
       if (signature !== submission.current.signature) submission.current = { signature, key: crypto.randomUUID() };
       const inquiry = await submitInquiry(payload, submission.current.key);
+      if (inquiry.payment_url) {
+        onSuccess?.(inquiry);
+        window.location.assign(inquiry.payment_url);
+        return;
+      }
       setConfirmation(inquiry); onSuccess?.(inquiry);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось отправить заявку. Проверьте соединение.');
@@ -85,7 +131,7 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
   return <form className="sf-inquiry ym-hide-content" onSubmit={handleSubmit} aria-label="Заявка в магазин">
     <h3>{items.length ? 'Оформление заказа' : 'Задать вопрос магазину'}</h3>
     <p className="sf-muted">{items.length
-      ? 'Доставка по России включена в стоимость товара. После подтверждения наличия магазин пришлёт ссылку или QR-код для оплаты через СБП.'
+      ? 'Стоимость онлайн-платежа равна стоимости товаров. Оплата доставки осуществляется при получении.'
       : 'Оставьте удобный контакт для ответа.'}</p>
     <fieldset disabled={pending || blocked}>
       <label>Ваше имя<input name="name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={event => setName(event.target.value)} /></label>
@@ -94,13 +140,11 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
       {items.length > 0 && <label>Пункт выдачи СДЭК<input name="cdek_pvz" required minLength={3} maxLength={300} value={cdekPvz} onChange={event => setCdekPvz(event.target.value)} placeholder="Код или полный адрес ПВЗ" /><span className="sf-field-help">Выберите удобный пункт на <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener noreferrer">карте СДЭК</a> и вставьте сюда его код или адрес.</span></label>}
       {items.length > 0 && <fieldset className="sf-payment-choice">
         <legend>Желаемый способ оплаты</legend>
-        <div>{([
-          ['sbp', settings.payment_sbp], ['dolyame', settings.payment_dolyame], ['installment', settings.payment_installment], ['credit', settings.payment_credit],
-        ] as [PaymentChoice, ShopSettings['payment_sbp']][]).filter(([, status]) => status !== 'off').map(([value, status]) => <label key={value}>
-          <input type="radio" name="payment_method" value={value} checked={paymentMethod === value} onChange={() => setPaymentMethod(value)} />
-          <span>{paymentChoiceLabels[value]}<small>{status === 'on' ? 'доступно' : 'подключаем'}</small></span>
+        <div>{availablePayments.map(([value]) => <label key={value}>
+          <input type="radio" name="payment_method" value={value} checked={effectivePayment === value} onChange={() => setPaymentMethod(value)} />
+          <span>{paymentChoiceLabels[value]}<small>доступно</small></span>
         </label>)}</div>
-        <p className="sf-field-help">Для «Долями», рассрочки и кредита условия и решение предоставляет Т‑Банк. До подключения сервисов заявка ничего не списывает.</p>
+        <p className="sf-field-help">СБП открывается на защищённой странице Т‑Банка. Условия рассрочки и кредита банк показывает до подписания договора.</p>
       </fieldset>}
       <label>{items.length ? 'Комментарий — необязательно' : 'Ваш вопрос'}<textarea name="message" rows={3} required={!items.length} minLength={items.length ? undefined : 10} maxLength={3000} value={message} onChange={event => setMessage(event.target.value)} placeholder={items.length ? 'Район доставки, вопросы о модели' : 'Какой транспорт ищете, куда и как далеко планируете ездить'} /></label>
       <label className="sf-consent"><input name="consent" type="checkbox" checked={consent} required onChange={event => setConsent(event.target.checked)} /><span>{items.length
@@ -109,7 +153,7 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
       {error && <p className="sf-error" role="alert" ref={errorRef} tabIndex={-1}>{error}</p>}
       {blocked && <p className="sf-error">Удалите недоступные товары из корзины перед отправкой заявки.</p>}
       {/* Кнопка расчёта включается только принятой галочкой: акцепт оферты фиксируется до оплаты. */}
-      <button className="sf-button" type="submit" disabled={pending || blocked || (items.length > 0 && !consent)}>{pending ? 'Отправляем…' : items.length ? 'Перейти к оплате' : 'Отправить вопрос'}</button>
+      <button className="sf-button" type="submit" disabled={pending || blocked || (items.length > 0 && !consent)}>{pending ? 'Готовим оплату…' : items.length ? 'Оплатить заказ' : 'Отправить вопрос'}</button>
       {items.length > 0 && !consent && <p className="sf-muted" aria-live="polite">Отметьте согласие с документами — кнопка оплаты станет активной.</p>}
     </fieldset>
   </form>;

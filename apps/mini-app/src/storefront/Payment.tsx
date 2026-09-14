@@ -8,10 +8,14 @@ export const paymentStatusLabels: Record<PaymentStatus, string> = {
 
 type Method = { id: string; title: string; icon: LucideIcon; status: PaymentStatus; text: string; ready: string };
 
+export const DOLYAME_LIMIT = 30_000;
+/** Временно выключено. При будущем включении способ появится только при сумме строго ниже лимита. */
+const DOLYAME_ENABLED = false;
+
 /** Способ оплаты объявляется доступным только когда владелец подтвердил это в CRM. */
-export function paymentMethods(settings: ShopSettings): Method[] {
+export function paymentMethods(settings: ShopSettings, orderTotal: number | null = null): Method[] {
   const partner = settings.payment_installment_partner.trim();
-  return [
+  const methods = [
     {
       id: 'sbp', title: 'СБП', icon: QrCode, status: settings.payment_sbp,
       text: 'Перевод по QR-коду или ссылке в приложении вашего банка. Комиссия с покупателя не взимается, деньги поступают на расчётный счёт продавца.',
@@ -35,12 +39,14 @@ export function paymentMethods(settings: ShopSettings): Method[] {
       ready: 'Решение, ставку, полную стоимость кредита и график платежей сообщает банк.',
     },
   ];
+  return methods.filter(method => method.id !== 'dolyame'
+    || (DOLYAME_ENABLED && orderTotal !== null && orderTotal < DOLYAME_LIMIT));
 }
 
 const steps = [
   { title: 'Заявка', text: 'Вы собираете корзину и отправляете заявку. Деньги на этом шаге не списываются.' },
-  { title: 'Подтверждение', text: 'Магазин проверяет наличие, комплектацию, стоимость доставки и сообщает итоговую сумму.' },
-  { title: 'Оплата', text: 'Оплата через СБП по ссылке или QR-коду от магазина. Стоимость доставки уже включена в цену товара.' },
+  { title: 'Подтверждение', text: 'Магазин проверяет наличие и комплектацию. Стоимость онлайн-платежа равна стоимости товаров.' },
+  { title: 'Оплата', text: 'Оплата через СБП проходит на защищённой странице. Доставка оплачивается отдельно при получении.' },
   { title: 'Чек и передача', text: 'Вы получаете кассовый чек и документы на товар, заказ уходит перевозчику.' },
 ];
 

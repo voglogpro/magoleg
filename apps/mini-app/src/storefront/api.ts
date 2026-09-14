@@ -106,6 +106,11 @@ export async function getAccountInquiries(signal?: AbortSignal) {
   return Array.isArray(data.inquiries) ? data.inquiries : [];
 }
 
+export async function getOrderStatus(id: string, signal?: AbortSignal): Promise<Inquiry> {
+  if (!/^[a-f0-9]{32}$/.test(id)) throw new StoreApiError('Некорректный номер заказа.', 400);
+  return request<Inquiry>(`/api/orders/${encodeURIComponent(id)}`, { signal, cache: 'no-store' });
+}
+
 export function customerRequest<T>(path: 'cart' | 'preferences', body?: unknown, csrfToken = '', signal?: AbortSignal) {
   return request<T>(`/api/account/${path}`, { method: body === undefined ? 'GET' : 'POST', signal,
     headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },

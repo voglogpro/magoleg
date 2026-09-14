@@ -18,17 +18,19 @@ import math
 import os
 import re
 import secrets
+import smtplib
 import sqlite3
 import time
 import warnings
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal
+from email.message import EmailMessage
 from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import urlsplit
 
-from aiohttp import web
+from aiohttp import ClientSession, ClientTimeout, web
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 LOGGER = logging.getLogger("gshop.store")
@@ -69,7 +71,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "contacts_document": "",
     # Способы расчёта. "on" публикуется как рабочий, поэтому включается только вместе
     # с реквизитами продавца: покупатель не должен видеть оплату, которой ещё нет.
-    "payment_sbp": "on", "payment_card": "off", "payment_dolyame": "preparing",
+    "payment_sbp": "on", "payment_card": "off", "payment_dolyame": "off",
     "payment_installment": "preparing", "payment_credit": "preparing",
     "payment_invoice": "off", "payment_on_delivery": "off",
     "payment_provider": "Т-Бизнес", "payment_installment_partner": "Т-Банк", "payment_receipt": "",
@@ -87,6 +89,12 @@ PRODUCT_TAGS = ("waterproof", "heavy-rider", "two-up", "courier", "women", "begi
 PRODUCT_BADGES = ("hit", "best-price", "value")
 # A card carries a small gallery; the first photo is the cover shown in catalogue listings.
 MAX_PHOTOS = 8
+ORDER_ACCEPTED_TEXT = (
+    "Ваш заказ принят! Сборка и отправка товара со склада производителя занимает до 3 рабочих дней. "
+    "Как только посылка будет передана в транспортную службу, в этом заказе появится трек-номер для отслеживания."
+)
+ORDER_STATUSES = ("new", "awaiting_payment", "paid", "processing", "shipped", "completed",
+                  "cancelled", "contacted", "closed")
 PRODUCT_FIELDS = {
     "name", "description", "category", "license", "license_verified", "price",
     "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg", "cargo_l",
@@ -189,6 +197,120 @@ def contact_identity(contact: str) -> str:
             or re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact)):
         return contact.removeprefix("@").lower()
     return ""
+
+
+def _payment_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def tbank_token(payload: dict[str, Any], password: str) -> str:
+    """T-Bank signs primitive root fields only; nested Receipt/DATA never enter the token."""
+    signed = {key: value for key, value in payload.items()
+              if key != "Token" and value is not None and not isinstance(value, (dict, list))}
+    signed["Password"] = password
+    source = "".join(_payment_value(signed[key]) for key in sorted(signed))
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+
+def _payment_configured() -> bool:
+    return bool(os.getenv("TBANK_TERMINAL_KEY", "").strip() and os.getenv("TBANK_PASSWORD", "").strip())
+
+
+async def init_tbank_payment(inquiry: dict[str, Any]) -> dict[str, str]:
+    terminal = os.getenv("TBANK_TERMINAL_KEY", "").strip()
+    password = os.getenv("TBANK_PASSWORD", "").strip()
+    require(terminal and password, "Онлайн-оплата ещё не настроена магазином.", 503)
+    origin = origin_of(os.getenv("PUBLIC_ORIGIN", "") or os.getenv("MINI_APP_URL", ""))
+    require(origin is not None, "Для онлайн-оплаты задайте корректный PUBLIC_ORIGIN.", 503)
+    amount = int((Decimal(str(inquiry["total"])) * 100).quantize(Decimal("1")))
+    require(amount >= 1000, "Минимальная сумма оплаты через СБП — 10 рублей.")
+    payload: dict[str, Any] = {
+        "TerminalKey": terminal,
+        "Amount": amount,
+        "OrderId": inquiry["id"],
+        "Description": f"Заказ G-Partner №{inquiry['id'][:8]}",
+        "PayType": "O",
+        "Language": "ru",
+        "NotificationURL": f"{origin}/api/payments/tbank/notification",
+        "SuccessURL": f"{origin}/#order-success?order={inquiry['id']}",
+        "FailURL": f"{origin}/#cart?payment=failed&order={inquiry['id']}",
+    }
+    taxation = os.getenv("TBANK_TAXATION", "").strip()
+    if taxation:
+        tax = os.getenv("TBANK_ITEM_TAX", "none").strip() or "none"
+        receipt: dict[str, Any] = {
+            "Taxation": taxation,
+            "Items": [{
+                "Name": item["name"][:128],
+                "Price": int((Decimal(str(item["price"])) * 100).quantize(Decimal("1"))),
+                "Quantity": item["quantity"],
+                "Amount": int((Decimal(str(item["price"])) * item["quantity"] * 100).quantize(Decimal("1"))),
+                "PaymentMethod": "full_prepayment",
+                "PaymentObject": "commodity",
+                "Tax": tax,
+            } for item in inquiry["items"]],
+        }
+        if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", inquiry["contact"]):
+            receipt["Email"] = inquiry["contact"]
+        elif valid_phone(inquiry["contact"]):
+            receipt["Phone"] = inquiry["contact"]
+        payload["Receipt"] = receipt
+    payload["Token"] = tbank_token(payload, password)
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=12)) as client:
+            async with client.post("https://securepay.tinkoff.ru/v2/Init", json=payload) as response:
+                result = await response.json(content_type=None)
+    except (OSError, asyncio.TimeoutError, ValueError) as error:
+        LOGGER.warning("T-Bank Init failed: %s", type(error).__name__)
+        raise APIError(502, "Т-Банк временно не ответил. Повторите оплату через несколько минут.") from None
+    payment_url = result.get("PaymentURL") if isinstance(result, dict) else None
+    payment_ok = (isinstance(result, dict) and result.get("Success") is True
+                  and isinstance(payment_url, str) and payment_url.startswith("https://")
+                  and origin_of(payment_url) is not None)
+    require(response.status == 200 and payment_ok,
+            "Т-Банк не смог создать оплату. Повторите попытку или свяжитесь с магазином.", 502)
+    return {"payment_id": str(result.get("PaymentId", "")), "payment_url": payment_url}
+
+
+def _send_email(contact: str, subject: str, text: str) -> None:
+    host = os.getenv("SMTP_HOST", "").strip()
+    sender = os.getenv("SMTP_FROM", "").strip()
+    if not host or not sender:
+        return
+    port = int(os.getenv("SMTP_PORT", "465"))
+    message = EmailMessage()
+    message["From"], message["To"], message["Subject"] = sender, contact, subject
+    message.set_content(text)
+    factory = smtplib.SMTP_SSL if port == 465 else smtplib.SMTP
+    with factory(host, port, timeout=10) as server:
+        if port != 465 and os.getenv("SMTP_STARTTLS", "true").lower() not in ("0", "false"):
+            server.starttls()
+        username, password = os.getenv("SMTP_USERNAME", ""), os.getenv("SMTP_PASSWORD", "")
+        if username:
+            server.login(username, password)
+        server.send_message(message)
+
+
+async def notify_customer(inquiry: dict[str, Any], subject: str, text: str) -> None:
+    contact = inquiry.get("contact", "")
+    try:
+        if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact):
+            await asyncio.to_thread(_send_email, contact, subject, text)
+        elif valid_phone(contact) and os.getenv("SMS_WEBHOOK_URL", "").strip():
+            phone = "+" + "".join(character for character in contact if character.isdigit())
+            async with ClientSession(timeout=ClientTimeout(total=8)) as client:
+                async with client.post(os.environ["SMS_WEBHOOK_URL"], json={"to": phone, "text": text}) as response:
+                    if response.status >= 400:
+                        LOGGER.warning("SMS webhook returned %s", response.status)
+    except (OSError, ValueError, smtplib.SMTPException, asyncio.TimeoutError) as error:
+        LOGGER.warning("Customer notification failed for order %s: %s", inquiry.get("id", ""), type(error).__name__)
+
+
+def queue_customer_notification(inquiry: dict[str, Any], subject: str, text: str) -> None:
+    task = asyncio.create_task(notify_customer(inquiry, subject, text))
+    task.add_done_callback(lambda finished: finished.exception() if not finished.cancelled() else None)
 
 
 async def read_json(request: web.Request) -> dict[str, Any]:
@@ -330,6 +452,15 @@ class Store:
                 payment_settings["payment_card"] = "off"
                 connection.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(payment_settings, ensure_ascii=False),))
                 connection.execute("INSERT INTO meta(key,value) VALUES(?,?)", (no_card_key, now_iso()))
+            # «Долями» временно выключено по всему сайту. Поле настройки остаётся в
+            # схеме, чтобы позднее включить его только для корзин дешевле 30 000 ₽.
+            no_dolyame_key = "disable-dolyame-2026-09-14"
+            if connection.execute("SELECT 1 FROM meta WHERE key=?", (no_dolyame_key,)).fetchone() is None:
+                row = connection.execute("SELECT data FROM settings WHERE id=1").fetchone()
+                payment_settings = json.loads(row["data"])
+                payment_settings["payment_dolyame"] = "off"
+                connection.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(payment_settings, ensure_ascii=False),))
+                connection.execute("INSERT INTO meta(key,value) VALUES(?,?)", (no_dolyame_key, now_iso()))
             self.restore_catalog(connection)
             self.restore_catalog(
                 connection,
@@ -819,8 +950,12 @@ async def account_inquiries(request: web.Request) -> web.Response:
     inquiries = []
     for stored in rows:
         inquiry = json.loads(stored["data"])
-        inquiries.append({key: inquiry.get(key, "") if key == "city" else inquiry[key]
-                          for key in ("id", "status", "total", "created_at", "city", "items")})
+        inquiries.append({
+            "id": inquiry["id"], "status": inquiry["status"], "total": inquiry["total"],
+            "created_at": inquiry["created_at"], "updated_at": inquiry.get("updated_at", ""),
+            "paid_at": inquiry.get("paid_at", ""), "city": inquiry.get("city", ""),
+            "tracking_number": inquiry.get("tracking_number", ""), "items": inquiry["items"],
+        })
     return web.json_response({"inquiries": inquiries})
 
 
@@ -1013,7 +1148,9 @@ def replay_inquiry(connection: sqlite3.Connection, key: tuple[str, str] | None) 
         return None
     require(hmac.compare_digest(row["request_hash"], key[1]),
             "Эта заявка уже отправлена с другими данными. Начните новую заявку.", 409)
-    return web.json_response(json.loads(row["response"]), status=201, headers={"Idempotency-Replayed": "true"})
+    response = json.loads(row["response"])
+    require(not response.get("_pending"), "Оплата по этой заявке уже создаётся. Подождите несколько секунд.", 409)
+    return web.json_response(response, status=201, headers={"Idempotency-Replayed": "true"})
 
 
 async def create_inquiry(request: web.Request) -> web.Response:
@@ -1025,8 +1162,6 @@ async def create_inquiry(request: web.Request) -> web.Response:
             replay = replay_inquiry(connection, request_key)
         if replay is not None:
             return replay
-    # Behind BotHost many customers share one proxy IP. Keep a broad peer ceiling
-    # and a separate per-contact limit instead of denying the sixth real customer.
     store.rate_limit(request, "inquiry-peer", 60, 600)
     require(not (set(data) - {"name", "contact", "city", "cdek_pvz", "payment_method", "message", "items", "consent"}), "Неизвестные поля заявки.")
     require(data.get("consent") is True, "Нужно согласие на обработку данных для ответа на заявку.")
@@ -1036,33 +1171,31 @@ async def create_inquiry(request: web.Request) -> web.Response:
     city = text_value(data.get("city", ""), "Город доставки", 80)
     cdek_pvz = text_value(data.get("cdek_pvz", ""), "Пункт выдачи СДЭК", 300)
     payment_method = text_value(data.get("payment_method", "sbp"), "Способ оплаты", 24, 1)
-    require(payment_method in ("sbp", "dolyame", "installment", "credit"), "Выберите доступный способ оплаты.")
+    require(payment_method in ("sbp", "installment", "credit"), "Выберите доступный способ оплаты.")
     require(valid_phone(contact) or
             bool(re.fullmatch(r"@?[A-Za-z][A-Za-z0-9_]{4,31}", contact)) or
             bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact)),
             "Укажите телефон, email или имя пользователя Telegram.")
     normalized_contact = ("".join(character for character in contact if character.isdigit())
-                          if valid_phone(contact)
-                          else contact.removeprefix("@").lower())
+                          if valid_phone(contact) else contact.removeprefix("@").lower())
     store.rate_limit(request, "inquiry-contact", 5, 600, identity=normalized_contact)
-    # Linking is a convenience, not a privilege: the middleware already refuses
-    # cross-site writes, so a missing CSRF token must not lose a real inquiry.
     customer = store.account(request, required=False, csrf=False)
     requested = data.get("items", [])
     require(isinstance(requested, list) and len(requested) <= 30, "В заявке допускается не больше 30 моделей.")
     require(bool(requested) or len(message) >= 10, "Выберите товар или опишите вопрос (от 10 символов).")
     require(not requested or len(city) >= 2, "Укажите город доставки — магазин отправляет заказы по России.")
     require(not requested or len(cdek_pvz) >= 3, "Укажите адрес или код пункта выдачи СДЭК.")
+    online_payment = bool(requested) and payment_method == "sbp" and _payment_configured()
     with store.connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        # The second check is inside the write transaction: concurrent retries
-        # cannot both pass the read-only lookup and create separate inquiries.
         replay = replay_inquiry(connection, request_key)
         if replay is not None:
             return replay
         settings = store.settings(connection)
         require(settings["inquiries_enabled"] and settings_ready(settings),
                 "Приём заявок пока не открыт. Контакты магазина доступны в разделе «Контакты».", 503)
+        require(payment_method != "sbp" or settings["payment_sbp"] == "on",
+                "Оплата через СБП временно недоступна.", 409)
         items, seen, total = [], set(), Decimal(0)
         for item in requested:
             require(isinstance(item, dict) and set(item) == {"product_id", "quantity"}, "Некорректная позиция заявки.")
@@ -1075,22 +1208,44 @@ async def create_inquiry(request: web.Request) -> web.Response:
             require(row is not None, "Один из товаров больше не опубликован. Обновите корзину.", 409)
             product = json.loads(row["data"])
             require(product["stock_status"] != "out-of-stock", "Один из товаров отсутствует. Обновите корзину.", 409)
+            require(product["price"] is not None, "Для одного из товаров цена ещё не указана.", 409)
             total += Decimal(str(product["price"])) * quantity
             items.append({"product_id": product_id, "name": product["name"], "price": product["price"],
                           "quantity": quantity, "image_url": product["image_url"]})
         timestamp = now_iso()
+        status = "awaiting_payment" if online_payment else "new"
         inquiry = {"id": secrets.token_hex(16), "name": name, "contact": contact, "city": city,
-                   "cdek_pvz": cdek_pvz, "payment_method": payment_method, "message": message,
-                   "items": items, "total": float(total.quantize(Decimal(".01"))), "status": "new",
+                   "cdek_pvz": cdek_pvz, "payment_method": payment_method, "payment_status": "",
+                   "tracking_number": "", "message": message, "items": items,
+                   "total": float(total.quantize(Decimal(".01"))), "status": status,
                    "created_at": timestamp, "updated_at": timestamp, "consent_at": timestamp}
         connection.execute("INSERT INTO inquiries(id,data,status,created_at,updated_at,customer_id) VALUES(?,?,?,?,?,?)",
-                           (inquiry["id"], json.dumps(inquiry, ensure_ascii=False), "new", timestamp, timestamp,
+                           (inquiry["id"], json.dumps(inquiry, ensure_ascii=False), status, timestamp, timestamp,
                             customer["id"] if customer is not None else None))
-        receipt = {"inquiry": {"id": inquiry["id"], "total": inquiry["total"], "status": "new"}}
         if request_key is not None:
             connection.execute("INSERT INTO inquiry_requests(key_hash,request_hash,response,created_at) VALUES(?,?,?,?)",
-                               (request_key[0], request_key[1], json.dumps(receipt), time.time()))
-    # Do not echo personal data in the public response.
+                               (request_key[0], request_key[1], json.dumps({"_pending": True}), time.time()))
+    payment_url = ""
+    if online_payment:
+        try:
+            payment = await init_tbank_payment(inquiry)
+        except APIError:
+            with store.connect() as connection:
+                connection.execute("DELETE FROM inquiries WHERE id=? AND status='awaiting_payment'", (inquiry["id"],))
+                if request_key is not None:
+                    connection.execute("DELETE FROM inquiry_requests WHERE key_hash=?", (request_key[0],))
+            raise
+        inquiry.update(payment_id=payment["payment_id"], payment_status="NEW", updated_at=now_iso())
+        payment_url = payment["payment_url"]
+        with store.connect() as connection:
+            connection.execute("UPDATE inquiries SET data=?,updated_at=? WHERE id=?",
+                               (json.dumps(inquiry, ensure_ascii=False), inquiry["updated_at"], inquiry["id"]))
+    receipt = {"inquiry": {"id": inquiry["id"], "total": inquiry["total"], "status": inquiry["status"],
+                           **({"payment_url": payment_url} if payment_url else {})}}
+    if request_key is not None:
+        with store.connect() as connection:
+            connection.execute("UPDATE inquiry_requests SET response=? WHERE key_hash=?",
+                               (json.dumps(receipt, ensure_ascii=False), request_key[0]))
     return web.json_response(receipt, status=201)
 
 
@@ -1104,7 +1259,7 @@ async def list_inquiries(request: web.Request) -> web.Response:
     page, page_size = int(page_raw), int(size_raw)
     require(page >= 1 and 1 <= page_size <= 100, "Номер страницы — от 1, размер страницы — от 1 до 100.")
     status = request.query.get("status", "all")
-    require(status in ("all", "new", "contacted", "closed"), "Неизвестный статус заявки.")
+    require(status == "all" or status in ORDER_STATUSES, "Неизвестный статус заявки.")
     where = "" if status == "all" else " WHERE status=?"
     parameters: tuple[Any, ...] = () if status == "all" else (status,)
     with request.app[STORE_KEY].connect() as connection:
@@ -1120,16 +1275,82 @@ async def list_inquiries(request: web.Request) -> web.Response:
 
 async def update_inquiry(request: web.Request) -> web.Response:
     data = await read_json(request)
-    require(set(data) == {"status"} and data["status"] in ("new", "contacted", "closed"), "Неизвестный статус заявки.")
+    require(bool(data) and not (set(data) - {"status", "tracking_number"}), "Передайте статус или трек-номер.")
+    if "status" in data:
+        require(data["status"] in ORDER_STATUSES, "Неизвестный статус заявки.")
+    tracking_number = None
+    if "tracking_number" in data:
+        tracking_number = text_value(data["tracking_number"], "Трек-номер", 100)
+    notify_tracking = False
     with request.app[STORE_KEY].connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute("SELECT data FROM inquiries WHERE id=?", (request.match_info["id"],)).fetchone()
         require(row is not None, "Заявка не найдена.", 404)
         inquiry = json.loads(row["data"])
-        inquiry.update(status=data["status"], updated_at=now_iso())
+        if "status" in data:
+            inquiry["status"] = data["status"]
+        if tracking_number is not None:
+            notify_tracking = bool(tracking_number and tracking_number != inquiry.get("tracking_number", ""))
+            inquiry["tracking_number"] = tracking_number
+            if notify_tracking and inquiry["status"] not in ("completed", "cancelled"):
+                inquiry["status"] = "shipped"
+        inquiry["updated_at"] = now_iso()
         connection.execute("UPDATE inquiries SET data=?,status=?,updated_at=? WHERE id=?",
                            (json.dumps(inquiry, ensure_ascii=False), inquiry["status"], inquiry["updated_at"], inquiry["id"]))
+    if notify_tracking:
+        queue_customer_notification(
+            inquiry,
+            f"Заказ G-Partner №{inquiry['id'][:8]} передан в доставку",
+            f"Ваш заказ передан в транспортную службу. Трек-номер: {inquiry['tracking_number']}",
+        )
     return web.json_response({"inquiry": inquiry})
+
+
+async def order_status(request: web.Request) -> web.Response:
+    order_id = request.match_info["id"]
+    require(bool(PRODUCT_ID.fullmatch(order_id)), "Некорректный номер заказа.")
+    with request.app[STORE_KEY].connect() as connection:
+        row = connection.execute("SELECT data FROM inquiries WHERE id=?", (order_id,)).fetchone()
+    require(row is not None, "Заказ не найден.", 404)
+    inquiry = json.loads(row["data"])
+    return web.json_response({
+        "id": inquiry["id"], "total": inquiry["total"], "status": inquiry["status"],
+        "tracking_number": inquiry.get("tracking_number", ""), "paid_at": inquiry.get("paid_at", ""),
+    })
+
+
+async def tbank_notification(request: web.Request) -> web.Response:
+    data = await read_json(request)
+    terminal, password = os.getenv("TBANK_TERMINAL_KEY", "").strip(), os.getenv("TBANK_PASSWORD", "").strip()
+    require(terminal and password, "Платёжный терминал не настроен.", 503)
+    token = data.get("Token")
+    require(isinstance(token, str) and hmac.compare_digest(token, tbank_token(data, password)),
+            "Некорректная подпись уведомления.", 403)
+    require(data.get("TerminalKey") == terminal, "Уведомление другого терминала.", 403)
+    order_id, status = data.get("OrderId"), data.get("Status")
+    require(isinstance(order_id, str) and bool(PRODUCT_ID.fullmatch(order_id)), "Некорректный номер заказа.")
+    require(isinstance(status, str) and len(status) <= 40, "Некорректный статус платежа.")
+    paid_now = False
+    with request.app[STORE_KEY].connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute("SELECT data FROM inquiries WHERE id=?", (order_id,)).fetchone()
+        require(row is not None, "Заказ не найден.", 404)
+        inquiry = json.loads(row["data"])
+        expected_amount = int((Decimal(str(inquiry["total"])) * 100).quantize(Decimal("1")))
+        require(data.get("Amount") == expected_amount, "Сумма уведомления не совпадает с заказом.", 409)
+        if inquiry.get("payment_id"):
+            require(str(data.get("PaymentId", "")) == inquiry["payment_id"], "Платёж не совпадает с заказом.", 409)
+        inquiry["payment_status"] = status
+        if data.get("Success") is True and status == "CONFIRMED":
+            paid_now = inquiry["status"] not in ("paid", "processing", "shipped", "completed")
+            inquiry["status"] = "paid"
+            inquiry["paid_at"] = inquiry.get("paid_at") or now_iso()
+        inquiry["updated_at"] = now_iso()
+        connection.execute("UPDATE inquiries SET data=?,status=?,updated_at=? WHERE id=?",
+                           (json.dumps(inquiry, ensure_ascii=False), inquiry["status"], inquiry["updated_at"], inquiry["id"]))
+    if paid_now:
+        queue_customer_notification(inquiry, f"Заказ G-Partner №{order_id[:8]} оплачен", ORDER_ACCEPTED_TEXT)
+    return web.Response(text="OK", content_type="text/plain")
 
 
 async def api_not_found(_: web.Request) -> web.Response:
@@ -1145,6 +1366,8 @@ def setup_store(app: web.Application) -> None:
     app.router.add_get("/api/products", list_products)
     app.router.add_get("/api/settings", get_settings)
     app.router.add_post("/api/inquiries", create_inquiry)
+    app.router.add_get("/api/orders/{id}", order_status)
+    app.router.add_post("/api/payments/tbank/notification", tbank_notification)
     app.router.add_get("/api/account", account_state)
     app.router.add_post("/api/account/register", account_register)
     app.router.add_post("/api/account/login", account_login)

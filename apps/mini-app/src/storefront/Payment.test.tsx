@@ -17,14 +17,14 @@ describe('раздел оплаты', () => {
     expect(screen.getByText(/способы оплаты, подтверждённые магазином/)).toBeInTheDocument();
   });
 
-  it('объясняет порядок оплаты по ссылке или QR-коду и включённую доставку', () => {
+  it('объясняет порядок оплаты и отдельную оплату доставки', () => {
     render(<Payment settings={withSettings()} />);
     const accordion = screen.getByText('СБП').closest('details');
     expect(accordion).not.toHaveAttribute('open');
     fireEvent.click(screen.getByText('СБП'));
     expect(accordion).toHaveAttribute('open');
     expect(screen.getByText(/ссылку или QR-код на оплату/)).toBeInTheDocument();
-    expect(screen.getByText(/Стоимость доставки уже включена в цену товара/)).toBeInTheDocument();
+    expect(screen.getByText(/Доставка оплачивается отдельно при получении/)).toBeInTheDocument();
   });
 
   it('не выдаёт неподключённый способ за рабочий', () => {
@@ -40,10 +40,11 @@ describe('раздел оплаты', () => {
     expect(screen.queryByText(/Тестовый сервис/)).toBeNull();
   });
 
-  it('показывает только четыре согласованных способа оплаты', () => {
+  it('временно скрывает Долями и не показывает устаревшие способы', () => {
     render(<Payment settings={withSettings({ payment_dolyame: 'preparing', payment_installment: 'preparing', payment_credit: 'preparing', payment_invoice: 'on', payment_on_delivery: 'on' })} />);
-    expect(screen.getAllByRole('group')).toHaveLength(4);
-    for (const title of ['СБП', 'Долями', 'Рассрочка', 'Кредит']) expect(screen.getByText(title)).toBeInTheDocument();
+    expect(screen.getAllByRole('group')).toHaveLength(3);
+    for (const title of ['СБП', 'Рассрочка', 'Кредит']) expect(screen.getByText(title)).toBeInTheDocument();
+    expect(screen.queryByText('Долями')).toBeNull();
     expect(screen.queryByText('Счёт для организаций')).toBeNull();
     expect(screen.queryByText('Оплата при получении')).toBeNull();
   });

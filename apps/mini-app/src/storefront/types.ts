@@ -74,7 +74,7 @@ export const MAX_QUANTITY = 20;
 export const MAX_CART_MODELS = 30;
 export type PaymentChoice = 'sbp' | 'dolyame' | 'installment' | 'credit';
 export type InquiryPayload = { name: string; contact: string; city: string; cdek_pvz: string; payment_method: PaymentChoice; message: string; items: CartItem[]; consent: true };
-export type Inquiry = { id: string; total: number | null; status: string };
+export type Inquiry = { id: string; total: number | null; status: string; payment_url?: string; tracking_number?: string; paid_at?: string };
 export type Filters = {
   category: Category | 'all';
   tag: ProductTag | 'all';
@@ -103,10 +103,13 @@ export type CityChoice = { name: string; asked: boolean };
 export const popularCities = ['Москва', 'Санкт-Петербург', 'Краснодар', 'Екатеринбург', 'Новосибирск', 'Казань', 'Ростов-на-Дону', 'Сочи'];
 export type AccountInquiry = {
   id: string;
-  status: 'new' | 'contacted' | 'closed';
+  status: 'new' | 'awaiting_payment' | 'paid' | 'processing' | 'shipped' | 'completed' | 'cancelled' | 'contacted' | 'closed';
   total: number | null;
   created_at: string;
+  updated_at?: string;
+  paid_at?: string;
   city: string;
+  tracking_number?: string;
   items: { product_id: string; name: string; price: number | null; quantity: number }[];
 };
 export const categoryLabels: Record<Category, string> = {

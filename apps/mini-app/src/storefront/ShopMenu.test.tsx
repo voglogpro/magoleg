@@ -23,13 +23,10 @@ describe('меню магазина', () => {
     expect(screen.queryByText(/Помощь с выбором/)).toBeNull();
   });
 
-  it('показывает только те способы оплаты, которые магазин подтвердил', () => {
+  it('не дублирует способы оплаты в меню и подвале', () => {
     render(<ShopMenu settings={withSettings()} />);
-    expect(screen.getByLabelText('Способы оплаты').textContent).toBe('СБП');
-    cleanup();
-    // Выключенный способ не должен превращаться в обещание на видном месте.
-    render(<ShopMenu settings={withSettings({ payment_sbp: 'off' })} />);
     expect(screen.queryByLabelText('Способы оплаты')).toBeNull();
+    expect(screen.queryByText('СБП')).toBeNull();
   });
 
   it('не выводит канал связи, которого у магазина нет', () => {
