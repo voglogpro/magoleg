@@ -203,7 +203,10 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
           <label>Название товара<input id="crm-product-name" value={draft.name} onChange={event => update('name', event.target.value)} maxLength={160} required minLength={2} placeholder="Бренд и модель"/></label>
           <div className="crm-fields-two"><label>Категория<select value={draft.category} onChange={event => update('category', event.target.value as Product['category'])}>{Object.entries(categoryLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Наличие<select value={draft.stock_status} onChange={event => update('stock_status', event.target.value as Product['stock_status'])}><option value="preorder">Под заказ</option><option value="in-stock">В наличии</option><option value="out-of-stock">Нет в наличии</option></select></label></div>
           <label>Описание<textarea rows={5} value={draft.description} onChange={event => update('description', event.target.value)} maxLength={12000} placeholder="Особенности модели, комплектация и кому она подходит"/></label>
-          <label>Цена, ₽<input inputMode="decimal" type="number" min="0.01" max="100000000" step="0.01" value={draft.price} onChange={event => update('price', event.target.value)} placeholder="Укажите реальную цену"/></label>
+          <div className="crm-fields-two">
+            <label>Текущая цена, ₽<input inputMode="decimal" type="number" min="0.01" max="100000000" step="0.01" value={draft.price} onChange={event => update('price', event.target.value)} placeholder="Цена продажи"/></label>
+            <label>Цена до скидки, ₽<input inputMode="decimal" type="number" min="0.01" max="100000000" step="0.01" value={draft.old_price} onChange={event => update('old_price', event.target.value)} placeholder="Оставьте пустой без скидки"/><small className="crm-help">Будет аккуратно зачёркнута на витрине. Должна быть выше текущей цены.</small></label>
+          </div>
         </fieldset>
         <fieldset disabled={busy}><legend>Фотография товара</legend>
           <div className="crm-photo-editor">

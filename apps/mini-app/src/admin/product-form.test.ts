@@ -18,6 +18,13 @@ describe('admin publication validation', () => {
     expect(result.payload.range_km).toBeNull();
     expect(result.payload.published).toBe(false);
   });
+  it('validates a discount price separately from the current price', () => {
+    const sale = validateProduct({ ...productDraft(), name: 'City 42', price: '49900', old_price: '59900' }, false);
+    expect(sale.errors).toEqual([]);
+    expect(sale.payload.old_price).toBe(59900);
+    expect(validateProduct({ ...productDraft(), name: 'City 42', price: '49900', old_price: '49900' }, false).errors).toContain('Цена до скидки должна быть выше текущей цены товара.');
+    expect(validateProduct({ ...productDraft(), name: 'City 42', old_price: '59900' }, false).errors).toContain('Цена до скидки должна быть выше текущей цены товара.');
+  });
   it('preserves kopecks in prices instead of rounding the displayed amount', () => {
     expect(formatPrice(42500.5).replace(/\s/g, '')).toBe('42500,50₽');
     expect(formatPrice(42500.51).replace(/\s/g, '')).toBe('42500,51₽');

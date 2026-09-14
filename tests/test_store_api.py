@@ -278,6 +278,7 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
     async def test_product_validation_and_no_mass_assignment(self):
         await self.login()
         cases = [{"price": -1}, {"price": True}, {"price": "100"}, {"price": 1.001}, {"price": 10 ** 300},
+                 {"old_price": -1}, {"old_price": 1.001}, {"price": 50000, "old_price": 50000}, {"old_price": 60000},
                  {"category": "car"}, {"range_km": 50000}, {"stock_status": "fake"},
                  {"license": "not-required"}, {"published": "false"}, {"unknown_field": 1},
                  {"image_url": "https://evil.example/photo.png"}, {"image_url": "/media/../secret"},
@@ -290,6 +291,13 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
             "license": "required", "license_verified": True,
         }, headers=self.headers)
         self.assertEqual(response.status, 201)
+
+    async def test_discount_price_is_managed_in_crm_and_published(self):
+        await self.login()
+        product = await self.published_product(price=49900, old_price=59900)
+        self.assertEqual(product["old_price"], 59900)
+        public = await self.client.get("/api/products")
+        self.assertEqual((await public.json())["products"][0]["old_price"], 59900)
 
     async def test_atv_category_persists_for_admin_and_public_catalog_without_license_claim(self):
         await self.login()

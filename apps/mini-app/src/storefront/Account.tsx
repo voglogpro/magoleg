@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, ClipboardList, LogOut, PackageCheck, ShieldCheck, Truck, UserRound } from 'lucide-react';
+import { ArrowRight, ClipboardList, Headphones, Heart, LogOut, MapPin, PackageCheck, Scale, ShieldCheck, ShoppingBag, Truck, UserRound } from 'lucide-react';
 import { getAccountInquiries, getOwnerSession, registerAccount, signIn, signOut, signOutOwner, type OwnerSession } from './api';
 import { CityDatalist } from './CityPicker';
 import { money } from './domain';
@@ -74,16 +74,16 @@ function Card({ icon: Icon, eyebrow, title, children }: {
   </section>;
 }
 
-export function Account({ account, csrfToken, city = '', restoring = false, onChange, onCity }: {
+export function Account({ account, csrfToken, city = '', restoring = false, onChange, onCity, saved = { favorites: 0, compare: 0, cart: 0 } }: {
   account: AccountProfile | null; csrfToken: string; city?: string; restoring?: boolean;
   onChange: () => void; onCity?: (city: string) => void;
+  saved?: { favorites: number; compare: number; cart: number };
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [town, setTown] = useState(city);
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(true);
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -108,8 +108,8 @@ export function Account({ account, csrfToken, city = '', restoring = false, onCh
     setError('');
     try {
       const result = mode === 'register'
-        ? await registerAccount(name.trim(), contact.trim(), town.trim(), password, remember, consent)
-        : await signIn(contact.trim(), password, remember);
+        ? await registerAccount(name.trim(), contact.trim(), town.trim(), password, true, consent)
+        : await signIn(contact.trim(), password, true);
       setPassword('');
       if (result.role === 'owner') {
         setOwner({ username: result.username || contact.trim(), csrfToken: result.csrfToken });
@@ -149,24 +149,34 @@ export function Account({ account, csrfToken, city = '', restoring = false, onCh
     <button className="sf-text-button sf-account-leave" onClick={leave} disabled={busy}><LogOut size={16} />{busy ? 'Выходим…' : 'Выйти из аккаунта'}</button>
   </Card>;
 
-  if (account) return <Card icon={UserRound} eyebrow="Аккаунт покупателя" title={account.name}>
-    <p className="sf-account-contact">{account.contact}{account.city ? ` · ${account.city}` : ''}</p>
+  if (account) return <section className="sf-account-dashboard ym-hide-content" aria-labelledby="sf-account-dashboard-title">
+    <header className="sf-account-hero">
+      <span className="sf-account-avatar" aria-hidden="true">{account.name.trim().charAt(0).toUpperCase() || <UserRound size={30} />}</span>
+      <div className="sf-account-identity"><p>Личный кабинет</p><h2 id="sf-account-dashboard-title">{account.name}</h2><span>{account.contact}{account.city ? ` · ${account.city}` : ''}</span></div>
+      <span className="sf-account-device"><ShieldCheck size={16} aria-hidden="true" />Устройство запомнено</span>
+    </header>
     {error && <p className="sf-error" role="alert">{error}</p>}
-    <h3 className="sf-history-title">Мои заявки</h3>
-    <History />
-    <CustomerPreferences csrfToken={csrfToken} />
+    <nav className="sf-account-dashboard__menu" aria-label="Разделы личного кабинета">
+      <a href="#favorites"><Heart size={21} aria-hidden="true" /><span><strong>Избранное</strong><small>Сохранённые модели</small></span><b>{saved.favorites}</b><ArrowRight size={18} /></a>
+      <a href="#cart"><ShoppingBag size={21} aria-hidden="true" /><span><strong>Корзина</strong><small>Товары к оформлению</small></span><b>{saved.cart}</b><ArrowRight size={18} /></a>
+      <a href="#compare"><Scale size={21} aria-hidden="true" /><span><strong>Сравнение</strong><small>Характеристики рядом</small></span><b>{saved.compare}</b><ArrowRight size={18} /></a>
+      <a href="#delivery"><MapPin size={21} aria-hidden="true" /><span><strong>Доставка</strong><small>Условия получения в СДЭК</small></span><ArrowRight size={18} /></a>
+      <a href="#contact"><Headphones size={21} aria-hidden="true" /><span><strong>Поддержка</strong><small>Помощь и обратная связь</small></span><ArrowRight size={18} /></a>
+    </nav>
+    <section className="sf-account-orders" aria-labelledby="sf-account-orders-title">
+      <div className="sf-account-section-title"><span><PackageCheck size={21} aria-hidden="true" /></span><div><p>Покупки и статусы</p><h3 id="sf-account-orders-title">Мои заказы</h3></div></div>
+      <History />
+    </section>
+    <details className="sf-account-settings"><summary>Настройки уведомлений и аналитики</summary><CustomerPreferences csrfToken={csrfToken} /></details>
     <button className="sf-text-button sf-account-leave" onClick={leave} disabled={busy}><LogOut size={16} />{busy ? 'Выходим…' : 'Выйти из аккаунта'}</button>
-  </Card>;
+  </section>;
 
   const registering = mode === 'register';
   return <Card icon={UserRound} eyebrow="Личный кабинет" title={registering ? 'Создать аккаунт' : 'Вход в аккаунт'}>
     <p className="sf-account-card__lead">{registering
-      ? 'Аккаунт хранит историю заявок и подставляет контакт при обращении в магазин.'
-      : 'Войдите, чтобы видеть свои заявки. Сотрудники магазина попадают в панель управления.'}</p>
-    <div className="sf-account-tabs" role="group" aria-label="Вход или регистрация">
-      <button aria-pressed={!registering} onClick={() => { setMode('login'); setError(''); }}>Вход</button>
-      <button aria-pressed={registering} onClick={() => { setMode('register'); setError(''); }}>Регистрация</button>
-    </div>
+      ? 'Создайте аккаунт один раз — заказы и контакт будут доступны на этом устройстве.'
+      : 'Войдите один раз. Защищённая сессия запомнит это устройство и вернёт ваши заказы без повторной регистрации.'}</p>
+    <div className="sf-account-device-note"><ShieldCheck size={18} aria-hidden="true" /><span>Автоматический вход включён. Пароль в браузере не сохраняется.</span></div>
     {error && <p className="sf-error" role="alert">{error}</p>}
     <form className="sf-login-form" onSubmit={submit}>
       {registering && <label>Ваше имя
@@ -183,10 +193,10 @@ export function Account({ account, csrfToken, city = '', restoring = false, onCh
         <input name="password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} required minLength={registering ? 12 : 1} maxLength={256} value={password} disabled={busy} onChange={event => setPassword(event.target.value)} />
         {registering && <small>От 12 символов — так аккаунт не подберут перебором.</small>}
       </label>
-      <label className="sf-remember"><input name="remember" type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} disabled={busy}/><span>Оставаться в системе на этом устройстве</span></label>
-      <p className="sf-account-consent">На чужом устройстве снимите отметку. Пароль на сайте не сохраняется.</p>
+
       {registering && <label className="sf-consent"><input name="consent" type="checkbox" checked={consent} required disabled={busy} onChange={event => setConsent(event.target.checked)} /><span>Даю <a href="#consent" target="_blank" rel="noopener noreferrer">согласие на обработку данных</a> для создания аккаунта и работы с заявками. <a href="#privacy" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a></span></label>}
       <button className="sf-button" type="submit" disabled={busy}>{busy ? 'Отправляем…' : registering ? 'Создать аккаунт' : 'Войти'}</button>
     </form>
+    <p className="sf-account-switch">{registering ? 'Уже есть аккаунт?' : 'Первый раз в G-Partner?'} <button type="button" onClick={() => { setMode(registering ? 'login' : 'register'); setError(''); }}>{registering ? 'Вернуться ко входу' : 'Создать аккаунт'}</button></p>
   </Card>;
 }

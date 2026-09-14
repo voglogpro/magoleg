@@ -11,7 +11,7 @@ await mkdir(output, { recursive: true });
 const launchOptions = { headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) };
 const browser = await chromium.launch(launchOptions);
 const settings = { shop_name: 'G-Partner', phone: '+7 (900) 123-45-67', telegram: '@gpartner_shop', address: 'Тестовый адрес для автоматической проверки', hours: '10:00–18:00', delivery: 'Самовывоз и доставка по согласованию.', payment: 'После подтверждения магазина.', legal_name: 'Тестовый продавец', legal_details: 'Тестовые реквизиты, не опубликованы на реальном сайте.', warranty: 'По документам модели.', inquiries_enabled: true };
-const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/test.webp', images: ['/media/test.webp', '/media/test-2.webp'], featured: true, published: true, tags: [], badge: '', updated_at: '2026-09-06' };
+const seed = { name: 'Городская модель', description: 'Для поездок по городу. Тестовые данные браузерной проверки.', category: 'kick-scooter', license: 'not-required', license_verified: true, price: 19900, old_price: 24900, stock_status: 'in-stock', range_km: 25, speed_kmh: 25, power_w: 250, weight_kg: 18, cargo_l: 30, image_url: '/media/test.webp', images: ['/media/test.webp', '/media/test-2.webp'], featured: true, published: true, tags: [], badge: '', updated_at: '2026-09-06' };
 const products = [
   { ...seed, id: 'city', name: 'Городская модель', images: ['/media/test.webp'] },
   { ...seed, id: 'cargo', name: 'Грузовой электроскутер с длинным названием', category: 'scooter', price: 119900, license: 'required', range_km: 80, power_w: 1500, tags: ['courier', 'heavy-rider'], badge: 'hit' },
@@ -95,7 +95,9 @@ for (const width of [320, 390, 768, 900, 1440]) {
   }), `${width}: the funnel keeps its order on the page`);
   check(await page.locator('.sf-continue').count() === 0, `${width}: nothing chosen yet, so no resume block`);
   check(await page.locator('.sf-promo').count() === 0, `${width}: no channel published, no subscribe invitation`);
-  await page.locator(width < 900 ? '.sf-mobile-shortcuts a[href="#picks"]' : '.sf-desktop-nav a[href="#picks"]').click();
+  check(await page.locator('.sf-desktop-nav a[href="#picks"], .sf-mobile-shortcuts a[href="#picks"]').count() === 0, `${width}: picks are absent from top navigation`);
+  check(await page.locator('.sf-desktop-nav a[href*="sale=1"], .sf-mobile-shortcuts a[href*="sale=1"]').count() === 0, `${width}: discounts are absent from top navigation`);
+  await page.goto(`${base}/#picks`);
   await page.waitForSelector('.sf-pick-card');
   await page.locator('.sf-pick-card').first().click();
   await page.waitForURL(/tag=.*sort=value|sort=value.*tag=/);
@@ -191,6 +193,7 @@ for (const width of [320, 390, 768, 900, 1440]) {
     await page.waitForSelector('.sf-page-heading');
     await page.waitForTimeout(90);
     check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: ${route} no overflow`);
+    if (route === 'delivery') check(await page.locator('.sf-delivery-calculator, .sf-zone-grid').count() === 0, `${width}: delivery has no calculator or delivery-time chapter`);
   }
   check(await page.locator('.sf-gallery__track > *').count() === 2, `${width}: the product page shows every photo of the model`);
   check((await page.locator('.sf-gallery__counter').innerText()) === '1 / 2', `${width}: the gallery counts from the first photo`);
@@ -202,14 +205,18 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.goto(`${base}/#product/city`);
   await page.waitForSelector('.sf-product-detail');
   check(await page.locator('.sf-gallery').count() === 0, `${width}: a single-photo model keeps the plain photo`);
-  await page.goto(`${base}/#profile`);
+  await page.goto(`${base}/#home`);
+  await page.waitForSelector('.sf-product-card');
+  await page.locator(width < 900 ? '.sf-profile-trigger--mobile' : '.sf-profile-access--header > button').click();
+  check(await page.locator('.sf-profile-popover').isVisible(), `${width}: profile icon opens a compact account menu`);
+  await page.locator('.sf-profile-popover a[href="#profile"]').click();
   await page.waitForSelector('.sf-login-form');
   await page.locator('.sf-login-form [name=contact]').fill('owner');
   await page.locator('.sf-login-form [name=password]').fill('wrong-password');
   await page.locator('.sf-login-form button[type=submit]').click();
   await page.waitForSelector('.sf-account-card .sf-error');
   check((await page.locator('.sf-account-card .sf-error').innerText()).includes('Неверный'), `${width}: rejected sign-in explains itself`);
-  await page.locator('.sf-account-tabs button').nth(1).click();
+  await page.locator('.sf-account-switch button').click();
   await page.locator('.sf-login-form [name=name]').fill('Проверка');
   await page.locator('.sf-login-form [name=contact]').fill('+79001234567');
   await page.locator('.sf-login-form [name=city]').fill('Краснодар');
@@ -218,12 +225,12 @@ for (const width of [320, 390, 768, 900, 1440]) {
   await page.locator('.sf-login-form [name=consent]').check();
   accountState = { account: { name: 'Проверка', contact: '+79001234567', city: 'Краснодар' }, csrfToken: 'qa-token' };
   await page.locator('.sf-login-form button[type=submit]').click();
-  await page.waitForSelector('.sf-history-title');
+  await page.waitForSelector('.sf-account-orders');
   check((await page.locator('.sf-account-card').innerText()).includes('+79001234567'), `${width}: registered shopper sees their account`);
   accountState = { account: null };
   await page.locator('.sf-account-leave').click();
-  await page.waitForSelector('.sf-account-tabs');
-  await page.locator('.sf-account-tabs button').nth(0).click();
+  await page.waitForSelector('.sf-login-form');
+  await page.locator('.sf-account-switch button').click();
   await page.locator('.sf-login-form [name=contact]').fill('owner');
   await page.locator('.sf-login-form [name=password]').fill('owner-password');
   await page.locator('.sf-login-form button[type=submit]').click();

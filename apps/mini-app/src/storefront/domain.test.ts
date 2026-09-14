@@ -41,9 +41,10 @@ describe('catalogue filtering', () => {
     expect(filterProducts([product, other], { ...defaultFilters, tag: 'courier' })).toEqual([product]);
     expect(filterProducts([product, other], { ...defaultFilters, tag: 'women' })).toEqual([]);
   });
-  it('opens discounts only for cards marked as best price or value', () => {
-    const sale = { ...product, id: 'sale', badge: 'best-price' as const };
-    expect(filterProducts([product, sale], { ...defaultFilters, sale: true })).toEqual([sale]);
+  it('opens discounts only when CRM has a higher old price', () => {
+    const sale = { ...product, id: 'sale', old_price: 12000 };
+    const decorative = { ...product, id: 'decorative', badge: 'best-price' as const };
+    expect(filterProducts([product, decorative, sale], { ...defaultFilters, sale: true })).toEqual([sale]);
     expect(catalogHref({ sale: true })).toBe('#catalog?sale=1');
   });
   it('round-trips shareable filter URLs and rejects invalid parameters', () => {

@@ -53,7 +53,7 @@ export function filterProducts(products: Product[], filters: Filters) {
     && (filters.tag === 'all' || product.tags.includes(filters.tag))
     && (filters.license === 'all' || effectiveLicense(product) === filters.license)
     && (filters.stock === 'all' || product.stock_status === filters.stock)
-    && (!filters.sale || product.badge === 'best-price' || product.badge === 'value')
+    && (!filters.sale || (product.old_price != null && product.price != null && product.old_price > product.price))
     && (minimum === null || (product.price !== null && product.price >= minimum))
     && (maximum === null || (product.price !== null && product.price <= maximum)));
   const scores = filters.sort === 'value' ? valueScores(matched) : null;

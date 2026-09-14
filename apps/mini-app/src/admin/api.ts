@@ -7,6 +7,7 @@ export type Product = {
   category: Category;
   license: License;
   price: number | null;
+  old_price?: number | null;
   stock_status: 'in-stock' | 'preorder' | 'out-of-stock';
   range_km: number | null;
   speed_kmh: number | null;

@@ -31,11 +31,19 @@ describe('catalogue product photos', () => {
     expect(screen.getByRole('link', { name: `Подробнее: ${single.name}` })).toHaveAttribute('href', '#product/scooter');
   });
 
+  it('shows a CRM discount with the old price crossed out', () => {
+    const { container } = render(<ProductCard product={{ ...product, old_price: 59900 }} favorite={false} compared={false} inCart={false}
+      onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={vi.fn()} />);
+    expect(container.querySelector('del')).toHaveTextContent('59 900 ₽');
+    expect(container.querySelector('.sf-product-price')).toHaveTextContent('49 900 ₽');
+    expect(container.querySelector('.sf-price-before em')).toHaveTextContent('−17%');
+  });
+
   it('shows payment amounts without a separate finance button', () => {
     render(<ProductCard product={product} favorite={false} compared={false} inCart={false} financeAvailable
       onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={vi.fn()} />);
     const finance = screen.getByLabelText('Предварительный расчёт оплаты частями');
-    expect(finance).toHaveTextContent('4 × 12 475 ₽');
+    expect(finance).not.toHaveTextContent('Долями');
     expect(finance).toHaveTextContent('12 × 4 159 ₽');
     expect(screen.queryByRole('button', { name: /рассрочку|кредит/i })).toBeNull();
   });

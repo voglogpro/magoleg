@@ -14,6 +14,8 @@ export type Product = {
   license: License;
   license_verified: boolean;
   price: number | null;
+  /** Цена до скидки; показывается только когда она выше текущей цены. */
+  old_price?: number | null;
   stock_status: Stock;
   range_km: number | null;
   speed_kmh: number | null;

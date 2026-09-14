@@ -43,7 +43,7 @@ describe('customer account', () => {
     vi.mocked(fetch).mockImplementation(async () => json({ role: 'customer', account: profile, csrfToken: 'token' }));
     const onChange = vi.fn();
     render(<Account account={null} csrfToken="" onChange={onChange} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Регистрация' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
     fireEvent.change(screen.getByLabelText('Ваше имя'), { target: { value: 'Анна' } });
     fireEvent.change(screen.getByLabelText('Телефон, email или @Telegram'), { target: { value: '+79001234567' } });
     fireEvent.change(screen.getByLabelText('Ваш город'), { target: { value: 'Краснодар' } });

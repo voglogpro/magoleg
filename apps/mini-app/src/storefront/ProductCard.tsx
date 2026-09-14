@@ -75,12 +75,20 @@ function ProductCardGallery({ product, href }: { product: Product; href: string 
   </div>;
 }
 
+export function ProductPrice({ product, detail = false }: { product: Product; detail?: boolean }) {
+  const discounted = product.old_price != null && product.price != null && product.old_price > product.price;
+  const percent = discounted ? Math.round((1 - product.price! / product.old_price!) * 100) : 0;
+  return <div className={`sf-price-stack${detail ? ' sf-price-stack--detail' : ''}`}>
+    {discounted && <span className="sf-price-before"><del>{money(product.old_price!)}</del><em>−{percent}%</em></span>}
+    <strong className={detail ? 'sf-detail-price' : 'sf-product-price'}>{money(product.price)}</strong>
+  </div>;
+}
+
 export function FinancePreview({ price, compact = false }: { price: number | null; compact?: boolean }) {
   if (price === null) return null;
   const part = (months: number) => money(Math.ceil(price / months));
   return <aside className={`sf-finance-preview${compact ? ' sf-finance-preview--compact' : ''}`} aria-label="Предварительный расчёт оплаты частями">
     <dl>
-      <div><dt>Долями</dt><dd>4 × {part(4)}</dd></div>
       <div><dt>Рассрочка</dt><dd>12 × {part(12)}</dd></div>
       <div><dt>{compact ? 'Кредит, ориентир' : 'Кредит*'}</dt><dd>от {part(24)}/мес. × 24</dd></div>
     </dl>
@@ -112,7 +120,7 @@ export function ProductCard({ product, favorite, compared, inCart, financeAvaila
         {product.power_w !== null && <div><dt>Мощность</dt><dd>{powerLabel(product)}</dd></div>}
       </dl>
       {vehicleCategories.includes(product.category) && license !== 'unknown' && <p className="sf-license-caption">{licenseShort[license]}</p>}
-      <strong className="sf-product-price">{money(product.price)}</strong>
+      <ProductPrice product={product} />
       {financeAvailable && product.stock_status !== 'out-of-stock' && <FinancePreview price={product.price} compact />}
       <div className="sf-card-actions">
       {inCart ? <a className="sf-button sf-button--secondary" href="#cart">В корзине</a> : <button className="sf-button" type="button" disabled={product.stock_status === 'out-of-stock'} onClick={() => onAdd(product.id)}><ShoppingCart size={17} aria-hidden="true" />{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}

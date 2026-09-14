@@ -1,6 +1,6 @@
 import type { Product } from './api';
 
-const numericFields = ['price', 'range_km', 'speed_kmh', 'power_w', 'weight_kg', 'cargo_l', 'payload_kg'] as const;
+const numericFields = ['price', 'old_price', 'range_km', 'speed_kmh', 'power_w', 'weight_kg', 'cargo_l', 'payload_kg'] as const;
 type NumericField = typeof numericFields[number];
 export type ProductDraft = Omit<Product, 'id' | 'updated_at' | NumericField> & Record<NumericField, string>;
 export type ProductPayload = Omit<Product, 'id' | 'updated_at'>;
@@ -15,6 +15,7 @@ export function productDraft(product?: Product): ProductDraft {
     tags: product?.tags ?? [], badge: product?.badge ?? '',
     license_verified: product?.license_verified ?? false,
     price: product?.price == null ? '' : String(product.price),
+    old_price: product?.old_price == null ? '' : String(product.old_price),
     range_km: product?.range_km == null ? '' : String(product.range_km),
     speed_kmh: product?.speed_kmh == null ? '' : String(product.speed_kmh),
     power_w: product?.power_w == null ? '' : String(product.power_w),
@@ -35,6 +36,8 @@ export function validateProduct(draft: ProductDraft, publish: boolean): { errors
     numbers[field] = parsed;
   }
   if (numbers.price !== null && (numbers.price <= 0 || Math.abs(numbers.price * 100 - Math.round(numbers.price * 100)) > 0.000001)) errors.push('Цена должна быть больше нуля и содержать не больше двух знаков после запятой.');
+  if (numbers.old_price !== null && (numbers.old_price <= 0 || Math.abs(numbers.old_price * 100 - Math.round(numbers.old_price * 100)) > 0.000001)) errors.push('Цена до скидки должна быть больше нуля и содержать не больше двух знаков после запятой.');
+  if (numbers.old_price !== null && (numbers.price === null || numbers.old_price <= numbers.price)) errors.push('Цена до скидки должна быть выше текущей цены товара.');
   if (draft.name.trim().length < 2) errors.push('Укажите название товара — не менее двух символов.');
   if (publish && draft.description.trim().length < 10) errors.push('Для публикации нужно описание — не менее 10 символов.');
   if (publish && !draft.images.length) errors.push('Для публикации загрузите хотя бы одну фотографию товара.');

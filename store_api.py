@@ -96,7 +96,7 @@ ORDER_ACCEPTED_TEXT = (
 ORDER_STATUSES = ("new", "awaiting_payment", "paid", "processing", "shipped", "completed",
                   "cancelled", "contacted", "closed")
 PRODUCT_FIELDS = {
-    "name", "description", "category", "license", "license_verified", "price",
+    "name", "description", "category", "license", "license_verified", "price", "old_price",
     "stock_status", "range_km", "speed_kmh", "power_w", "weight_kg", "cargo_l",
     "payload_kg", "drive",
     "image_url", "images", "published", "featured", "tags", "badge",
@@ -569,7 +569,7 @@ class Store:
     def _public_product(row: sqlite3.Row) -> dict[str, Any]:
         """Return a catalogue card with defaults used by every public surface."""
         product = {
-            "tags": [], "badge": "", "cargo_l": None, "payload_kg": None,
+            "tags": [], "badge": "", "old_price": None, "cargo_l": None, "payload_kg": None,
             "drive": "unknown", **json.loads(row["data"]),
         }
         # Cards saved before galleries existed carry their single photo as a
@@ -704,7 +704,7 @@ class Store:
         require(not (set(data) - PRODUCT_FIELDS - {"id", "updated_at"}), "Неизвестные поля товара.")
         values = {
             "name": "", "description": "", "category": "scooter", "license": "unknown",
-            "license_verified": False, "price": None, "stock_status": "preorder", "range_km": None,
+            "license_verified": False, "price": None, "old_price": None, "stock_status": "preorder", "range_km": None,
             "speed_kmh": None, "power_w": None, "weight_kg": None, "cargo_l": None,
             "payload_kg": None, "drive": "unknown", "image_url": "", "images": [], "published": False,
             "featured": False, "tags": [], "badge": "",
@@ -728,13 +728,19 @@ class Store:
             values[key] = boolean_value(values[key], key)
         require(values["license"] == "unknown" or values["license_verified"],
                 "Для указания требований к правам сначала подтвердите проверку документов модели.")
-        for key, maximum in (("price", 100_000_000), ("range_km", 3000), ("speed_kmh", 500),
+        for key, maximum in (("price", 100_000_000), ("old_price", 100_000_000), ("range_km", 3000), ("speed_kmh", 500),
                              ("power_w", 500_000), ("weight_kg", 10_000), ("cargo_l", 1_000),
                              ("payload_kg", 2_000)):
             values[key] = number_value(values[key], key, maximum)
         if values["price"] is not None:
             price = Decimal(str(values["price"]))
             require(price > 0 and price == price.quantize(Decimal(".01")), "Цена должна быть больше нуля, максимум два знака после запятой.")
+        if values["old_price"] is not None:
+            old_price = Decimal(str(values["old_price"]))
+            require(old_price > 0 and old_price == old_price.quantize(Decimal(".01")),
+                    "Цена до скидки должна быть больше нуля, максимум два знака после запятой.")
+            require(values["price"] is not None and old_price > Decimal(str(values["price"])),
+                    "Цена до скидки должна быть выше текущей цены товара.")
         photos = values["images"]
         require(isinstance(photos, list) and len(photos) <= MAX_PHOTOS,
                 f"Фотографий в карточке может быть не больше {MAX_PHOTOS}.")
