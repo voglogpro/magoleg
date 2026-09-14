@@ -13,7 +13,7 @@ describe('утверждённые документы магазина', () => {
     expect(screen.queryByText('Базовый проект документа')).toBeNull();
     expect(screen.getByText('4. Доставка и передача товара')).toBeInTheDocument();
     expect(screen.getByText(`ОГРНИП: ${seller.ogrnip}`)).toBeInTheDocument();
-    expect(screen.getByText(/Стоимость доставки не входит в цену товара/)).toBeInTheDocument();
+    expect(screen.getByText(/Стоимость доставки не входит в цену товара/i)).toBeInTheDocument();
   });
 
   it('публикует политику и согласие целиком', () => {
