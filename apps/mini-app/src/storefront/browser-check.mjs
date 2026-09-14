@@ -102,10 +102,10 @@ for (const width of [320, 390, 768, 900, 1440]) {
   check(await countIs('.sf-product-card', 1), `${width}: a smart pick narrows the catalogue`);
   await page.goto(`${base}/#picks`);
   await page.waitForSelector('.sf-pick-card');
-  check(await countIs('.sf-pick-card', 4), `${width}: all four selections stay visible with honest counts`);
+  check(await countIs('.sf-pick-card', 4), `${width}: all four compact selection tags stay visible`);
   check(await page.evaluate(() => [...document.querySelectorAll('.sf-pick-card')].every(link => !link.href.includes('license'))), `${width}: rights are a filter, not a pick`);
   const courierPick = page.locator('.sf-pick-card').filter({ hasText: 'Для курьеров' });
-  check((await courierPick.innerText()).includes('1 модель'), `${width}: a pick counts its models`);
+  check((await courierPick.innerText()).trim() === 'Для курьеров' && await courierPick.locator('em').count() === 0, `${width}: a pick contains only its compact tag label`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: picks no overflow`);
   await page.screenshot({ path: `${output}/picks-${width}.png`, fullPage: true });
   await courierPick.click();
