@@ -7,6 +7,9 @@ import os
 import tempfile
 import time
 import unittest
+from pathlib import Path
+
+import store_api
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import urlsplit
@@ -23,6 +26,26 @@ from store_api import (ACCOUNT_COOKIE, ACCOUNT_SESSION_AGE, COOKIE_NAME, CREDIT_
 
 TEST_PASSWORD = "isolated-test-password-only"
 CUSTOMER_PASSWORD = "isolated-customer-password"
+# Самоподписанный корень только для тестов доверия исходящих запросов.
+TEST_CA_PEM = """-----BEGIN CERTIFICATE-----
+MIIDKzCCAhOgAwIBAgIUKr+mV0iL6PmbTPlTwNtkYVYr8HYwDQYJKoZIhvcNAQEL
+BQAwJTEjMCEGA1UEAwwaRy1QYXJ0bmVyIG91dGJvdW5kIHRlc3QgQ0EwHhcNMjYw
+OTE3MjA1MTU5WhcNMzYwOTE0MjA1MTU5WjAlMSMwIQYDVQQDDBpHLVBhcnRuZXIg
+b3V0Ym91bmQgdGVzdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
+ANpjTRInXiyxqnGWE1ozBl04uCazZGdv93awXWMiYlYLyIS2ZZ78GpmBkImUKDLf
+kwDbR1Mi+v+KUHg1aiIQrYIXGPV6x/HXzB9MR6NvqE8FOKHuOPWs/X35krwTwadr
+f7do1YFGto9BRvTFAQApBeeP7vQkMhsaMg81lRbmjWw2GmpmOwezeHEJupk4s2ro
+NgPfhsjO5wetVRoqCA7oUw0J3sj8nm9AtW98GYdV3JdFNrH1S3yP9o88t68eJDQM
+w7/GndOcUgekwn3BgMU7QL0b/8UqT8zbQYDyHR6LU3qcONVSzaGPMI+QrbuCTzYI
+9HHdSG2s37lOqkoF9ZHJcC0CAwEAAaNTMFEwHQYDVR0OBBYEFDV5zl2TpouBkSF7
+Cvseil2BJVVrMB8GA1UdIwQYMBaAFDV5zl2TpouBkSF7Cvseil2BJVVrMA8GA1Ud
+EwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAB6Nfh3WwI4MiKx9FTaWbvMH
+901EqzcsyijPvnwgEwpU+nwLDeCL5hRRQwCqYzGLfR1ulWhTvsC6o7jEdcDi6Yak
+FUBOI6Jbvf7oXtSeZvi1BxGNL8EPco2Su7Aseyd0Jr8plHb3bnf+ocF4TmxTW62F
+o5+zEG1kDC6hIQsIcaH5lNLADR3m701xERtFcHyiHqnuH0T5JjbvO6r9iKXWa2oT
+ZSviJXNbCgfOH7NCwwL8iGM6HI1M184zRnBy/CcY/G/L1VK26ki6ZJsREDbJQFNR
+YHwYf+9gwKB3LwbvcuAum042wTJbdSsDfS3fI+zyMCmQ8IRZMKbqrg7obhdFoxc=
+-----END CERTIFICATE-----"""
 
 
 class PasswordTests(unittest.TestCase):
@@ -169,6 +192,36 @@ class OnlinePaymentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(captured["json"]["showcaseId"], "563f8b7f-91e8-47f3-9776-f18e7d663707")
         self.assertEqual(captured["json"]["sum"], 45000.0)
         self.assertEqual(captured["json"]["webhookURL"], f"https://g-partner.store{CREDIT_NOTIFICATION_PATH}")
+
+
+class OutboundTlsTests(unittest.TestCase):
+    def test_no_extra_roots_keeps_the_system_store(self):
+        with patch.dict(os.environ, {"EXTRA_CA_PEM": "", "EXTRA_CA_BUNDLE": "", "EXTRA_CA_DIR": "/nonexistent"}):
+            with patch("store_api.EXTRA_CA_DIR", Path("/nonexistent")):
+                self.assertIsNone(store_api.outbound_ssl())
+
+    def test_extra_root_from_a_file_and_from_the_variable_is_trusted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "root.pem"
+            bundle.write_text(TEST_CA_PEM, encoding="utf-8")
+            with patch.dict(os.environ, {"EXTRA_CA_BUNDLE": str(bundle), "EXTRA_CA_PEM": ""}), \
+                    patch("store_api.EXTRA_CA_DIR", Path(directory)):
+                context = store_api.outbound_ssl()
+            self.assertIsNotNone(context)
+            # Корень действительно попал в хранилище, а системные корни остались.
+            self.assertTrue(any(cert["subject"][-1][0][1] == "G-Partner outbound test CA"
+                                for cert in context.get_ca_certs()))
+            self.assertGreater(len(context.get_ca_certs()), 1)
+        with patch.dict(os.environ, {"EXTRA_CA_BUNDLE": "", "EXTRA_CA_PEM": TEST_CA_PEM}), \
+                patch("store_api.EXTRA_CA_DIR", Path("/nonexistent")):
+            context = store_api.outbound_ssl()
+        self.assertTrue(any(cert["subject"][-1][0][1] == "G-Partner outbound test CA"
+                            for cert in context.get_ca_certs()))
+
+    def test_a_broken_bundle_does_not_break_outgoing_requests(self):
+        with patch.dict(os.environ, {"EXTRA_CA_BUNDLE": "", "EXTRA_CA_PEM": "не сертификат"}), \
+                patch("store_api.EXTRA_CA_DIR", Path("/nonexistent")):
+            self.assertIsNotNone(store_api.outbound_ssl())
 
 
 class ReturnOriginTests(unittest.TestCase):

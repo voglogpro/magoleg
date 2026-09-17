@@ -21,6 +21,7 @@ import secrets
 import smtplib
 import socket
 import sqlite3
+import ssl
 import time
 import warnings
 from contextlib import asynccontextmanager, contextmanager
@@ -76,6 +77,8 @@ TBANK_CREDIT_URLS = ("https://forma.tinkoff.ru/api/partners/v2/orders/create",
                      "https://forma.tbank.ru/api/partners/v2/orders/create")
 TBANK_CREDIT_URL = TBANK_CREDIT_URLS[0]
 TBANK_TIMEOUT = 20
+# Сюда кладут корневые сертификаты, которых нет в системе (например, корень Минцифры).
+EXTRA_CA_DIR = Path(os.getenv("EXTRA_CA_DIR", str(Path(__file__).parent / "certs")))
 # Официальное API СДЭК v2: серверный прокси даёт список ПВЗ без публичного ключа виджета.
 CDEK_API = "https://api.cdek.ru/v2"
 CDEK_TIMEOUT = 8
@@ -283,11 +286,45 @@ def outbound_urls(variable: str, defaults: tuple[str, ...]) -> tuple[str, ...]:
     return (override,) if override.startswith("https://") else defaults
 
 
+def extra_ca_paths() -> list[Path]:
+    """Дополнительные корневые сертификаты: у Т-Банка они выпущены Минцифры."""
+    paths = []
+    configured = os.getenv("EXTRA_CA_BUNDLE", "").strip()
+    if configured:
+        paths.append(Path(configured))
+    paths.extend(sorted(EXTRA_CA_DIR.glob("*.pem")) + sorted(EXTRA_CA_DIR.glob("*.crt")))
+    return [path for path in paths if path.is_file()]
+
+
+def outbound_ssl() -> ssl.SSLContext | None:
+    """Системные корни плюс наши: без корня Минцифры TLS до банка не проходит."""
+    inline = os.getenv("EXTRA_CA_PEM", "").strip()
+    paths = extra_ca_paths()
+    if not inline and not paths:
+        return None
+    context = ssl.create_default_context()
+    for path in paths:
+        try:
+            context.load_verify_locations(cafile=str(path))
+        except (OSError, ssl.SSLError):
+            LOGGER.warning("Extra CA bundle is unusable: %s", path.name)
+    if inline:
+        try:
+            context.load_verify_locations(cadata=inline)
+        except (TypeError, ValueError, ssl.SSLError):
+            LOGGER.warning("EXTRA_CA_PEM is not a valid PEM certificate")
+    return context
+
+
 @asynccontextmanager
 async def outbound_session(total: float = TBANK_TIMEOUT):
-    """Исходящий запрос: прокси из окружения и IPv4, если у хостинга нет маршрута IPv6."""
+    """Исходящий запрос: прокси из окружения, IPv4 и доверенные корни хостинга."""
     ipv6 = os.getenv("OUTBOUND_IPV6", "").strip().lower() in ("1", "true", "yes", "on")
-    connector = None if ipv6 else TCPConnector(family=socket.AF_INET)
+    context = outbound_ssl()
+    options: dict[str, Any] = {} if ipv6 else {"family": socket.AF_INET}
+    if context is not None:
+        options["ssl"] = context
+    connector = TCPConnector(**options) if options else None
     try:
         async with ClientSession(timeout=ClientTimeout(total=total), trust_env=True,
                                  connector=connector) as client:
@@ -1722,7 +1759,11 @@ async def reachability_check(title: str, urls: tuple[str, ...]) -> dict[str, Any
                     return {"title": title, "ok": True, "detail": f"{host} отвечает (HTTP {response.status})"}
         except (ClientError, OSError, asyncio.TimeoutError, ValueError) as error:
             failures.append(f"{host}: {network_error(error)}")
-    return {"title": title, "ok": False, "detail": "нет соединения — " + "; ".join(failures)}
+    detail = "нет соединения — " + "; ".join(failures)
+    if any("certificate" in failure.lower() or "ssl" in failure.lower() for failure in failures):
+        detail += (". Похоже на непроверенный сертификат: добавьте корневой сертификат Минцифры "
+                   "в EXTRA_CA_PEM или в папку certs репозитория.")
+    return {"title": title, "ok": False, "detail": detail}
 
 
 async def payment_check(request: web.Request) -> web.Response:
