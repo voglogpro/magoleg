@@ -9,6 +9,7 @@ import time
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlsplit
 
 from aiohttp import CookieJar, FormData, web
 from aiohttp.test_utils import TestClient, TestServer
@@ -113,6 +114,37 @@ class OnlinePaymentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(captured["json"]["Amount"], 100)
         self.assertEqual(captured["json"]["NotificationURL"], "https://g-partner.store/api/payments/tbank/notification")
         self.assertTrue(captured["json"]["SuccessURL"].startswith("https://g-partner.store/#order-success"))
+
+    async def test_a_dead_bank_domain_is_retried_on_the_second_one(self):
+        attempts: list[str] = []
+
+        class FlakyDomain(FakeSession):
+            def post(self, url, json=None):
+                attempts.append(url)
+                if "tinkoff.ru" in url:
+                    raise OSError("Temporary failure in name resolution")
+                return super().post(url, json=json)
+
+        session = FlakyDomain({"Success": True, "PaymentURL": "https://securepay.tbank.ru/x", "PaymentId": "7"}, {})
+        with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "TinkoffTest", "TBANK_PASSWORD": "secret",
+                                     "TBANK_API_URL": ""}), patch("store_api.ClientSession", session):
+            payment = await init_tbank_payment(self.order, "https://g-partner.store")
+        self.assertEqual(payment["payment_url"], "https://securepay.tbank.ru/x")
+        self.assertEqual([urlsplit(url).hostname for url in attempts],
+                         ["securepay.tinkoff.ru", "securepay.tbank.ru"])
+
+    async def test_unreachable_bank_names_the_network_reason(self):
+        class Dead(FakeSession):
+            def post(self, url, json=None):
+                raise OSError("Temporary failure in name resolution")
+
+        with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "TinkoffTest", "TBANK_PASSWORD": "secret"}), \
+                patch("store_api.ClientSession", Dead({}, {})):
+            with self.assertRaises(APIError) as failure:
+                await init_tbank_payment(self.order, "https://g-partner.store")
+        self.assertIn("Т-Банк временно не ответил", str(failure.exception))
+        self.assertIn("name resolution", failure.exception.detail)
+        self.assertIn("securepay.tbank.ru", failure.exception.detail)
 
     async def test_sbp_keeps_the_ten_rouble_floor_of_the_bank(self):
         with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "TinkoffTest", "TBANK_PASSWORD": "secret"}):
