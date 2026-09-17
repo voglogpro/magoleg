@@ -302,6 +302,8 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
         <label>Город и адрес отправления<input maxLength={500} value={settings.delivery_origin} onChange={event => update('delivery_origin', event.target.value)} placeholder="Фактический склад отправления" /></label>
         <label>Оценки доставки по городам<textarea rows={5} maxLength={8000} value={settings.delivery_schedule} onChange={event => update('delivery_schedule', event.target.value)} placeholder="Город; дней от; дней до; стоимость" /></label>
         <p className="crm-help">Одна строка на город. Четыре поля через точку с запятой: город; минимальный срок; максимальный срок; стоимость или «По тарифу ТК». Срок — целое число от 1 до 90 календарных дней после передачи перевозчику. Публикуйте только проверенные оценки. Это не подключение API СДЭК.</p>
+        <label>Ключ виджета СДЭК<input maxLength={200} value={settings.cdek_widget_key} onChange={event => update('cdek_widget_key', event.target.value)} placeholder="API-ключ виджета из личного кабинета СДЭК" /></label>
+        <p className="crm-help">С ключом покупатель выбирает пункт выдачи на карте прямо в корзине и остаётся на сайте: код и адрес подставляются в заявку. Без ключа поле ПВЗ заполняется вручную — заказ оформляется как прежде.</p>
         <label>Доставка и получение<textarea rows={4} maxLength={6000} placeholder="Территория, способы, стоимость и сроки доставки" value={settings.delivery} onChange={event => update('delivery', event.target.value)}/></label>
         <label>Гарантия и возврат<textarea rows={4} maxLength={6000} placeholder="Подтверждённые условия обслуживания, гарантии и возврата" value={settings.warranty} onChange={event => update('warranty', event.target.value)}/></label>
       </fieldset>

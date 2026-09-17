@@ -4,13 +4,15 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from store_api import hash_password
+from store_api import OWNER_PASSWORD_MIN, hash_password
 
 if __name__ == "__main__":
     password = getpass.getpass("Owner password (12+ characters): ")
     confirmation = getpass.getpass("Confirm password: ")
     if password != confirmation:
         raise SystemExit("Passwords do not match.")
+    if len(password) < OWNER_PASSWORD_MIN:
+        raise SystemExit(f"Owner password must contain at least {OWNER_PASSWORD_MIN} characters.")
     try:
         encoded = hash_password(password)
     except ValueError as error:

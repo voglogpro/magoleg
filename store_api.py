@@ -28,7 +28,7 @@ from decimal import Decimal
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any, Iterator
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from aiohttp import ClientSession, ClientTimeout, web
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -60,6 +60,20 @@ RESTORE_REVISION = "2"
 # Поля манифеста поставки, которых нет в карточке товара: они управляют восстановлением.
 MANIFEST_ONLY_FIELDS = frozenset({"photo_files", "replace_photos"})
 PRODUCT_ID = re.compile(r"[a-f0-9]{32}\Z")
+# Домены магазина. Покупатель после оплаты возвращается на тот адрес, который открыл,
+# даже если PUBLIC_ORIGIN в хостинге ещё не заполнен.
+STORE_HOSTS = ("g-partner.store", "g-partner.ru")
+# Идентификаторы витрины Т-Банка для рассрочки и кредита. Это не секреты: банк
+# ждёт их в открытом запросе на создание заявки. Секретный пароль терминала
+# по-прежнему живёт только в переменных окружения.
+TBANK_SHOP_ID = "8879c474-d8e0-4f1b-b7fe-628b5d7f6a07"
+TBANK_SHOWCASE_ID = "563f8b7f-91e8-47f3-9776-f18e7d663707"
+TBANK_CREDIT_URL = "https://forma.tinkoff.ru/api/partners/v2/orders/create"
+SBP_NOTIFICATION_PATH = "/api/payments/tbank/notification"
+CREDIT_NOTIFICATION_PATH = "/api/payments/tbank/credit-notification"
+# Статусы заявки на рассрочку: договор подписан — заказ оплачен, отказ — заказ отменён.
+CREDIT_SIGNED_STATUSES = ("signed", "completed", "issued")
+CREDIT_FAILED_STATUSES = ("rejected", "canceled", "cancelled", "expired", "declined")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
 DEFAULT_SETTINGS: dict[str, Any] = {
     "shop_name": "G-Partner", "phone": "+7 (988) 414-87-54",
@@ -75,6 +89,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "payment_installment": "preparing", "payment_credit": "preparing",
     "payment_invoice": "off", "payment_on_delivery": "off",
     "payment_provider": "Т-Бизнес", "payment_installment_partner": "Т-Банк", "payment_receipt": "",
+    # Публичный ключ виджета СДЭК: с ним карта пунктов выдачи открывается прямо в корзине.
+    "cdek_widget_key": "",
 }
 PAYMENT_STATUS_FIELDS = ("payment_sbp", "payment_card", "payment_dolyame", "payment_installment", "payment_credit", "payment_invoice", "payment_on_delivery")
 PAYMENT_STATUSES = ("off", "preparing", "on")
@@ -117,10 +133,16 @@ def catalog_product_key(value: str) -> str:
     return re.sub(r"[^a-zа-я0-9]+", "", normalized)
 
 
+# Покупателю хватает восьми символов (нижняя граница OWASP); вход в кабинет
+# владельца по-прежнему требует длинного пароля — см. OWNER_PASSWORD_MIN.
+CUSTOMER_PASSWORD_MIN = 8
+OWNER_PASSWORD_MIN = 12
+
+
 def hash_password(password: str) -> str:
     """Generate an OWASP-listed scrypt hash, with a random 128-bit salt."""
-    if not isinstance(password, str) or not 12 <= len(password) <= 256:
-        raise ValueError("Password must contain 12 to 256 characters")
+    if not isinstance(password, str) or not CUSTOMER_PASSWORD_MIN <= len(password) <= 256:
+        raise ValueError(f"Password must contain {CUSTOMER_PASSWORD_MIN} to 256 characters")
     salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=SCRYPT_N,
                             r=SCRYPT_R, p=SCRYPT_P, dklen=32, maxmem=128 * 1024 * 1024)
@@ -218,14 +240,39 @@ def _payment_configured() -> bool:
     return bool(os.getenv("TBANK_TERMINAL_KEY", "").strip() and os.getenv("TBANK_PASSWORD", "").strip())
 
 
-async def init_tbank_payment(inquiry: dict[str, Any]) -> dict[str, str]:
+def _credit_configured() -> bool:
+    return bool(tbank_shop_id() and tbank_showcase_id())
+
+
+def tbank_shop_id() -> str:
+    """Пустая переменная хостинга не отключает рассрочку: остаются идентификаторы из кода."""
+    return os.getenv("TBANK_SHOP_ID", "").strip() or TBANK_SHOP_ID
+
+
+def tbank_showcase_id() -> str:
+    return os.getenv("TBANK_SHOWCASE_ID", "").strip() or TBANK_SHOWCASE_ID
+
+
+def payment_return_urls(origin: str, order_id: str, webhook_path: str) -> dict[str, str]:
+    """Ссылки, которые получает банк: успех, отказ и серверное уведомление."""
+    urls = {
+        "success": f"{origin}/#order-success?order={order_id}",
+        "fail": f"{origin}/#cart?payment=failed&order={order_id}",
+        "webhook": f"{origin}{webhook_path}",
+    }
+    secret = os.getenv("TBANK_CREDIT_WEBHOOK_SECRET", "").strip()
+    if secret and webhook_path == CREDIT_NOTIFICATION_PATH:
+        urls["webhook"] = f"{urls['webhook']}?key={quote(secret, safe='')}"
+    return urls
+
+
+async def init_tbank_payment(inquiry: dict[str, Any], origin: str) -> dict[str, str]:
     terminal = os.getenv("TBANK_TERMINAL_KEY", "").strip()
     password = os.getenv("TBANK_PASSWORD", "").strip()
     require(terminal and password, "Онлайн-оплата ещё не настроена магазином.", 503)
-    origin = origin_of(os.getenv("PUBLIC_ORIGIN", "") or os.getenv("MINI_APP_URL", ""))
-    require(origin is not None, "Для онлайн-оплаты задайте корректный PUBLIC_ORIGIN.", 503)
     amount = int((Decimal(str(inquiry["total"])) * 100).quantize(Decimal("1")))
     require(amount >= 1000, "Минимальная сумма оплаты через СБП — 10 рублей.")
+    urls = payment_return_urls(origin, inquiry["id"], SBP_NOTIFICATION_PATH)
     payload: dict[str, Any] = {
         "TerminalKey": terminal,
         "Amount": amount,
@@ -233,9 +280,9 @@ async def init_tbank_payment(inquiry: dict[str, Any]) -> dict[str, str]:
         "Description": f"Заказ G-Partner №{inquiry['id'][:8]}",
         "PayType": "O",
         "Language": "ru",
-        "NotificationURL": f"{origin}/api/payments/tbank/notification",
-        "SuccessURL": f"{origin}/#order-success?order={inquiry['id']}",
-        "FailURL": f"{origin}/#cart?payment=failed&order={inquiry['id']}",
+        "NotificationURL": urls["webhook"],
+        "SuccessURL": urls["success"],
+        "FailURL": urls["fail"],
     }
     taxation = os.getenv("TBANK_TAXATION", "").strip()
     if taxation:
@@ -272,6 +319,52 @@ async def init_tbank_payment(inquiry: dict[str, Any]) -> dict[str, str]:
     require(response.status == 200 and payment_ok,
             "Т-Банк не смог создать оплату. Повторите попытку или свяжитесь с магазином.", 502)
     return {"payment_id": str(result.get("PaymentId", "")), "payment_url": payment_url}
+
+
+async def init_tbank_credit(inquiry: dict[str, Any], origin: str) -> dict[str, str]:
+    """Заявка на рассрочку или кредит Т-Банка: покупатель заполняет форму банка и возвращается к нам."""
+    shop, showcase = tbank_shop_id(), tbank_showcase_id()
+    require(bool(shop and showcase), "Рассрочка ещё не настроена магазином.", 503)
+    total = Decimal(str(inquiry["total"])).quantize(Decimal(".01"))
+    require(total > 0, "Сумма заказа должна быть больше нуля.")
+    urls = payment_return_urls(origin, inquiry["id"], CREDIT_NOTIFICATION_PATH)
+    payload: dict[str, Any] = {
+        "shopId": shop,
+        "showcaseId": showcase,
+        "sum": float(total),
+        "orderNumber": inquiry["id"],
+        "description": f"Заказ G-Partner №{inquiry['id'][:8]}",
+        "items": [{
+            "name": item["name"][:128],
+            "price": float(Decimal(str(item["price"])).quantize(Decimal(".01"))),
+            "quantity": item["quantity"],
+        } for item in inquiry["items"]],
+        "successURL": urls["success"],
+        "failURL": urls["fail"],
+        "webhookURL": urls["webhook"],
+    }
+    promo = os.getenv("TBANK_CREDIT_PROMO" if inquiry["payment_method"] == "credit"
+                      else "TBANK_INSTALLMENT_PROMO", "").strip()
+    if promo:
+        payload["promoCode"] = promo
+    values: dict[str, Any] = {"contact": {"fio": {"lastName": inquiry["name"][:64]}}}
+    if valid_phone(inquiry["contact"]):
+        values["contact"]["mobilePhone"] = "+" + "".join(c for c in inquiry["contact"] if c.isdigit())
+    elif re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", inquiry["contact"]):
+        values["contact"]["email"] = inquiry["contact"]
+    payload["values"] = values
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=12)) as client:
+            async with client.post(TBANK_CREDIT_URL, json=payload) as response:
+                result = await response.json(content_type=None)
+    except (OSError, asyncio.TimeoutError, ValueError) as error:
+        LOGGER.warning("T-Bank credit order failed: %s", type(error).__name__)
+        raise APIError(502, "Т-Банк временно не ответил. Повторите оформление через несколько минут.") from None
+    link = result.get("link") if isinstance(result, dict) else None
+    require(response.status < 400 and isinstance(link, str) and link.startswith("https://")
+            and origin_of(link) is not None,
+            "Т-Банк не смог открыть заявку на рассрочку. Повторите попытку или свяжитесь с магазином.", 502)
+    return {"payment_id": str(result.get("id", "")), "payment_url": link}
 
 
 def _send_email(contact: str, subject: str, text: str) -> None:
@@ -344,6 +437,45 @@ def origin_of(url: str) -> str | None:
         return None
 
 
+def split_origins(raw: str) -> list[str]:
+    """Принимает список адресов через запятую: магазин живёт на нескольких доменах."""
+    origins: list[str] = []
+    for chunk in raw.replace(";", ",").split(","):
+        origin = origin_of(chunk.strip())
+        if origin is not None and origin not in origins:
+            origins.append(origin)
+    return origins
+
+
+def configured_origins() -> list[str]:
+    return split_origins(f"{os.getenv('PUBLIC_ORIGIN', '')},{os.getenv('MINI_APP_URL', '')}")
+
+
+def known_store_host(host: str) -> bool:
+    """Свой домен магазина (или локальная разработка), которому можно вернуть покупателя."""
+    host = host.lower().removeprefix("www.")
+    return host in STORE_HOSTS or host in ("localhost", "127.0.0.1", "::1")
+
+
+def request_origin(request: web.Request) -> str | None:
+    forwarded = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip().lower()
+    scheme = forwarded if forwarded in ("http", "https") else request.scheme
+    return origin_of(f"{scheme}://{request.host}")
+
+
+def return_origin(request: web.Request) -> str | None:
+    """Адрес, на который банк вернёт покупателя: тот же домен, который он открыл.
+
+    Host из запроса принимается только для собственных доменов магазина, поэтому
+    подменённый заголовок не может увести уведомление банка на чужой сайт.
+    """
+    origins = configured_origins()
+    current = request_origin(request)
+    if current is not None and (current in origins or known_store_host(urlsplit(current).hostname or "")):
+        return current
+    return origins[0] if origins else None
+
+
 class Store:
     def __init__(self) -> None:
         self.directory = Path(os.getenv("DATA_DIR", str(Path(__file__).parent / "data"))).resolve()
@@ -352,7 +484,9 @@ class Store:
         self.username = os.getenv("ADMIN_USERNAME", "megaolegshop2000")
         self.password_hash = ""
         self.cookie_secure = os.getenv("COOKIE_SECURE", "true").lower() not in ("false", "0")
-        self.allowed_origin = origin_of(os.getenv("PUBLIC_ORIGIN", "") or os.getenv("MINI_APP_URL", ""))
+        # Магазин открыт на нескольких доменах, поэтому PUBLIC_ORIGIN принимает список
+        # адресов через запятую; пустое значение оставляет прежнюю проверку по Host.
+        self.allowed_origins = configured_origins()
         self.hash_lock = asyncio.Semaphore(2)
         self.image_lock = asyncio.Semaphore(2)
         # Verified when a login names nobody, so a missing account costs the
@@ -474,6 +608,9 @@ class Store:
             _parse_hash(encoded)  # Fail closed on an invalid operator configuration.
             self.password_hash = encoded
         elif os.getenv("ADMIN_PASSWORD"):
+            # Кабинет владельца открывает весь магазин: короткий пароль сюда не пускаем.
+            if len(os.environ["ADMIN_PASSWORD"]) < OWNER_PASSWORD_MIN:
+                raise ValueError(f"ADMIN_PASSWORD must contain at least {OWNER_PASSWORD_MIN} characters")
             self.password_hash = await asyncio.to_thread(hash_password, os.environ["ADMIN_PASSWORD"])
         else:
             LOGGER.warning("CRM login is disabled: configure ADMIN_PASSWORD_HASH or ADMIN_PASSWORD.")
@@ -563,7 +700,10 @@ class Store:
         row = connection.execute("SELECT data FROM settings WHERE id=1").fetchone()
         stored = json.loads(row["data"])
         # Keys retired from DEFAULT_SETTINGS stop being served, even if a row still holds them.
-        return {key: stored.get(key, default) for key, default in DEFAULT_SETTINGS.items()}
+        settings = {key: stored.get(key, default) for key, default in DEFAULT_SETTINGS.items()}
+        # Ключ виджета можно задать и переменной хостинга: витрина берёт его, пока поле CRM пусто.
+        settings["cdek_widget_key"] = settings["cdek_widget_key"] or os.getenv("CDEK_WIDGET_API_KEY", "").strip()
+        return settings
 
     @staticmethod
     def _public_product(row: sqlite3.Row) -> dict[str, Any]:
@@ -609,13 +749,15 @@ class Store:
         if supplied is None:
             # Non-browser clients still need JSON plus the session's CSRF token.
             return
-        expected = self.allowed_origin or origin_of(f"{'https' if self.cookie_secure else request.scheme}://{request.host}")
+        expected = self.allowed_origins or [
+            origin for origin in [origin_of(f"{'https' if self.cookie_secure else request.scheme}://{request.host}")]
+            if origin is not None]
         try:
             parsed = urlsplit(supplied)
         except ValueError:
             raise APIError(403, "Запрос с другого сайта запрещён.") from None
         require(parsed.path in ("", "/") and not parsed.query and not parsed.fragment
-                and origin_of(supplied) == expected, "Запрос с другого сайта запрещён.", 403)
+                and origin_of(supplied) in expected, "Запрос с другого сайта запрещён.", 403)
 
     def rate_limit(self, request: web.Request, scope: str, maximum: int, period: int,
                    identity: str | None = None) -> None:
@@ -892,7 +1034,8 @@ async def account_register(request: web.Request) -> web.Response:
     identity = contact_identity(contact)
     require(bool(identity), "Укажите телефон, email или имя пользователя Telegram.")
     password = data.get("password")
-    require(isinstance(password, str) and 12 <= len(password) <= 256, "Пароль: от 12 до 256 символов.")
+    require(isinstance(password, str) and CUSTOMER_PASSWORD_MIN <= len(password) <= 256,
+            f"Пароль: от {CUSTOMER_PASSWORD_MIN} до 256 символов.")
     store.rate_limit(request, "account-register-contact", 3, 3600, identity=identity)
     if store.hash_lock.locked():
         raise APIError(429, "Сейчас выполняется вход. Повторите через несколько секунд.", retry_after=2)
@@ -1191,7 +1334,12 @@ async def create_inquiry(request: web.Request) -> web.Response:
     require(bool(requested) or len(message) >= 10, "Выберите товар или опишите вопрос (от 10 символов).")
     require(not requested or len(city) >= 2, "Укажите город доставки — магазин отправляет заказы по России.")
     require(not requested or len(cdek_pvz) >= 3, "Укажите адрес или код пункта выдачи СДЭК.")
-    online_payment = bool(requested) and payment_method == "sbp" and _payment_configured()
+    origin = return_origin(request)
+    online_payment = bool(requested) and origin is not None and (
+        (payment_method == "sbp" and _payment_configured())
+        or (payment_method in ("installment", "credit") and _credit_configured()))
+    require(not requested or payment_method != "sbp" or not _payment_configured() or origin is not None,
+            "Онлайн-оплата временно недоступна: магазин не настроил адрес возврата.", 503)
     with store.connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
         replay = replay_inquiry(connection, request_key)
@@ -1202,6 +1350,10 @@ async def create_inquiry(request: web.Request) -> web.Response:
                 "Приём заявок пока не открыт. Контакты магазина доступны в разделе «Контакты».", 503)
         require(payment_method != "sbp" or settings["payment_sbp"] == "on",
                 "Оплата через СБП временно недоступна.", 409)
+        require(payment_method != "installment" or settings["payment_installment"] == "on",
+                "Рассрочка временно недоступна.", 409)
+        require(payment_method != "credit" or settings["payment_credit"] == "on",
+                "Кредит временно недоступен.", 409)
         items, seen, total = [], set(), Decimal(0)
         for item in requested:
             require(isinstance(item, dict) and set(item) == {"product_id", "quantity"}, "Некорректная позиция заявки.")
@@ -1234,14 +1386,17 @@ async def create_inquiry(request: web.Request) -> web.Response:
     payment_url = ""
     if online_payment:
         try:
-            payment = await init_tbank_payment(inquiry)
+            payment = (await init_tbank_payment(inquiry, origin or "") if payment_method == "sbp"
+                       else await init_tbank_credit(inquiry, origin or ""))
         except APIError:
             with store.connect() as connection:
                 connection.execute("DELETE FROM inquiries WHERE id=? AND status='awaiting_payment'", (inquiry["id"],))
                 if request_key is not None:
                     connection.execute("DELETE FROM inquiry_requests WHERE key_hash=?", (request_key[0],))
             raise
-        inquiry.update(payment_id=payment["payment_id"], payment_status="NEW", updated_at=now_iso())
+        inquiry.update(payment_id=payment["payment_id"],
+                       payment_status="NEW" if payment_method == "sbp" else "draft",
+                       updated_at=now_iso())
         payment_url = payment["payment_url"]
         with store.connect() as connection:
             connection.execute("UPDATE inquiries SET data=?,updated_at=? WHERE id=?",
@@ -1359,6 +1514,51 @@ async def tbank_notification(request: web.Request) -> web.Response:
     return web.Response(text="OK", content_type="text/plain")
 
 
+async def tbank_credit_notification(request: web.Request) -> web.Response:
+    """Уведомление Т-Банка по заявке на рассрочку или кредит.
+
+    Подписи у этого API нет, поэтому уведомление принимается только когда совпал
+    и номер заказа, и выданный банком идентификатор заявки, а при заданном
+    TBANK_CREDIT_WEBHOOK_SECRET — ещё и секрет в адресе уведомления.
+    """
+    require(_credit_configured(), "Рассрочка не настроена.", 503)
+    secret = os.getenv("TBANK_CREDIT_WEBHOOK_SECRET", "").strip()
+    if secret:
+        supplied = request.query.get("key", "")
+        require(hmac.compare_digest(supplied, secret), "Некорректный ключ уведомления.", 403)
+    data = await read_json(request)
+    order_id = data.get("orderNumber") or data.get("OrderNumber") or data.get("order_number")
+    status = data.get("status") or data.get("Status")
+    credit_id = str(data.get("id") or data.get("Id") or "")
+    require(isinstance(order_id, str) and bool(PRODUCT_ID.fullmatch(order_id)), "Некорректный номер заказа.")
+    require(isinstance(status, str) and len(status) <= 40, "Некорректный статус заявки.")
+    normalized = status.strip().lower()
+    paid_now = False
+    with request.app[STORE_KEY].connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute("SELECT data FROM inquiries WHERE id=?", (order_id,)).fetchone()
+        require(row is not None, "Заказ не найден.", 404)
+        inquiry = json.loads(row["data"])
+        require(inquiry.get("payment_method") in ("installment", "credit"), "Заказ оформлен без рассрочки.", 409)
+        require(bool(credit_id) and str(inquiry.get("payment_id", "")) == credit_id,
+                "Заявка не совпадает с заказом.", 409)
+        inquiry["payment_status"] = status.strip()[:40]
+        if normalized in CREDIT_SIGNED_STATUSES:
+            paid_now = inquiry["status"] not in ("paid", "processing", "shipped", "completed")
+            inquiry["status"] = "paid"
+            inquiry["paid_at"] = inquiry.get("paid_at") or now_iso()
+        elif normalized in CREDIT_FAILED_STATUSES and inquiry["status"] == "awaiting_payment":
+            inquiry["status"] = "cancelled"
+        inquiry["updated_at"] = now_iso()
+        connection.execute("UPDATE inquiries SET data=?,status=?,updated_at=? WHERE id=?",
+                           (json.dumps(inquiry, ensure_ascii=False), inquiry["status"],
+                            inquiry["updated_at"], inquiry["id"]))
+    if paid_now:
+        queue_customer_notification(inquiry, f"Заказ G-Partner №{order_id[:8]} оформлен в рассрочку",
+                                    ORDER_ACCEPTED_TEXT)
+    return web.Response(text="OK", content_type="text/plain")
+
+
 async def api_not_found(_: web.Request) -> web.Response:
     raise APIError(404, "Метод API не найден.")
 
@@ -1373,7 +1573,8 @@ def setup_store(app: web.Application) -> None:
     app.router.add_get("/api/settings", get_settings)
     app.router.add_post("/api/inquiries", create_inquiry)
     app.router.add_get("/api/orders/{id}", order_status)
-    app.router.add_post("/api/payments/tbank/notification", tbank_notification)
+    app.router.add_post(SBP_NOTIFICATION_PATH, tbank_notification)
+    app.router.add_post(CREDIT_NOTIFICATION_PATH, tbank_credit_notification)
     app.router.add_get("/api/account", account_state)
     app.router.add_post("/api/account/register", account_register)
     app.router.add_post("/api/account/login", account_login)

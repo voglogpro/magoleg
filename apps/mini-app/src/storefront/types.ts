@@ -69,6 +69,8 @@ export type ShopSettings = {
   payment_provider: string;
   payment_installment_partner: string;
   payment_receipt: string;
+  /** Публичный ключ виджета СДЭК; пустая строка — карта не показывается. */
+  cdek_widget_key: string;
 };
 
 export type CartItem = { product_id: string; quantity: number };
@@ -95,7 +97,7 @@ export const defaultSettings: ShopSettings = {
   privacy_document: '', consent_document: '', offer_document: '', returns_document: '', contacts_document: '',
   payment_sbp: 'on', payment_card: 'off', payment_dolyame: 'off', payment_installment: 'off',
   payment_credit: 'off', payment_invoice: 'off', payment_on_delivery: 'off',
-  payment_provider: '', payment_installment_partner: '', payment_receipt: '',
+  payment_provider: '', payment_installment_partner: '', payment_receipt: '', cdek_widget_key: '',
 };
 export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', sale: false, min: '', max: '', sort: 'featured' };
 

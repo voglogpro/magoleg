@@ -14,8 +14,9 @@ from aiohttp import CookieJar, FormData, web
 from aiohttp.test_utils import TestClient, TestServer
 from PIL import Image, PngImagePlugin
 
-from store_api import (ACCOUNT_COOKIE, ACCOUNT_SESSION_AGE, COOKIE_NAME, MAX_UPLOAD, STORE_KEY,
-                       hash_password, setup_store, tbank_token, valid_phone, verify_password)
+from store_api import (ACCOUNT_COOKIE, ACCOUNT_SESSION_AGE, COOKIE_NAME, CREDIT_NOTIFICATION_PATH,
+                       MAX_UPLOAD, STORE_KEY, hash_password, payment_return_urls, return_origin,
+                       setup_store, tbank_token, valid_phone, verify_password)
 
 TEST_PASSWORD = "isolated-test-password-only"
 CUSTOMER_PASSWORD = "isolated-customer-password"
@@ -48,6 +49,38 @@ class PasswordTests(unittest.TestCase):
         self.assertNotEqual(encoded, hash_password(TEST_PASSWORD))
         with self.assertRaises(ValueError):
             hash_password("short")
+
+
+def fake_request(host, scheme="https", forwarded=None):
+    request = MagicMock()
+    request.host = host
+    request.scheme = scheme
+    request.headers = {"X-Forwarded-Proto": forwarded} if forwarded else {}
+    return request
+
+
+class ReturnOriginTests(unittest.TestCase):
+    def test_own_domain_is_accepted_when_public_origin_is_not_configured(self):
+        with patch.dict(os.environ, {"PUBLIC_ORIGIN": "", "MINI_APP_URL": ""}):
+            # Именно этот случай ломал оплату: хостинг без PUBLIC_ORIGIN.
+            self.assertEqual(return_origin(fake_request("g-partner.store")), "https://g-partner.store")
+            self.assertEqual(return_origin(fake_request("www.g-partner.ru")), "https://www.g-partner.ru")
+            self.assertEqual(return_origin(fake_request("127.0.0.1:8000", scheme="http")), "http://127.0.0.1:8000")
+            self.assertIsNone(return_origin(fake_request("evil.example")))
+
+    def test_configured_origins_accept_a_list_and_block_a_forged_host(self):
+        with patch.dict(os.environ, {"PUBLIC_ORIGIN": "https://a.example, https://b.example", "MINI_APP_URL": ""}):
+            self.assertEqual(return_origin(fake_request("b.example")), "https://b.example")
+            self.assertEqual(return_origin(fake_request("evil.example")), "https://a.example")
+            self.assertEqual(return_origin(fake_request("a.example", scheme="http", forwarded="https")),
+                             "https://a.example")
+
+    def test_return_urls_carry_the_order_and_the_webhook_secret(self):
+        with patch.dict(os.environ, {"TBANK_CREDIT_WEBHOOK_SECRET": "secret value"}):
+            urls = payment_return_urls("https://g-partner.store", "a" * 32, CREDIT_NOTIFICATION_PATH)
+        self.assertEqual(urls["success"], f"https://g-partner.store/#order-success?order={'a' * 32}")
+        self.assertEqual(urls["fail"], f"https://g-partner.store/#cart?payment=failed&order={'a' * 32}")
+        self.assertEqual(urls["webhook"], f"https://g-partner.store{CREDIT_NOTIFICATION_PATH}?key=secret%20value")
 
 
 class StoreAPITests(unittest.IsolatedAsyncioTestCase):
@@ -218,12 +251,20 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
 
     async def test_secure_cookie_default_and_origin_configuration(self):
         self.client.app[STORE_KEY].cookie_secure = True
-        self.client.app[STORE_KEY].allowed_origin = "https://shop.example"
+        self.client.app[STORE_KEY].allowed_origins = ["https://shop.example", "https://shop.store"]
         response = await self.client.post("/api/admin/login", json={
             "username": "test-owner", "password": TEST_PASSWORD,
         }, headers={"Origin": "https://shop.example"})
         self.assertEqual(response.status, 200)
         self.assertTrue(response.cookies[COOKIE_NAME]["secure"])
+        # Магазин работает на двух доменах: второй адрес тоже свой, а чужой — нет.
+        second = await self.client.post("/api/admin/login", json={
+            "username": "test-owner", "password": TEST_PASSWORD,
+        }, headers={"Origin": "https://shop.store"})
+        self.assertEqual(second.status, 200)
+        await self.assert_error(await self.client.post("/api/admin/login", json={
+            "username": "test-owner", "password": TEST_PASSWORD,
+        }, headers={"Origin": "https://evil.example"}), 403)
 
     async def test_cross_origin_and_cross_site_mutations_are_rejected(self):
         await self.login()
@@ -925,6 +966,57 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         self.client = await self.make_client()
         self.client.session.cookie_jar.update_cookies({ACCOUNT_COOKIE: "forged-token-value"})
         await self.assert_error(await self.client.get("/api/account/inquiries"), 401)
+
+
+    async def test_installment_order_opens_a_bank_form_and_the_webhook_confirms_it(self):
+        await self.login()
+        product = await self.published_product()
+        await self.enable_inquiries()
+        response = await self.client.put("/api/admin/settings", json={"payment_installment": "on"}, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        link = "https://forma.tinkoff.ru/order/test"
+        with patch("store_api.init_tbank_credit", AsyncMock(return_value={"payment_id": "credit-1", "payment_url": link})) as credit:
+            order = await self.client.post("/api/inquiries", json={
+                "name": "Customer", "contact": "+7 999 111 22 33", "message": "",
+                "city": "Сочи", "cdek_pvz": "SCH1, ул. Тестовая, 3", "payment_method": "installment",
+                "items": [{"product_id": product["id"], "quantity": 1}], "consent": True,
+            }, headers={"Origin": self.origin})
+        self.assertEqual(order.status, 201, await order.text())
+        receipt = (await order.json())["inquiry"]
+        self.assertEqual(receipt["payment_url"], link)
+        self.assertEqual(receipt["status"], "awaiting_payment")
+        self.assertTrue(credit.await_args.args[1].startswith("http"))
+        # Чужая заявка банка не должна закрывать заказ.
+        await self.assert_error(await self.client.post(CREDIT_NOTIFICATION_PATH, json={
+            "orderNumber": receipt["id"], "id": "other", "status": "signed",
+        }), 409)
+        confirmed = await self.client.post(CREDIT_NOTIFICATION_PATH, json={
+            "orderNumber": receipt["id"], "id": "credit-1", "status": "signed",
+        })
+        self.assertEqual(confirmed.status, 200, await confirmed.text())
+        inquiry = (await (await self.client.get("/api/admin/inquiries")).json())["inquiries"][0]
+        self.assertEqual(inquiry["status"], "paid")
+        self.assertEqual(inquiry["payment_status"], "signed")
+
+    async def test_credit_webhook_checks_the_secret_key_when_it_is_configured(self):
+        with patch.dict(os.environ, {"TBANK_CREDIT_WEBHOOK_SECRET": "webhook-secret"}):
+            await self.assert_error(await self.client.post(CREDIT_NOTIFICATION_PATH, json={
+                "orderNumber": "a" * 32, "id": "credit-1", "status": "signed",
+            }), 403)
+            await self.assert_error(await self.client.post(
+                f"{CREDIT_NOTIFICATION_PATH}?key=webhook-secret",
+                json={"orderNumber": "a" * 32, "id": "credit-1", "status": "signed"}), 404)
+
+    async def test_customer_password_accepts_eight_characters(self):
+        response = await self.client.post("/api/account/register", json={
+            "name": "Customer", "contact": "short@example.com", "city": "Сочи",
+            "password": "12345678", "consent": True,
+        }, headers={"Origin": self.origin})
+        self.assertEqual(response.status, 200, await response.text())
+        await self.assert_error(await self.client.post("/api/account/register", json={
+            "name": "Customer", "contact": "tiny@example.com", "city": "Сочи",
+            "password": "1234567", "consent": True,
+        }, headers={"Origin": self.origin}), 400)
 
 
 if __name__ == "__main__":

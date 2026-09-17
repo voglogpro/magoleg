@@ -29,6 +29,14 @@ from store_api import STORE_KEY, setup_store
 
 
 LOGGER = logging.getLogger("gshop.bot")
+# Источники виджета СДЭК: сам виджет, его карта и тайлы Яндекс.Карт.
+CDEK_SOURCES = {
+    "script": " https://cdn.jsdelivr.net https://api-maps.yandex.ru https://yastatic.net",
+    "style": " https://api-maps.yandex.ru https://yastatic.net",
+    "img": " https://api-maps.yandex.ru https://yastatic.net https://*.maps.yandex.net https://*.cdek.ru",
+    "font": " https://yastatic.net",
+    "connect": " https://api.cdek.ru https://*.cdek.ru https://api-maps.yandex.ru https://*.maps.yandex.net",
+}
 PROJECT_DIR = Path(__file__).resolve().parent
 
 
@@ -45,9 +53,13 @@ async def security_headers(request: web.Request, handler):
     script_sources = "'self'" if admin else "'self' https://telegram.org https://mc.yandex.ru https://mc.yandex.com https://yastatic.net"
     analytics_sources = "" if admin else " https://mc.yandex.ru https://mc.yandex.com https://mc.webvisor.org https://mc.webvisor.com https://*.mc.yandex.ru https://*.mc.yandex.com"
     frame_sources = "'none'" if admin else "'self' blob: https://mc.yandex.ru"
+    # Карта пунктов выдачи открывается на самом сайте. Разрешения выдаются только
+    # когда ключ виджета задан: без него политика остаётся прежней.
+    cdek = CDEK_SOURCES if not admin and os.getenv("CDEK_WIDGET_API_KEY", "").strip() else {}
     response.headers["Content-Security-Policy"] = (
-        f"default-src 'self'; script-src {script_sources}; style-src 'self' 'unsafe-inline'; "
-        f"img-src 'self' data: blob:{analytics_sources}; font-src 'self'; connect-src 'self'{analytics_sources}; "
+        f"default-src 'self'; script-src {script_sources}{cdek.get('script', '')}; style-src 'self' 'unsafe-inline'{cdek.get('style', '')}; "
+        f"img-src 'self' data: blob:{analytics_sources}{cdek.get('img', '')}; font-src 'self'{cdek.get('font', '')}; "
+        f"connect-src 'self'{analytics_sources}{cdek.get('connect', '')}; "
         f"frame-src {frame_sources}; child-src {frame_sources}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors {frame_ancestors}"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"

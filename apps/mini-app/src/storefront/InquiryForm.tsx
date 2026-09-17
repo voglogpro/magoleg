@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { getOrderStatus, submitInquiry } from './api';
+import { CdekPvzPicker } from './CdekPvzPicker';
 import { CityDatalist } from './CityPicker';
 import { money } from './domain';
 import { type AccountProfile, type CartItem, type Inquiry, type PaymentChoice, type ShopSettings } from './types';
@@ -137,7 +138,11 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
       <label>Ваше имя<input name="name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={event => setName(event.target.value)} /></label>
       <label>Телефон, email или @Telegram<input name="contact" autoComplete="email" required minLength={5} maxLength={150} value={contact} onChange={event => setContact(event.target.value)} placeholder="Как с вами связаться" /></label>
       {items.length > 0 && <label>Город доставки<input name="city" list="sf-cities" autoComplete="address-level2" required minLength={2} maxLength={80} value={destination} onChange={event => setDestination(event.target.value)} placeholder="Например, Краснодар" /><CityDatalist /></label>}
-      {items.length > 0 && <label>Пункт выдачи СДЭК<input name="cdek_pvz" required minLength={3} maxLength={300} value={cdekPvz} onChange={event => setCdekPvz(event.target.value)} placeholder="Код или полный адрес ПВЗ" /><span className="sf-field-help">Выберите удобный пункт на <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener noreferrer">карте СДЭК</a> и вставьте сюда его код или адрес.</span></label>}
+      {items.length > 0 && <label>Пункт выдачи СДЭК<input name="cdek_pvz" required minLength={3} maxLength={300} value={cdekPvz} onChange={event => setCdekPvz(event.target.value)} placeholder="Код или полный адрес ПВЗ" /><span className="sf-field-help">Выберите пункт на карте — код и адрес подставятся сюда сами. Можно вписать их вручную: пункты есть на <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener noreferrer">карте СДЭК</a>.</span></label>}
+      {items.length > 0 && <CdekPvzPicker apiKey={settings.cdek_widget_key} city={destination} onChoose={choice => {
+        setCdekPvz(choice.address.slice(0, 300));
+        if (choice.city) setDestination(current => current.trim() ? current : choice.city);
+      }} />}
       {items.length > 0 && <fieldset className="sf-payment-choice">
         <legend>Желаемый способ оплаты</legend>
         <div>{availablePayments.map(([value]) => <label key={value}>
@@ -153,7 +158,7 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
       {error && <p className="sf-error" role="alert" ref={errorRef} tabIndex={-1}>{error}</p>}
       {blocked && <p className="sf-error">Удалите недоступные товары из корзины перед отправкой заявки.</p>}
       {/* Кнопка расчёта включается только принятой галочкой: акцепт оферты фиксируется до оплаты. */}
-      <button className="sf-button" type="submit" disabled={pending || blocked || (items.length > 0 && !consent)}>{pending ? 'Готовим оплату…' : items.length ? 'Оплатить заказ' : 'Отправить вопрос'}</button>
+      <button className="sf-button" type="submit" disabled={pending || blocked || (items.length > 0 && !consent)}>{pending ? 'Готовим оплату…' : !items.length ? 'Отправить вопрос' : effectivePayment === 'installment' ? 'Оформить рассрочку' : effectivePayment === 'credit' ? 'Оформить кредит' : 'Оплатить заказ'}</button>
       {items.length > 0 && !consent && <p className="sf-muted" aria-live="polite">Отметьте согласие с документами — кнопка оплаты станет активной.</p>}
     </fieldset>
   </form>;

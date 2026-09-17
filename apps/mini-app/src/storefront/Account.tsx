@@ -190,8 +190,8 @@ export function Account({ account, csrfToken, city = '', restoring = false, onCh
         <CityDatalist />
       </label>}
       <label>Пароль
-        <input name="password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} required minLength={registering ? 12 : 1} maxLength={256} value={password} disabled={busy} onChange={event => setPassword(event.target.value)} />
-        {registering && <small>От 12 символов — так аккаунт не подберут перебором.</small>}
+        <input name="password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} required minLength={registering ? 8 : 1} maxLength={256} value={password} disabled={busy} onChange={event => setPassword(event.target.value)} />
+        {registering && <small>От 8 символов — так аккаунт не подберут перебором.</small>}
       </label>
 
       {registering && <label className="sf-consent"><input name="consent" type="checkbox" checked={consent} required disabled={busy} onChange={event => setConsent(event.target.checked)} /><span>Даю <a href="#consent" target="_blank" rel="noopener noreferrer">согласие на обработку данных</a> для создания аккаунта и работы с заявками. <a href="#privacy" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a></span></label>}
