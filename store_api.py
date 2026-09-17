@@ -69,6 +69,12 @@ STORE_HOSTS = ("g-partner.store", "g-partner.ru")
 TBANK_SHOP_ID = "8879c474-d8e0-4f1b-b7fe-628b5d7f6a07"
 TBANK_SHOWCASE_ID = "563f8b7f-91e8-47f3-9776-f18e7d663707"
 TBANK_CREDIT_URL = "https://forma.tinkoff.ru/api/partners/v2/orders/create"
+# Официальное API СДЭК v2: серверный прокси даёт список ПВЗ без публичного ключа виджета.
+CDEK_API = "https://api.cdek.ru/v2"
+CDEK_TIMEOUT = 8
+CDEK_POINTS_LIMIT = 30
+# Токен живёт около часа; берём запас, чтобы не отправить запрос с истекающим токеном.
+CDEK_TOKEN_SKEW = 120
 SBP_NOTIFICATION_PATH = "/api/payments/tbank/notification"
 CREDIT_NOTIFICATION_PATH = "/api/payments/tbank/credit-notification"
 # Статусы заявки на рассрочку: договор подписан — заказ оплачен, отказ — заказ отменён.
@@ -394,6 +400,87 @@ async def init_tbank_credit(inquiry: dict[str, Any], origin: str) -> dict[str, s
         raise APIError(502, "Т-Банк не смог открыть заявку на рассрочку. Повторите попытку или свяжитесь с магазином.",
                        detail=bank_error(response.status, result))
     return {"payment_id": str(result.get("id", "")), "payment_url": link}
+
+
+# Токен СДЭК кэшируется в памяти процесса: секреты не логируются и наружу не отдаются.
+_CDEK_TOKEN: dict[str, Any] = {"value": "", "expires": 0.0}
+_CDEK_TOKEN_LOCK = asyncio.Lock()
+
+
+def cdek_credentials() -> tuple[str, str]:
+    return os.getenv("CDEK_CLIENT_ID", "").strip(), os.getenv("CDEK_CLIENT_SECRET", "").strip()
+
+
+async def cdek_token(client: ClientSession) -> str:
+    """client_credentials по документации СДЭК; повторные запросы берут токен из кэша."""
+    client_id, client_secret = cdek_credentials()
+    async with _CDEK_TOKEN_LOCK:
+        if _CDEK_TOKEN["value"] and _CDEK_TOKEN["expires"] > time.time():
+            return str(_CDEK_TOKEN["value"])
+        async with client.post(f"{CDEK_API}/oauth/token?parameters", data={
+            "grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret,
+        }) as response:
+            result = await response.json(content_type=None)
+        token = result.get("access_token") if isinstance(result, dict) else None
+        if response.status != 200 or not isinstance(token, str) or not token:
+            LOGGER.warning("CDEK token rejected: HTTP %s", response.status)
+            return ""
+        lifetime = result.get("expires_in")
+        lifetime = int(lifetime) if isinstance(lifetime, (int, float, str)) and str(lifetime).isdigit() else 3600
+        _CDEK_TOKEN["value"] = token
+        _CDEK_TOKEN["expires"] = time.time() + max(lifetime - CDEK_TOKEN_SKEW, 60)
+        return token
+
+
+def cdek_point(office: Any) -> dict[str, Any] | None:
+    """Оставляем покупателю только понятные поля: код, адрес, часы работы и ориентир."""
+    if not isinstance(office, dict):
+        return None
+    code = str(office.get("code") or "").strip()
+    location = office.get("location") if isinstance(office.get("location"), dict) else {}
+    address = str(location.get("address_full") or location.get("address") or "").strip()
+    if not code or not address:
+        return None
+    point: dict[str, Any] = {
+        "code": code,
+        "name": str(office.get("name") or "").strip()[:160],
+        "address": address[:240],
+        "city": str(location.get("city") or "").strip()[:120],
+        "work_time": str(office.get("work_time") or "").strip()[:160],
+        "note": str(office.get("note") or "").strip()[:200],
+        "nearest_station": str(office.get("nearest_station") or "").strip()[:160],
+    }
+    for source, target in (("latitude", "latitude"), ("longitude", "longitude")):
+        value = location.get(source)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            point[target] = float(value)
+    return point
+
+
+async def cdek_offices(city: str) -> tuple[list[dict[str, Any]], str]:
+    """Возвращает пункты выдачи и человеческую причину отказа: заказ из-за СДЭК не падает."""
+    client_id, client_secret = cdek_credentials()
+    if not (client_id and client_secret):
+        return [], "Список пунктов выдачи пока не подключён — укажите код или адрес ПВЗ вручную."
+    params = {"city": city, "type": "PVZ", "country_code": "RU", "is_handout": "true", "size": "200"}
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=CDEK_TIMEOUT)) as client:
+            token = await cdek_token(client)
+            if not token:
+                return [], "СДЭК не отвечает. Укажите код или адрес пункта выдачи вручную."
+            async with client.get(f"{CDEK_API}/deliverypoints", params=params,
+                                  headers={"Authorization": f"Bearer {token}"}) as response:
+                result = await response.json(content_type=None)
+    except (OSError, asyncio.TimeoutError, ValueError) as error:
+        LOGGER.warning("CDEK deliverypoints failed: %s", type(error).__name__)
+        return [], "СДЭК не отвечает. Укажите код или адрес пункта выдачи вручную."
+    if response.status != 200 or not isinstance(result, list):
+        LOGGER.warning("CDEK deliverypoints rejected: HTTP %s", response.status)
+        return [], "СДЭК не отвечает. Укажите код или адрес пункта выдачи вручную."
+    points = [point for point in (cdek_point(office) for office in result) if point]
+    if not points:
+        return [], "В этом городе пунктов выдачи СДЭК не нашлось — проверьте название города."
+    return points, ""
 
 
 def _send_email(contact: str, subject: str, text: str) -> None:
@@ -1521,6 +1608,29 @@ async def order_status(request: web.Request) -> web.Response:
     })
 
 
+async def cdek_points(request: web.Request) -> web.Response:
+    """Публичный прокси к СДЭК: витрина показывает список ПВЗ, даже если ключа виджета нет."""
+    require(not (set(request.query) - {"city", "query"}), "Неизвестные параметры поиска пунктов выдачи.")
+    for key in ("city", "query"):
+        require(len(request.query.getall(key, [])) <= 1, "Параметры поиска не должны повторяться.")
+    city = text_value(request.query.get("city", ""), "Город", 80)
+    needle = text_value(request.query.get("query", ""), "Поиск", 80).lower()
+    request.app[STORE_KEY].rate_limit(request, "cdek-points", 60, 600)
+    if not city:
+        return web.json_response({"points": [], "available": False,
+                                  "reason": "Укажите город доставки — тогда покажем пункты выдачи."})
+    points, reason = await cdek_offices(city)
+    if reason:
+        return web.json_response({"points": [], "available": False, "reason": reason})
+    if needle:
+        points = [point for point in points
+                  if needle in point["address"].lower() or needle in point["code"].lower()]
+        if not points:
+            return web.json_response({"points": [], "available": True,
+                                      "reason": "По этому адресу пунктов не нашлось — уточните улицу."})
+    return web.json_response({"points": points[:CDEK_POINTS_LIMIT], "available": True, "reason": ""})
+
+
 async def tbank_notification(request: web.Request) -> web.Response:
     data = await read_json(request)
     terminal, password = os.getenv("TBANK_TERMINAL_KEY", "").strip(), os.getenv("TBANK_PASSWORD", "").strip()
@@ -1663,6 +1773,7 @@ def setup_store(app: web.Application) -> None:
     app.router.add_get("/api/settings", get_settings)
     app.router.add_post("/api/inquiries", create_inquiry)
     app.router.add_get("/api/orders/{id}", order_status)
+    app.router.add_get("/api/cdek/points", cdek_points)
     app.router.add_post(SBP_NOTIFICATION_PATH, tbank_notification)
     app.router.add_post(CREDIT_NOTIFICATION_PATH, tbank_credit_notification)
     app.router.add_get("/api/account", account_state)

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getCdekPoints, type CdekPoint } from './api';
+import './cdek-picker.css';
 
 /** Официальный виджет СДЭК: карта открывается прямо на сайте, покупатель никуда не уходит. */
 const WIDGET_SRC = 'https://cdn.jsdelivr.net/npm/@cdek-it/widget@3/dist/cdek-widget.umd.js';
@@ -74,8 +76,8 @@ export function CdekPvzPicker({ apiKey, city, onChoose }: { apiKey: string; city
     return () => { instance.current?.destroy?.(); instance.current = null; };
   }, [open, mount]);
 
-  // Ключ не задан — остаётся ручной ввод кода ПВЗ в поле ниже, заказ оформляется как прежде.
-  if (!apiKey) return null;
+  // Ключа виджета нет — показываем список пунктов из серверного прокси к API СДЭК.
+  if (!apiKey) return <CdekPvzList city={city} onChoose={onChoose} />;
 
   return <div className="sf-cdek-picker">
     <button type="button" className="sf-button sf-button--secondary sf-cdek-picker__toggle"
@@ -87,5 +89,75 @@ export function CdekPvzPicker({ apiKey, city, onChoose }: { apiKey: string; city
     {open && failed && <p className="sf-field-help" role="status">
       Карта СДЭК сейчас недоступна. Укажите код или адрес пункта выдачи в поле ниже — заказ оформится обычным способом.
     </p>}
+  </div>;
+}
+
+/** Список ПВЗ без ключа виджета: данные приходят с нашего сервера, карта не нужна. */
+function CdekPvzList({ city, onChoose }: { city: string; onChoose: (choice: PvzChoice) => void }) {
+  // idle — кнопка свёрнута, open — показан список, gone — СДЭК недоступен, остаётся ручное поле.
+  const [state, setState] = useState<'idle' | 'loading' | 'open' | 'gone'>('idle');
+  const [points, setPoints] = useState<CdekPoint[]>([]);
+  const [search, setSearch] = useState('');
+  const [note, setNote] = useState('');
+  const base = useRef<CdekPoint[]>([]);
+  const town = city.trim();
+
+  useEffect(() => { setState('idle'); setSearch(''); setNote(''); setPoints([]); base.current = []; }, [town]);
+
+  // Запрос уходит только по нажатию: пока покупатель не попросил список, сеть не трогаем.
+  const load = useCallback(async () => {
+    setState('loading');
+    const answer = await getCdekPoints(town);
+    if (!answer.available || !answer.points.length) { setState('gone'); return; }
+    base.current = answer.points;
+    setPoints(answer.points);
+    setNote('');
+    setState('open');
+  }, [town]);
+
+  // Поиск по улице уходит на сервер с задержкой, чтобы не слать запрос на каждую букву.
+  useEffect(() => {
+    if (state !== 'open') return;
+    const needle = search.trim();
+    if (!needle) { setPoints(base.current); setNote(''); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void getCdekPoints(town, needle, controller.signal).then(answer => {
+        if (controller.signal.aborted) return;
+        setPoints(answer.points);
+        setNote(answer.points.length ? '' : answer.reason);
+      }).catch(() => undefined);
+    }, 350);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [state, town, search]);
+
+  if (!town || state === 'gone') return null;
+
+  return <div className="sf-cdek-picker sf-cdek-list">
+    <button type="button" className="sf-button sf-button--secondary sf-cdek-picker__toggle"
+      aria-expanded={state === 'open'} disabled={state === 'loading'}
+      onClick={() => (state === 'open' ? setState('idle') : void load())}>
+      {state === 'open' ? 'Скрыть пункты выдачи' : `Показать пункты выдачи в городе ${town}`}
+    </button>
+    {state === 'open' && <div className="sf-cdek-list__panel">
+      <input className="sf-cdek-list__search" type="search" value={search} placeholder="Поиск по улице или коду"
+        aria-label="Поиск пункта выдачи" onChange={event => setSearch(event.target.value)} />
+      <ul className="sf-cdek-list__items">
+        {points.map(point => <li key={point.code} className="sf-cdek-point">
+          <p className="sf-cdek-point__address">
+            <span className="sf-cdek-point__code">{point.code}</span> {point.address}
+          </p>
+          <p className="sf-cdek-point__meta">
+            {[point.work_time, point.nearest_station || point.note].filter(Boolean).join(' · ')}
+          </p>
+          <button type="button" className="sf-cdek-point__pick" onClick={() => {
+            onChoose({ code: point.code, city: point.city || town, address: `${point.code}, ${point.address}` });
+            setSearch('');
+            setState('idle');
+          }}>Выбрать</button>
+        </li>)}
+      </ul>
+      {note && <p className="sf-cdek-list__note" role="status">{note}</p>}
+    </div>}
   </div>;
 }

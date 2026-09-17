@@ -1,0 +1,17 @@
+/* Список пунктов выдачи СДЭК: компактные строки в тёмной палитре витрины, ширина от 360px. */
+.sf-store .sf-cdek-list { display: grid; gap: 8px; margin-top: 8px; min-width: 0; }
+.sf-store .sf-cdek-list__panel { border: 1px solid #22262b; border-radius: 14px; background: linear-gradient(160deg, #1b1d21, #14161a); padding: 10px; display: grid; gap: 8px; min-width: 0; }
+.sf-store .sf-cdek-list__search { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid #2a2f35; border-radius: 10px; background: #14161a; color: inherit; font: inherit; font-size: 13px; }
+.sf-store .sf-cdek-list__search:focus-visible { outline: 2px solid #ff7a0a; outline-offset: 1px; border-color: #ff7a0a; }
+.sf-store .sf-cdek-list__items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.sf-store .sf-cdek-point { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 8px 10px; border: 1px solid #23272c; border-radius: 12px; background: #14161a; min-width: 0; }
+.sf-store .sf-cdek-point__address { grid-column: 1; margin: 0; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.sf-store .sf-cdek-point__code { color: #ff7a0a; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.sf-store .sf-cdek-point__meta { grid-column: 1; margin: 0; color: #8d939c; font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
+.sf-store .sf-cdek-point__pick { grid-column: 2; grid-row: 1 / 3; align-self: center; padding: 7px 12px; border: 1px solid #ff7a0a; border-radius: 999px; background: transparent; color: #ff7a0a; font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.sf-store .sf-cdek-point__pick:hover { background: #ff7a0a; color: #14161a; }
+.sf-store .sf-cdek-list__note { margin: 0; color: #8d939c; font-size: 12px; }
+
+/* Кнопка списка — вспомогательная: компактнее основной кнопки оплаты. */
+.sf-store .sf-cdek-picker__toggle, .sf-store .sf-cdek-list > .sf-cdek-picker__toggle { min-height: 40px; padding: 0 16px; font-size: 14px; border-radius: 12px; }
+@media (min-width: 620px) { .sf-store .sf-cdek-picker__toggle { justify-self: start; } }

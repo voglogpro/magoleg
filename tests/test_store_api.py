@@ -14,6 +14,7 @@ from aiohttp import CookieJar, FormData, web
 from aiohttp.test_utils import TestClient, TestServer
 from PIL import Image, PngImagePlugin
 
+import store_api
 from store_api import (ACCOUNT_COOKIE, ACCOUNT_SESSION_AGE, COOKIE_NAME, CREDIT_NOTIFICATION_PATH,
                        MAX_UPLOAD, STORE_KEY, APIError, hash_password, init_tbank_credit,
                        init_tbank_payment, payment_return_urls, return_origin, setup_store,
@@ -61,10 +62,8 @@ def fake_request(host, scheme="https", forwarded=None):
 
 
 class FakeResponse:
-    status = 200
-
-    def __init__(self, payload):
-        self.payload = payload
+    def __init__(self, payload, status=200):
+        self.payload, self.status = payload, status
 
     async def json(self, content_type=None):
         return self.payload
@@ -1118,6 +1117,108 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(report["bank"]["ok"])
         self.assertIn("Неверный токен", report["bank"]["detail"])
         await self.assert_error(await self.client.post("/api/admin/payment-check"), 403)
+
+
+class FakeCdekSession:
+    """Сеть СДЭК в тестах: токен и список пунктов задаются тестом, запросы записываются."""
+
+    def __init__(self, offices, token="test-token", token_status=200, points_status=200):
+        self.offices, self.token, self.token_status, self.points_status = offices, token, token_status, points_status
+        self.calls = []
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    def post(self, url, data=None, json=None):
+        self.calls.append(("post", url, data))
+        return FakeSession._Response(FakeResponse({"access_token": self.token, "expires_in": 3600},
+                                                  self.token_status))
+
+    def get(self, url, params=None, headers=None):
+        self.calls.append(("get", url, params))
+        return FakeSession._Response(FakeResponse(self.offices, self.points_status))
+
+
+class CdekPointsTests(unittest.IsolatedAsyncioTestCase):
+    office = {"code": "SCH1", "name": "Сочи-1", "work_time": "Пн-Пт 10:00-19:00", "nearest_station": "Ривьера",
+              "location": {"city": "Сочи", "address_full": "Сочи, ул. Тестовая, 3", "latitude": 43.6, "longitude": 39.7}}
+    other = {"code": "SCH2", "location": {"city": "Сочи", "address_full": "Сочи, ул. Морская, 10"}}
+
+    async def asyncSetUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.environment = patch.dict(os.environ, {"DATA_DIR": self.directory.name, "COOKIE_SECURE": "false",
+                                                   "CDEK_CLIENT_ID": "client", "CDEK_CLIENT_SECRET": "secret"})
+        self.environment.start()
+        store_api._CDEK_TOKEN.update({"value": "", "expires": 0.0})
+        app = web.Application()
+        setup_store(app)
+        self.client = TestClient(TestServer(app), cookie_jar=CookieJar(unsafe=True))
+        await self.client.start_server()
+
+    async def asyncTearDown(self):
+        await self.client.close()
+        self.environment.stop()
+        self.directory.cleanup()
+        store_api._CDEK_TOKEN.update({"value": "", "expires": 0.0})
+
+    async def test_points_arrive_without_a_widget_key(self):
+        session = FakeCdekSession([self.office, self.other])
+        with patch("store_api.ClientSession", session):
+            response = await self.client.get("/api/cdek/points?city=Сочи")
+        self.assertEqual(response.status, 200)
+        body = await response.json()
+        self.assertTrue(body["available"])
+        self.assertEqual(body["points"][0], {
+            "code": "SCH1", "name": "Сочи-1", "address": "Сочи, ул. Тестовая, 3", "city": "Сочи",
+            "work_time": "Пн-Пт 10:00-19:00", "note": "", "nearest_station": "Ривьера",
+            "latitude": 43.6, "longitude": 39.7,
+        })
+        params = [call[2] for call in session.calls if call[0] == "get"][0]
+        self.assertEqual(params["city"], "Сочи")
+        self.assertEqual(params["type"], "PVZ")
+        self.assertEqual(params["is_handout"], "true")
+        # Секрет уходит только в запрос токена и не попадает в ответ покупателю.
+        self.assertNotIn("secret", json.dumps(body, ensure_ascii=False))
+
+    async def test_query_filters_by_street_and_code(self):
+        session = FakeCdekSession([self.office, self.other])
+        with patch("store_api.ClientSession", session):
+            response = await self.client.get("/api/cdek/points?city=Сочи&query=МОРСКАЯ")
+        body = await response.json()
+        self.assertEqual([point["code"] for point in body["points"]], ["SCH2"])
+        with patch("store_api.ClientSession", session):
+            response = await self.client.get("/api/cdek/points?city=Сочи&query=sch1")
+        self.assertEqual([point["code"] for point in (await response.json())["points"]], ["SCH1"])
+
+    async def test_missing_credentials_answer_politely_instead_of_failing(self):
+        with patch.dict(os.environ, {"CDEK_CLIENT_ID": "", "CDEK_CLIENT_SECRET": ""}):
+            response = await self.client.get("/api/cdek/points?city=Сочи")
+        self.assertEqual(response.status, 200)
+        body = await response.json()
+        self.assertEqual(body["points"], [])
+        self.assertFalse(body["available"])
+        self.assertTrue(body["reason"])
+
+    async def test_broken_cdek_never_breaks_the_order_form(self):
+        session = FakeCdekSession([], points_status=500)
+        with patch("store_api.ClientSession", session):
+            body = await (await self.client.get("/api/cdek/points?city=Сочи")).json()
+        self.assertEqual((body["points"], body["available"]), ([], False))
+        self.assertTrue(body["reason"])
+
+    async def test_unknown_parameters_and_long_values_are_rejected(self):
+        response = await self.client.get("/api/cdek/points?city=Сочи&limit=100")
+        self.assertEqual(response.status, 400)
+        response = await self.client.get("/api/cdek/points?city=Сочи&city=Москва")
+        self.assertEqual(response.status, 400)
+        response = await self.client.get("/api/cdek/points?city=" + "а" * 200)
+        self.assertEqual(response.status, 400)
 
 
 if __name__ == "__main__":

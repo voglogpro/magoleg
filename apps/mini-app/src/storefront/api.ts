@@ -106,6 +106,28 @@ export async function getAccountInquiries(signal?: AbortSignal) {
   return Array.isArray(data.inquiries) ? data.inquiries : [];
 }
 
+export type CdekPoint = {
+  code: string; name?: string; address: string; city?: string;
+  work_time?: string; note?: string; nearest_station?: string; latitude?: number; longitude?: number;
+};
+export type CdekPointsAnswer = { points: CdekPoint[]; available: boolean; reason: string };
+
+/** Серверный прокси к СДЭК: ответ всегда мягкий, поэтому витрина не показывает ошибку покупателю. */
+export async function getCdekPoints(city: string, query = '', signal?: AbortSignal): Promise<CdekPointsAnswer> {
+  const search = new URLSearchParams({ city });
+  if (query) search.set('query', query);
+  try {
+    const data = await request<Partial<CdekPointsAnswer>>(`/api/cdek/points?${search}`, { signal });
+    const points = Array.isArray(data.points)
+      ? data.points.filter(point => point && typeof point.code === 'string' && typeof point.address === 'string')
+      : [];
+    return { points, available: data.available === true, reason: typeof data.reason === 'string' ? data.reason : '' };
+  } catch (reason) {
+    if (signal?.aborted) throw reason;
+    return { points: [], available: false, reason: 'Список пунктов выдачи сейчас недоступен.' };
+  }
+}
+
 export async function getOrderStatus(id: string, signal?: AbortSignal): Promise<Inquiry> {
   if (!/^[a-f0-9]{32}$/.test(id)) throw new StoreApiError('Некорректный номер заказа.', 400);
   return request<Inquiry>(`/api/orders/${encodeURIComponent(id)}`, { signal, cache: 'no-store' });
