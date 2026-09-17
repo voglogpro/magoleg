@@ -639,9 +639,20 @@ def split_origins(raw: str) -> list[str]:
     origins: list[str] = []
     for chunk in raw.replace(";", ",").split(","):
         origin = origin_of(chunk.strip())
-        if origin is not None and origin not in origins:
+        if origin is None:
+            continue
+        # Банк возвращает покупателя только на https: http в настройке — опечатка,
+        # из-за которой ломаются уведомления. Локальная разработка не трогается.
+        parsed = urlsplit(origin)
+        if parsed.scheme == "http" and not local_host(parsed.hostname or ""):
+            origin = f"https://{parsed.netloc}"
+        if origin not in origins:
             origins.append(origin)
     return origins
+
+
+def local_host(host: str) -> bool:
+    return host.lower() in ("localhost", "127.0.0.1", "::1", "[::1]")
 
 
 def configured_origins() -> list[str]:
@@ -651,7 +662,7 @@ def configured_origins() -> list[str]:
 def known_store_host(host: str) -> bool:
     """Свой домен магазина (или локальная разработка), которому можно вернуть покупателя."""
     host = host.lower().removeprefix("www.")
-    return host in STORE_HOSTS or host in ("localhost", "127.0.0.1", "::1")
+    return host in STORE_HOSTS or local_host(host)
 
 
 def request_origin(request: web.Request) -> str | None:
@@ -1777,9 +1788,13 @@ async def payment_check(request: web.Request) -> web.Response:
     terminal = os.getenv("TBANK_TERMINAL_KEY", "").strip()
     password = os.getenv("TBANK_PASSWORD", "").strip()
     origin = return_origin(request)
+    raw_origin = os.getenv("PUBLIC_ORIGIN", "").strip()
+    http_origin = raw_origin.lower().startswith("http://") and not local_host(urlsplit(raw_origin).hostname or "")
     checks: list[dict[str, Any]] = [
-        {"title": "Адрес возврата покупателя (PUBLIC_ORIGIN)", "ok": origin is not None,
-         "detail": origin or "Домен магазина не распознан: задайте PUBLIC_ORIGIN."},
+        {"title": "Адрес возврата покупателя (PUBLIC_ORIGIN)", "ok": origin is not None and not http_origin,
+         "detail": (f"{origin} — в переменной задан http://, магазин исправил на https://; "
+                    "поправьте её на хостинге" if http_origin else
+                    origin or "Домен магазина не распознан: задайте PUBLIC_ORIGIN.")},
         {"title": "Ключ терминала (TBANK_TERMINAL_KEY)", "ok": bool(terminal),
          "detail": f"…{terminal[-4:]}" if terminal else "Переменная не задана на хостинге."},
         {"title": "Пароль терминала (TBANK_PASSWORD)", "ok": bool(password),

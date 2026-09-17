@@ -240,6 +240,14 @@ class ReturnOriginTests(unittest.TestCase):
             self.assertEqual(return_origin(fake_request("a.example", scheme="http", forwarded="https")),
                              "https://a.example")
 
+    def test_http_origin_is_upgraded_so_the_bank_can_return_the_buyer(self):
+        with patch.dict(os.environ, {"PUBLIC_ORIGIN": "http://g-partner.store", "MINI_APP_URL": ""}):
+            self.assertEqual(return_origin(fake_request("g-partner.store")), "https://g-partner.store")
+            self.assertEqual(store_api.configured_origins(), ["https://g-partner.store"])
+        # Локальная разработка по http остаётся как есть.
+        with patch.dict(os.environ, {"PUBLIC_ORIGIN": "http://127.0.0.1:8000", "MINI_APP_URL": ""}):
+            self.assertEqual(store_api.configured_origins(), ["http://127.0.0.1:8000"])
+
     def test_return_urls_carry_the_order_and_the_webhook_secret(self):
         with patch.dict(os.environ, {"TBANK_CREDIT_WEBHOOK_SECRET": "secret value"}):
             urls = payment_return_urls("https://g-partner.store", "a" * 32, CREDIT_NOTIFICATION_PATH)

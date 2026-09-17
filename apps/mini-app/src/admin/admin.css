@@ -220,3 +220,113 @@
 .crm-tracking-form label { display: grid; flex: 1 1 260px; gap: 7px; color: #aeb3be; font-size: 13px; }
 .crm-tracking-form input { min-height: 44px; padding: 10px 12px; border: 1px solid #4a4e59; border-radius: 7px; background: #171a20; color: #f3f4f7; font: inherit; }
 .crm-tracking-form input:focus { border-color: #ff6b00; outline: none; }
+
+/* === Плотная раскладка кабинета ===
+   Кабинет открывают с ноутбука: заявка и карточка покупателя должны читаться
+   целиком, без прокрутки на пол-экрана. Ниже единая шкала размеров и скруглений,
+   совпадающая с витриной. */
+.crm-app { --crm-panel: #17181b; --crm-line: #2a2b31; --crm-accent: #ff7a0a; font-size: 14px; }
+.crm-app h1 { font: 700 clamp(19px, 1.5vw, 23px)/1.25 Montserrat, Inter, sans-serif; }
+.crm-app h2 { font-size: 16px; }
+.crm-app h3 { font-size: 14px; }
+.crm-app .crm-help, .crm-app .crm-eyebrow { font-size: 12px; line-height: 1.5; }
+.crm-app .crm-section-head { margin-bottom: 14px; gap: 12px; }
+.crm-app .crm-section-head .crm-muted { margin-top: 4px; font-size: 13px; max-width: 70ch; }
+.crm-app .crm-header { padding: 10px max(20px, calc((100vw - 1440px) / 2)); gap: 12px; }
+.crm-app .crm-brand { font-size: 18px; gap: 10px; }
+.crm-app .crm-brand span { font-size: 12px; }
+.crm-app .crm-tabs { gap: 18px; padding: 0 max(20px, calc((100vw - 1440px) / 2)); }
+.crm-app .crm-tabs button { min-height: 40px; padding: 8px 0 6px; font-size: 14px; border-bottom-width: 2px; }
+.crm-app .crm-main { padding: 18px 20px 48px; }
+.crm-app .crm-username { font-size: 12px; }
+
+.crm-app .crm-button { min-height: 34px; padding: 6px 12px; font-size: 13px; border-radius: 9px; }
+.crm-app .crm-link { min-height: 28px; font-size: 13px; }
+.crm-app label { gap: 5px; font-size: 12px; color: var(--crm-muted); font-weight: 500; }
+.crm-app :is(input:not([type='checkbox']), textarea, select) { min-height: 36px; padding: 7px 10px; font-size: 14px; border-radius: 9px; border-color: #3a3b42; }
+.crm-app input::placeholder, .crm-app textarea::placeholder { font-size: 13px; }
+.crm-app textarea { min-height: 76px; }
+.crm-app .crm-checkbox { min-height: 32px; gap: 9px; font-size: 13px; }
+.crm-app .crm-checkbox input { width: 17px; height: 17px; }
+.crm-app .crm-form { gap: 14px; }
+.crm-app fieldset { gap: 12px; padding-top: 14px; }
+.crm-app legend { font-size: 14px; }
+.crm-app .crm-fields-two { gap: 12px; }
+.crm-app .crm-notice { padding: 10px 12px; margin-bottom: 14px; border-radius: 10px; font-size: 13px; }
+.crm-app :is(.crm-inquiry, .crm-customer-card, .crm-product-editor, .crm-checklist, .crm-empty, .crm-editor-actions) {
+  border-radius: 12px; border-color: var(--crm-line); background: var(--crm-panel);
+}
+
+/* Заявки: две-три колонки, поля в строку «подпись — значение». */
+.crm-app .crm-inquiry-filter { max-width: 220px; margin-bottom: 14px; }
+.crm-app .crm-inquiry-list { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.crm-app .crm-inquiry { padding: 14px; }
+.crm-app .crm-inquiry-head { gap: 10px; }
+.crm-app .crm-inquiry-head h2 { font-size: 15px; }
+.crm-app .crm-inquiry-head > label { min-width: 132px; }
+.crm-app .crm-contact-data { grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; margin: 10px 0; }
+.crm-app .crm-contact-data dt { font-size: 12px; align-self: baseline; }
+.crm-app .crm-contact-data dd { margin: 0; font-size: 13px; line-height: 1.45; }
+.crm-app .crm-inquiry-items > div { padding: 7px 0; gap: 8px; font-size: 13px; }
+.crm-app .crm-inquiry-items small { margin-top: 2px; }
+.crm-app .crm-inquiry-total { padding-top: 10px; font-size: 13px; }
+
+/* Покупатели: карточки в сетку, корзина — компактные строки. */
+.crm-app .crm-customer-search { gap: 10px; margin-bottom: 14px; }
+.crm-app .crm-customer-search label { min-width: 240px; }
+.crm-app .crm-customer-search input { padding: 7px 10px; border-radius: 9px; border-color: #3a3b42; }
+.crm-app .crm-customer-list { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; margin: 12px 0; }
+.crm-app .crm-customer-card { padding: 14px; margin-bottom: 0; }
+.crm-app .crm-customer-card h2 { font-size: 15px; margin-bottom: 3px; }
+.crm-app .crm-customer-card h3 { font-size: 13px; margin-top: 12px; }
+.crm-app .crm-customer-card p { font-size: 13px; line-height: 1.45; }
+.crm-app .crm-customer-facts { grid-template-columns: minmax(0, 1fr); gap: 3px 10px; margin: 10px 0; font-size: 13px; }
+.crm-app .crm-customer-facts > div { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px; }
+.crm-app .crm-customer-facts dt { margin-bottom: 0; font-size: 12px; }
+.crm-app .crm-customer-cart li { gap: 10px; padding: 7px 0; font-size: 13px; }
+.crm-app .crm-customer-cart img { width: 40px; height: 40px; border-radius: 8px; }
+
+/* Товары: строка каталога — одна строка, а не плитка в половину экрана. */
+.crm-app .crm-products-layout { gap: 16px; }
+.crm-app .crm-product-tools { gap: 10px; margin-bottom: 12px; }
+.crm-app .crm-product-row { min-height: 60px; grid-template-columns: 46px minmax(0, 1fr) auto; padding: 8px 10px; gap: 10px; }
+.crm-app .crm-product-thumb { width: 46px; height: 46px; border-radius: 8px; }
+.crm-app .crm-product-row-copy strong { font-size: 13px; }
+.crm-app .crm-product-editor { padding: 16px; }
+.crm-app .crm-editor-actions { padding: 9px 12px; gap: 8px; }
+.crm-app .crm-photo-list { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.crm-app .crm-photo-list img { height: 84px; }
+.crm-app .crm-photo-preview { min-height: 140px; }
+.crm-app .crm-settings-form { max-width: 980px; gap: 18px; }
+.crm-app .crm-checklist { padding: 12px 14px; }
+.crm-app .crm-checklist h3 { margin-bottom: 8px; }
+.crm-app .crm-checklist li { font-size: 13px; }
+.crm-app .crm-traffic-table th, .crm-app .crm-traffic-table td { padding: 6px 8px; font-size: 13px; }
+.crm-app .crm-empty { padding: 26px 20px; }
+.crm-app .crm-pagination { margin-top: 14px; }
+.crm-app .crm-pagination p { font-size: 13px; }
+
+/* Трек-номер — одна строка: поле и кнопка рядом, без тяжёлой рамки. */
+.crm-app .crm-tracking-form { gap: 8px; margin: 10px 0; padding: 10px; border-radius: 10px; border-color: var(--crm-line); background: #131418; }
+.crm-app .crm-tracking-form label { flex: 1 1 180px; gap: 4px; font-size: 12px; }
+.crm-app .crm-tracking-form input { min-height: 34px; padding: 7px 10px; border-radius: 9px; font-size: 13px; }
+.crm-app .crm-tracking-form .crm-button { min-height: 34px; }
+
+/* Кнопка удаления встаёт в ту же строку товара, а не отдельной полосой под ней. */
+.crm-app .crm-product-rows > li { position: relative; }
+.crm-app .crm-product-row { padding-right: 132px; }
+.crm-app .crm-row-actions { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); padding: 0; border: 0; }
+.crm-app .crm-row-actions .crm-button { min-height: 30px; padding: 5px 10px; font-size: 12px; }
+.crm-app .crm-product-row .crm-badge { margin-right: 4px; }
+@media (max-width: 900px) {
+  .crm-app .crm-product-row { padding-right: 10px; }
+  .crm-app .crm-row-actions { position: static; transform: none; justify-content: flex-end; padding: 0 10px 8px; border-bottom: 1px solid var(--crm-line); }
+}
+
+/* Настройки на широком экране: короткие поля парами, длинные тексты во всю ширину. */
+@media (min-width: 1100px) {
+  .crm-app .crm-settings-form { max-width: 1180px; }
+  .crm-app .crm-settings-form > fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; align-items: start; }
+  .crm-app .crm-settings-form > fieldset > :not(label),
+  .crm-app .crm-settings-form > fieldset > label:has(textarea) { grid-column: 1 / -1; }
+}
