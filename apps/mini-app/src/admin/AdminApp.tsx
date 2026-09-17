@@ -260,6 +260,46 @@ function Products({ request, onDirty, onBusy }: PanelProps) {
   </section>;
 }
 
+type PaymentReport = {
+  checks: { title: string; ok: boolean; detail: string }[];
+  urls: { notification: string; credit_notification: string; success: string; fail: string };
+  bank: { ok: boolean; message: string; detail?: string; payment_url?: string } | null;
+};
+
+/** Проверка оплаты: показывает, что не задано, и спрашивает банк тестовым платежом на 1 ₽. */
+function PaymentCheck({ request }: { request: Request }) {
+  const [report, setReport] = useState<PaymentReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function check() {
+    setBusy(true); setError(''); setReport(null);
+    try { setReport(await request<PaymentReport>('/payment-check', { method: 'POST', body: {} })); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setBusy(false); }
+  }
+  return <div className="crm-checklist">
+    <h3>Проверка онлайн-оплаты</h3>
+    <p className="crm-help">Проверка запрашивает у банка тестовый платёж на 1 ₽. Заказ не создаётся и деньги не списываются — банк лишь отвечает, принимает ли он ключ терминала, пароль и адреса возврата.</p>
+    <button className="crm-button" type="button" onClick={() => void check()} disabled={busy}>{busy ? 'Проверяем…' : 'Проверить оплату'}</button>
+    {error && <p className="crm-help crm-notice--error" role="alert">{error}</p>}
+    {report && <>
+      <ul>{report.checks.map(item => <li key={item.title} className={item.ok ? 'crm-checklist__done' : ''}>
+        <span aria-hidden="true">{item.ok ? '✓' : '•'}</span><span>{item.title}</span><b>{item.detail}</b>
+      </li>)}</ul>
+      <p className={report.bank?.ok ? 'crm-help' : 'crm-help crm-notice--error'} role="status">
+        {report.bank ? report.bank.message : 'Тестовый платёж не запрашивался: сначала задайте ключ терминала, пароль и адрес магазина.'}
+        {report.bank && !report.bank.ok && report.bank.detail ? ` Ответ банка: ${report.bank.detail}` : ''}
+      </p>
+      <h3>Ссылки для кабинета банка</h3>
+      <ul className="crm-urls">
+        {([['Уведомление СБП и карты', report.urls.notification], ['Уведомление рассрочки', report.urls.credit_notification],
+           ['Ссылка при успехе', report.urls.success], ['Ссылка при отказе', report.urls.fail]] as const)
+          .map(([label, value]) => <li key={label}><span>{label}</span><code>{value}</code></li>)}
+      </ul>
+    </>}
+  </div>;
+}
+
 function Settings({ request, onDirty, onBusy }: PanelProps) {
   const [settings, setSettings] = useState<ShopSettings | null>(null);
   const [original, setOriginal] = useState('');
@@ -334,6 +374,7 @@ function Settings({ request, onDirty, onBusy }: PanelProps) {
           </li>)}</ul>
           <p className="crm-help">Оферта, политика и согласие уже опубликованы в утверждённой редакции; реквизиты ИП зашиты в сайт. Договор с банком, онлайн-касса по 54-ФЗ и приём платежей выполняются вне сайта. Сервер не разрешит отметить «Доступно» способ, для которого не указан сервис или банк-партнёр.</p>
         </div>
+        <PaymentCheck request={request} />
       </fieldset>
       <fieldset disabled={busy}><legend>Документы сайта</legend><p className="crm-help">На сайте есть отдельные страницы. Ниже можно опубликовать утверждённые юристом редакции обычным текстом. Пока поле пустое, показывается базовый проект с предупреждением. Заполните реальные реквизиты и условия перед запуском оплаты и кредита.</p>
         {([['privacy_document', 'Политика конфиденциальности'], ['consent_document', 'Согласие на обработку данных'], ['offer_document', 'Публичная оферта'], ['returns_document', 'Обмен и возврат товара'], ['contacts_document', 'Контакты']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={7} maxLength={12000} value={settings[key]} onChange={event => update(key, event.target.value)} /></label>)}

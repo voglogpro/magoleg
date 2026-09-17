@@ -186,6 +186,10 @@
 .crm-app .crm-checklist__done > span:first-child { color: #8fd4a5; }
 .crm-app .crm-checklist__done b { color: #8fd4a5; }
 @media (max-width: 560px) { .crm-app .crm-checklist li { grid-template-columns: 18px minmax(0, 1fr); } .crm-app .crm-checklist li b { grid-column: 2; } }
+.crm-app .crm-checklist .crm-button { margin: 4px 0 12px; }
+.crm-app .crm-urls { display: grid; gap: 10px; margin-top: 4px; list-style: none; padding: 0; }
+.crm-app .crm-urls li { display: grid; gap: 4px; font-size: 13px; color: var(--crm-muted); }
+.crm-app .crm-urls code { font-size: 12px; color: #e4e6eb; background: #131417; border: 1px solid var(--crm-line); border-radius: 6px; padding: 7px 9px; overflow-wrap: anywhere; }
 .crm-customer-search { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 20px; }
 .crm-customer-search label { flex: 1; min-width: 190px; display: grid; gap: 8px; }
 .crm-customer-search input { width: 100%; padding: 12px; background: #17191c; color: #e4e6eb; border: 1px solid #45474c; border-radius: 6px; font: inherit; }

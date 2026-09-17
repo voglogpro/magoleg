@@ -176,10 +176,12 @@ def verify_password(password: str, encoded: str) -> bool:
 
 
 class APIError(Exception):
-    def __init__(self, status: int, message: str, retry_after: int | None = None):
+    def __init__(self, status: int, message: str, retry_after: int | None = None, detail: str = ""):
         super().__init__(message)
         self.status = status
         self.retry_after = retry_after
+        # Техническая причина от банка: показывается только владельцу в проверке оплаты.
+        self.detail = detail
 
 
 def require(condition: bool, message: str, status: int = 400) -> None:
@@ -258,6 +260,15 @@ def tbank_showcase_id() -> str:
     return os.getenv("TBANK_SHOWCASE_ID", "").strip() or TBANK_SHOWCASE_ID
 
 
+def bank_error(status: int, result: Any) -> str:
+    """Короткая причина отказа банка для журнала и для проверки оплаты владельцем."""
+    if not isinstance(result, dict):
+        return f"HTTP {status}: банк вернул неожиданный ответ."
+    parts = [str(result.get(key, "")).strip() for key in ("ErrorCode", "Message", "Details", "message", "errorMessage")]
+    text = " ".join(part for part in parts if part and part != "0")
+    return (text or f"HTTP {status}: банк отклонил запрос.")[:400]
+
+
 def payment_return_urls(origin: str, order_id: str, webhook_path: str) -> dict[str, str]:
     """Ссылки, которые получает банк: успех, отказ и серверное уведомление."""
     urls = {
@@ -324,8 +335,10 @@ async def init_tbank_payment(inquiry: dict[str, Any], origin: str) -> dict[str, 
     payment_ok = (isinstance(result, dict) and result.get("Success") is True
                   and isinstance(payment_url, str) and payment_url.startswith("https://")
                   and origin_of(payment_url) is not None)
-    require(response.status == 200 and payment_ok,
-            "Т-Банк не смог создать оплату. Повторите попытку или свяжитесь с магазином.", 502)
+    if not (response.status == 200 and payment_ok):
+        LOGGER.warning("T-Bank Init rejected order %s: %s", inquiry["id"][:8], bank_error(response.status, result))
+        raise APIError(502, "Т-Банк не смог создать оплату. Повторите попытку или свяжитесь с магазином.",
+                       detail=bank_error(response.status, result))
     return {"payment_id": str(result.get("PaymentId", "")), "payment_url": payment_url}
 
 
@@ -375,9 +388,11 @@ async def init_tbank_credit(inquiry: dict[str, Any], origin: str) -> dict[str, s
         LOGGER.warning("T-Bank credit order failed: %s", type(error).__name__)
         raise APIError(502, "Т-Банк временно не ответил. Повторите оформление через несколько минут.") from None
     link = result.get("link") if isinstance(result, dict) else None
-    require(response.status < 400 and isinstance(link, str) and link.startswith("https://")
-            and origin_of(link) is not None,
-            "Т-Банк не смог открыть заявку на рассрочку. Повторите попытку или свяжитесь с магазином.", 502)
+    if not (response.status < 400 and isinstance(link, str) and link.startswith("https://")
+            and origin_of(link) is not None):
+        LOGGER.warning("T-Bank credit rejected order %s: %s", inquiry["id"][:8], bank_error(response.status, result))
+        raise APIError(502, "Т-Банк не смог открыть заявку на рассрочку. Повторите попытку или свяжитесь с магазином.",
+                       detail=bank_error(response.status, result))
     return {"payment_id": str(result.get("id", "")), "payment_url": link}
 
 
@@ -1540,6 +1555,55 @@ async def tbank_notification(request: web.Request) -> web.Response:
     return web.Response(text="OK", content_type="text/plain")
 
 
+async def payment_check(request: web.Request) -> web.Response:
+    """Проверка настроек оплаты для владельца: что задано и что отвечает банк.
+
+    Тестовый Init на 1 ₽ не создаёт заказ и никого не списывает — он лишь
+    показывает, принимает ли банк ключ, пароль и адреса возврата.
+    """
+    store = request.app[STORE_KEY]
+    settings = store.settings()
+    terminal = os.getenv("TBANK_TERMINAL_KEY", "").strip()
+    password = os.getenv("TBANK_PASSWORD", "").strip()
+    origin = return_origin(request)
+    checks: list[dict[str, Any]] = [
+        {"title": "Адрес возврата покупателя (PUBLIC_ORIGIN)", "ok": origin is not None,
+         "detail": origin or "Домен магазина не распознан: задайте PUBLIC_ORIGIN."},
+        {"title": "Ключ терминала (TBANK_TERMINAL_KEY)", "ok": bool(terminal),
+         "detail": f"…{terminal[-4:]}" if terminal else "Переменная не задана на хостинге."},
+        {"title": "Пароль терминала (TBANK_PASSWORD)", "ok": bool(password),
+         "detail": "задан" if password else "Переменная не задана на хостинге."},
+        {"title": "Витрина рассрочки и кредита", "ok": _credit_configured(),
+         "detail": f"shop {tbank_shop_id()[:8]}…, showcase {tbank_showcase_id()[:8]}…"},
+    ]
+    for key, title in (("payment_sbp", "СБП"), ("payment_card", "Оплата картой"),
+                       ("payment_installment", "Рассрочка"), ("payment_credit", "Кредит")):
+        checks.append({"title": f"Способ «{title}» в CRM", "ok": settings[key] == "on",
+                       "detail": {"on": "доступно покупателю", "preparing": "готовим подключение — покупатель не увидит",
+                                  "off": "не подключено — покупатель не увидит"}[settings[key]]})
+    urls = payment_return_urls(origin or "https://example.invalid", "0" * 32, SBP_NOTIFICATION_PATH)
+    credit_urls = payment_return_urls(origin or "https://example.invalid", "0" * 32, CREDIT_NOTIFICATION_PATH)
+    report: dict[str, Any] = {
+        "checks": checks,
+        "urls": {"notification": urls["webhook"], "credit_notification": credit_urls["webhook"],
+                 "success": urls["success"].split("?")[0], "fail": urls["fail"].split("?")[0]},
+        "bank": None,
+    }
+    if terminal and password and origin:
+        # Чек банка требует контакт покупателя: для проверки берём телефон магазина.
+        probe = {"id": secrets.token_hex(16), "name": "Проверка настроек",
+                 "contact": settings["phone"] if valid_phone(settings["phone"]) else "check@g-partner.store",
+                 "total": 1.0, "payment_method": "card",
+                 "items": [{"name": "Проверка оплаты", "price": 1.0, "quantity": 1}]}
+        try:
+            payment = await init_tbank_payment(probe, origin)
+            report["bank"] = {"ok": True, "message": "Банк принял тестовый платёж на 1 ₽ и вернул ссылку оплаты.",
+                              "payment_url": payment["payment_url"]}
+        except APIError as error:
+            report["bank"] = {"ok": False, "message": str(error), "detail": error.detail}
+    return web.json_response(report)
+
+
 async def tbank_credit_notification(request: web.Request) -> web.Response:
     """Уведомление Т-Банка по заявке на рассрочку или кредит.
 
@@ -1615,6 +1679,7 @@ def setup_store(app: web.Application) -> None:
     app.router.add_delete("/api/admin/products/{id}", delete_product)
     app.router.add_post("/api/admin/upload", upload_image)
     app.router.add_get("/api/admin/settings", get_settings)
+    app.router.add_post("/api/admin/payment-check", payment_check)
     app.router.add_put("/api/admin/settings", save_settings)
     app.router.add_get("/api/admin/inquiries", list_inquiries)
     app.router.add_patch("/api/admin/inquiries/{id}", update_inquiry)

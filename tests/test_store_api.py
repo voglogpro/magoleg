@@ -1095,6 +1095,30 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
             "password": "1234567", "consent": True,
         }, headers={"Origin": self.origin}), 400)
 
+    async def test_payment_check_reports_missing_keys_and_asks_the_bank(self):
+        await self.login()
+        with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "", "TBANK_PASSWORD": ""}):
+            report = await (await self.client.post("/api/admin/payment-check", headers=self.headers)).json()
+        titles = {check["title"]: check for check in report["checks"]}
+        self.assertFalse(titles["Ключ терминала (TBANK_TERMINAL_KEY)"]["ok"])
+        self.assertIsNone(report["bank"])
+        self.assertTrue(report["urls"]["notification"].endswith("/api/payments/tbank/notification"))
+        captured = {}
+        session = FakeSession({"Success": True, "PaymentURL": "https://securepay.tinkoff.ru/x", "PaymentId": "1"}, captured)
+        with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "TinkoffTest", "TBANK_PASSWORD": "secret"}), \
+                patch("store_api.ClientSession", session):
+            report = await (await self.client.post("/api/admin/payment-check", headers=self.headers)).json()
+        self.assertTrue(report["bank"]["ok"], report["bank"])
+        self.assertEqual(captured["json"]["Amount"], 100)
+        # Отказ банка возвращается владельцу с технической причиной.
+        refusal = FakeSession({"Success": False, "ErrorCode": "9999", "Message": "Неверный токен"}, {})
+        with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "TinkoffTest", "TBANK_PASSWORD": "secret"}), \
+                patch("store_api.ClientSession", refusal):
+            report = await (await self.client.post("/api/admin/payment-check", headers=self.headers)).json()
+        self.assertFalse(report["bank"]["ok"])
+        self.assertIn("Неверный токен", report["bank"]["detail"])
+        await self.assert_error(await self.client.post("/api/admin/payment-check"), 403)
+
 
 if __name__ == "__main__":
     unittest.main()
