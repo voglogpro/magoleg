@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProductCard } from './ProductCard';
 import type { Product } from './types';
@@ -44,7 +44,46 @@ describe('catalogue product photos', () => {
       onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={vi.fn()} />);
     const finance = screen.getByLabelText('Предварительный расчёт оплаты частями');
     expect(finance).not.toHaveTextContent('Долями');
-    expect(finance).toHaveTextContent('12 × 4 159 ₽');
+    // В карточке рассрочка — одна строка с ежемесячным платежом, без рамки и таблицы.
+    expect(finance).toHaveTextContent('Рассрочка от 4 159 ₽/мес.');
     expect(screen.queryByRole('button', { name: /рассрочку|кредит/i })).toBeNull();
+  });
+});
+
+describe('ряд действий карточки', () => {
+  it('покупает сразу: товар попадает в корзину и открывается оформление', () => {
+    const add = vi.fn();
+    window.location.hash = '';
+    render(<ProductCard product={product} favorite={false} compared={false} inCart={false}
+      onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={add} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Купить сейчас' }));
+    expect(add).toHaveBeenCalledWith('scooter');
+    expect(window.location.hash).toBe('#cart');
+  });
+
+  it('оставляет иконочным кнопкам понятные имена и подсказки', () => {
+    const add = vi.fn();
+    render(<ProductCard product={product} favorite={false} compared={false} inCart={false}
+      onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={add} />);
+    const cart = screen.getByRole('button', { name: `Добавить в корзину: ${product.name}` });
+    expect(cart).toHaveAttribute('title', 'Добавить в корзину');
+    expect(cart).toHaveTextContent('');
+    fireEvent.click(cart);
+    expect(add).toHaveBeenCalledWith('scooter');
+    expect(screen.getByRole('button', { name: `Сравнить: ${product.name}` })).toHaveAttribute('title', 'Сравнить');
+    expect(screen.getByRole('button', { name: `Добавить «${product.name}» в избранное` })).toHaveAttribute('title', 'В избранное');
+  });
+
+  it('уводит в корзину, когда товар уже выбран', () => {
+    render(<ProductCard product={product} favorite={false} compared={false} inCart
+      onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={vi.fn()} />);
+    expect(screen.getByRole('link', { name: `Перейти в корзину: ${product.name}` })).toHaveAttribute('href', '#cart');
+  });
+
+  it('гасит покупку у распроданной модели', () => {
+    render(<ProductCard product={{ ...product, stock_status: 'out-of-stock' }} favorite={false} compared={false} inCart={false}
+      onFavorite={vi.fn()} onCompare={vi.fn()} onAdd={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Нет в наличии' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: `Добавить в корзину: ${product.name}` })).toBeDisabled();
   });
 });

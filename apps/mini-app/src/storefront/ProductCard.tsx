@@ -87,12 +87,14 @@ export function ProductPrice({ product, detail = false }: { product: Product; de
 export function FinancePreview({ price, compact = false }: { price: number | null; compact?: boolean }) {
   if (price === null) return null;
   const part = (months: number) => money(Math.ceil(price / months));
-  return <aside className={`sf-finance-preview${compact ? ' sf-finance-preview--compact' : ''}`} aria-label="Предварительный расчёт оплаты частями">
+  // В карточке каталога места нет: показываем одну строку текста вместо таблицы расчёта.
+  if (compact) return <p className="sf-finance-note" aria-label="Предварительный расчёт оплаты частями">Рассрочка от {part(12)}/мес.</p>;
+  return <aside className="sf-finance-preview" aria-label="Предварительный расчёт оплаты частями">
     <dl>
       <div><dt>Рассрочка</dt><dd>12 × {part(12)}</dd></div>
-      <div><dt>{compact ? 'Кредит, ориентир' : 'Кредит*'}</dt><dd>от {part(24)}/мес. × 24</dd></div>
+      <div><dt>Кредит*</dt><dd>от {part(24)}/мес. × 24</dd></div>
     </dl>
-    {!compact && <p>*Предварительно без учёта ставки банка. Точный платёж, ставка и полная стоимость будут указаны Т‑Банком до подписания договора.</p>}
+    <p>*Предварительно без учёта ставки банка. Точный платёж, ставка и полная стоимость будут указаны Т‑Банком до подписания договора.</p>
   </aside>;
 }
 
@@ -105,12 +107,14 @@ export function ProductCard({ product, favorite, compared, inCart, financeAvaila
   // The category is already printed above the title; keep the full model name in details and accessibility text.
   const title = product.name.replace(/^(Электросамокат|Электроскутер|Электровелосипед|Электропитбайк|Квадроцикл)\s+/i, '');
   const license = effectiveLicense(product);
+  const soldOut = product.stock_status === 'out-of-stock';
+  // «Купить сейчас» — то же добавление в корзину, только сразу с переходом к оформлению.
+  const buyNow = () => { onAdd(product.id); window.location.hash = '#cart'; };
   return <article className="sf-product-card">
     <div className="sf-product-card__visual">
       <ProductCardGallery product={product} href={href} />
       {product.badge && <span className={`sf-badge sf-badge--${product.badge}`}>{badgeLabels[product.badge]}</span>}
-      <button className="sf-icon-button sf-favorite" type="button" onClick={() => onFavorite(product.id)} aria-label={`${favorite ? 'Убрать' : 'Добавить'} «${product.name}» ${favorite ? 'из избранного' : 'в избранное'}`} aria-pressed={favorite}><Heart size={20} fill={favorite ? 'currentColor' : 'none'} /></button>
-      <button className="sf-compare-button" type="button" onClick={() => onCompare(product.id)} aria-pressed={compared} aria-label={`${compared ? 'Убрать из сравнения' : 'Сравнить'}: ${product.name}`} title={compared ? 'Убрать из сравнения' : 'Сравнить'}><ArrowLeftRight size={19} aria-hidden="true" /></button>
+      <button className="sf-icon-button sf-favorite" type="button" onClick={() => onFavorite(product.id)} aria-label={`${favorite ? 'Убрать' : 'Добавить'} «${product.name}» ${favorite ? 'из избранного' : 'в избранное'}`} title={favorite ? 'Убрать из избранного' : 'В избранное'} aria-pressed={favorite}><Heart size={20} fill={favorite ? 'currentColor' : 'none'} /></button>
     </div>
     <div className="sf-product-card__body">
       <p className="sf-product-category">{categoryLabels[product.category]}</p>
@@ -122,8 +126,13 @@ export function ProductCard({ product, favorite, compared, inCart, financeAvaila
       {vehicleCategories.includes(product.category) && license !== 'unknown' && <p className="sf-license-caption">{licenseShort[license]}</p>}
       <ProductPrice product={product} />
       {financeAvailable && product.stock_status !== 'out-of-stock' && <FinancePreview price={product.price} compact />}
+      {/* Одна короткая кнопка ведёт в оформление, остальное — иконки: ряд не разъезжается даже на узкой плитке. */}
       <div className="sf-card-actions">
-      {inCart ? <a className="sf-button sf-button--secondary" href="#cart">В корзине</a> : <button className="sf-button" type="button" disabled={product.stock_status === 'out-of-stock'} onClick={() => onAdd(product.id)}><ShoppingCart size={17} aria-hidden="true" />{product.stock_status === 'out-of-stock' ? 'Нет в наличии' : 'В корзину'}</button>}
+        <button className="sf-button" type="button" disabled={soldOut} onClick={buyNow}>{soldOut ? 'Нет в наличии' : 'Купить сейчас'}</button>
+        {inCart
+          ? <a className="sf-card-action" href="#cart" aria-label={`Перейти в корзину: ${product.name}`} title="Перейти в корзину"><ShoppingCart size={18} aria-hidden="true" /></a>
+          : <button className="sf-card-action" type="button" disabled={soldOut} onClick={() => onAdd(product.id)} aria-label={`Добавить в корзину: ${product.name}`} title="Добавить в корзину"><ShoppingCart size={18} aria-hidden="true" /></button>}
+        <button className="sf-compare-button" type="button" onClick={() => onCompare(product.id)} aria-pressed={compared} aria-label={`${compared ? 'Убрать из сравнения' : 'Сравнить'}: ${product.name}`} title={compared ? 'Убрать из сравнения' : 'Сравнить'}><ArrowLeftRight size={18} aria-hidden="true" /></button>
       </div>
     </div>
   </article>;

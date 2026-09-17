@@ -58,7 +58,8 @@ export function Cart({ items, products, settings, city, onCity, onRetry, onQuant
         <p className="sf-cart-delivery-term"><Package size={17} /><span>Оплата доставки осуществляется при получении</span></p>
         <a className="sf-cart-delivery-link" href="#delivery">Условия доставки <ChevronRight size={15} /></a>
       </section>
-      <div className="sf-cart-form sf-cart-panel" ref={formRef}>{children}</div>
     </aside>
+    {/* Форма оформления вынесена из правой колонки: на широком экране она занимает всю ширину корзины. */}
+    <div className="sf-cart-form sf-cart-panel" ref={formRef}>{children}</div>
   </div>;
 }
