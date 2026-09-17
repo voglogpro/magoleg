@@ -71,6 +71,8 @@ export type ShopSettings = {
   payment_receipt: string;
   /** Публичный ключ виджета СДЭК; пустая строка — карта не показывается. */
   cdek_widget_key: string;
+  /** «on», когда у магазина подключены ключи API СДЭК и список пунктов работает. */
+  cdek_points: string;
 };
 
 export type CartItem = { product_id: string; quantity: number };
@@ -97,7 +99,7 @@ export const defaultSettings: ShopSettings = {
   privacy_document: '', consent_document: '', offer_document: '', returns_document: '', contacts_document: '',
   payment_sbp: 'on', payment_card: 'on', payment_dolyame: 'off', payment_installment: 'on',
   payment_credit: 'on', payment_invoice: 'off', payment_on_delivery: 'off',
-  payment_provider: '', payment_installment_partner: '', payment_receipt: '', cdek_widget_key: '',
+  payment_provider: '', payment_installment_partner: '', payment_receipt: '', cdek_widget_key: '', cdek_points: '',
 };
 export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', sale: false, min: '', max: '', sort: 'featured' };
 

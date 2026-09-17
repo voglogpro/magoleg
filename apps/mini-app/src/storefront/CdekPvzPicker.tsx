@@ -39,7 +39,14 @@ export function describeOffice(office: CdekOffice): PvzChoice {
   return { code, city, address: [code, address].filter(Boolean).join(', ') };
 }
 
-export function CdekPvzPicker({ apiKey, city, onChoose }: { apiKey: string; city: string; onChoose: (choice: PvzChoice) => void }) {
+/** Поиск пунктов СДЭК на Яндекс.Картах: работает без ключей и без договора на API. */
+export function cdekMapLink(city: string): string {
+  return `https://yandex.ru/maps/?text=${encodeURIComponent(`СДЭК пункт выдачи ${city}`.trim())}`;
+}
+
+export function CdekPvzPicker({ apiKey, pointsEnabled = false, city, onChoose }: {
+  apiKey: string; pointsEnabled?: boolean; city: string; onChoose: (choice: PvzChoice) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
   const instance = useRef<{ destroy?: () => void } | null>(null);
@@ -76,8 +83,10 @@ export function CdekPvzPicker({ apiKey, city, onChoose }: { apiKey: string; city
     return () => { instance.current?.destroy?.(); instance.current = null; };
   }, [open, mount]);
 
-  // Ключа виджета нет — показываем список пунктов из серверного прокси к API СДЭК.
-  if (!apiKey) return <CdekPvzList city={city} onChoose={onChoose} />;
+  // Ключа виджета нет: показываем список из API СДЭК, а без ключей API — ссылку на карту.
+  if (!apiKey) return pointsEnabled
+    ? <CdekPvzList city={city} onChoose={onChoose} />
+    : <CdekMapHint city={city} />;
 
   return <div className="sf-cdek-picker">
     <button type="button" className="sf-button sf-button--secondary sf-cdek-picker__toggle"
@@ -89,6 +98,18 @@ export function CdekPvzPicker({ apiKey, city, onChoose }: { apiKey: string; city
     {open && failed && <p className="sf-field-help" role="status">
       Карта СДЭК сейчас недоступна. Укажите код или адрес пункта выдачи в поле ниже — заказ оформится обычным способом.
     </p>}
+  </div>;
+}
+
+/** Ни виджета, ни ключей API: не рисуем кнопку, которая ничего не покажет. */
+function CdekMapHint({ city }: { city: string }) {
+  const town = city.trim();
+  return <div className="sf-cdek-picker sf-cdek-hint">
+    <a className="sf-button sf-button--secondary sf-cdek-picker__toggle" href={cdekMapLink(town)}
+      target="_blank" rel="noopener noreferrer">
+      {town ? `Посмотреть пункты СДЭК в городе ${town}` : 'Посмотреть пункты СДЭК на карте'}
+    </a>
+    <p className="sf-cdek-list__note">Поле можно оставить пустым: если пункт не выбран, магазин предложит ближайший при подтверждении заказа.</p>
   </div>;
 }
 

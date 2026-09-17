@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import quote, urlsplit
 
-from aiohttp import ClientSession, ClientTimeout, web
+from aiohttp import ClientError, ClientSession, ClientTimeout, web
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 LOGGER = logging.getLogger("gshop.store")
@@ -102,6 +102,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "payment_provider": "Т-Бизнес", "payment_installment_partner": "Т-Банк", "payment_receipt": "",
     # Публичный ключ виджета СДЭК: с ним карта пунктов выдачи открывается прямо в корзине.
     "cdek_widget_key": "",
+    # Служебное поле: «on», когда заданы ключи API СДЭК и список пунктов реально работает.
+    "cdek_points": "",
 }
 PAYMENT_STATUS_FIELDS = ("payment_sbp", "payment_card", "payment_dolyame", "payment_installment", "payment_credit", "payment_invoice", "payment_on_delivery")
 PAYMENT_STATUSES = ("off", "preparing", "on")
@@ -266,6 +268,16 @@ def tbank_showcase_id() -> str:
     return os.getenv("TBANK_SHOWCASE_ID", "").strip() or TBANK_SHOWCASE_ID
 
 
+# HTTPS_PROXY/HTTP_PROXY из переменных окружения учитываются (trust_env): часть
+# хостингов выпускает исходящие соединения только через прокси.
+def network_error(error: BaseException) -> str:
+    """Класс и текст сетевой ошибки: по ним видно, что это — DNS, блокировка или TLS."""
+    text = str(error).strip()
+    if isinstance(error, asyncio.TimeoutError) and not text:
+        text = "истекло время ожидания ответа"
+    return f"{type(error).__name__}: {text}"[:400]
+
+
 def bank_error(status: int, result: Any) -> str:
     """Короткая причина отказа банка для журнала и для проверки оплаты владельцем."""
     if not isinstance(result, dict):
@@ -331,12 +343,15 @@ async def init_tbank_payment(inquiry: dict[str, Any], origin: str) -> dict[str, 
         payload["Receipt"] = receipt
     payload["Token"] = tbank_token(payload, password)
     try:
-        async with ClientSession(timeout=ClientTimeout(total=12)) as client:
+        async with ClientSession(timeout=ClientTimeout(total=12), trust_env=True) as client:
             async with client.post("https://securepay.tinkoff.ru/v2/Init", json=payload) as response:
                 result = await response.json(content_type=None)
-    except (OSError, asyncio.TimeoutError, ValueError) as error:
-        LOGGER.warning("T-Bank Init failed: %s", type(error).__name__)
-        raise APIError(502, "Т-Банк временно не ответил. Повторите оплату через несколько минут.") from None
+    except (ClientError, OSError, asyncio.TimeoutError, ValueError) as error:
+        # Сюда попадает не отказ банка, а недоступная сеть: DNS, блокировка исходящих
+        # соединений или TLS. Точную причину видит только владелец в проверке оплаты.
+        LOGGER.warning("T-Bank Init unreachable: %s", network_error(error))
+        raise APIError(502, "Т-Банк временно не ответил. Повторите оплату через несколько минут.",
+                       detail=network_error(error)) from None
     payment_url = result.get("PaymentURL") if isinstance(result, dict) else None
     payment_ok = (isinstance(result, dict) and result.get("Success") is True
                   and isinstance(payment_url, str) and payment_url.startswith("https://")
@@ -387,12 +402,13 @@ async def init_tbank_credit(inquiry: dict[str, Any], origin: str) -> dict[str, s
         values["contact"]["email"] = inquiry["contact"]
     payload["values"] = values
     try:
-        async with ClientSession(timeout=ClientTimeout(total=12)) as client:
+        async with ClientSession(timeout=ClientTimeout(total=12), trust_env=True) as client:
             async with client.post(TBANK_CREDIT_URL, json=payload) as response:
                 result = await response.json(content_type=None)
-    except (OSError, asyncio.TimeoutError, ValueError) as error:
-        LOGGER.warning("T-Bank credit order failed: %s", type(error).__name__)
-        raise APIError(502, "Т-Банк временно не ответил. Повторите оформление через несколько минут.") from None
+    except (ClientError, OSError, asyncio.TimeoutError, ValueError) as error:
+        LOGGER.warning("T-Bank credit unreachable: %s", network_error(error))
+        raise APIError(502, "Т-Банк временно не ответил. Повторите оформление через несколько минут.",
+                       detail=network_error(error)) from None
     link = result.get("link") if isinstance(result, dict) else None
     if not (response.status < 400 and isinstance(link, str) and link.startswith("https://")
             and origin_of(link) is not None):
@@ -464,14 +480,14 @@ async def cdek_offices(city: str) -> tuple[list[dict[str, Any]], str]:
         return [], "Список пунктов выдачи пока не подключён — укажите код или адрес ПВЗ вручную."
     params = {"city": city, "type": "PVZ", "country_code": "RU", "is_handout": "true", "size": "200"}
     try:
-        async with ClientSession(timeout=ClientTimeout(total=CDEK_TIMEOUT)) as client:
+        async with ClientSession(timeout=ClientTimeout(total=CDEK_TIMEOUT), trust_env=True) as client:
             token = await cdek_token(client)
             if not token:
                 return [], "СДЭК не отвечает. Укажите код или адрес пункта выдачи вручную."
             async with client.get(f"{CDEK_API}/deliverypoints", params=params,
                                   headers={"Authorization": f"Bearer {token}"}) as response:
                 result = await response.json(content_type=None)
-    except (OSError, asyncio.TimeoutError, ValueError) as error:
+    except (ClientError, OSError, asyncio.TimeoutError, ValueError) as error:
         LOGGER.warning("CDEK deliverypoints failed: %s", type(error).__name__)
         return [], "СДЭК не отвечает. Укажите код или адрес пункта выдачи вручную."
     if response.status != 200 or not isinstance(result, list):
@@ -509,11 +525,11 @@ async def notify_customer(inquiry: dict[str, Any], subject: str, text: str) -> N
             await asyncio.to_thread(_send_email, contact, subject, text)
         elif valid_phone(contact) and os.getenv("SMS_WEBHOOK_URL", "").strip():
             phone = "+" + "".join(character for character in contact if character.isdigit())
-            async with ClientSession(timeout=ClientTimeout(total=8)) as client:
+            async with ClientSession(timeout=ClientTimeout(total=8), trust_env=True) as client:
                 async with client.post(os.environ["SMS_WEBHOOK_URL"], json={"to": phone, "text": text}) as response:
                     if response.status >= 400:
                         LOGGER.warning("SMS webhook returned %s", response.status)
-    except (OSError, ValueError, smtplib.SMTPException, asyncio.TimeoutError) as error:
+    except (ClientError, OSError, ValueError, smtplib.SMTPException, asyncio.TimeoutError) as error:
         LOGGER.warning("Customer notification failed for order %s: %s", inquiry.get("id", ""), type(error).__name__)
 
 
@@ -830,6 +846,9 @@ class Store:
         settings = {key: stored.get(key, default) for key, default in DEFAULT_SETTINGS.items()}
         # Ключ виджета можно задать и переменной хостинга: витрина берёт его, пока поле CRM пусто.
         settings["cdek_widget_key"] = settings["cdek_widget_key"] or os.getenv("CDEK_WIDGET_API_KEY", "").strip()
+        # Витрина не предлагает список пунктов, пока у магазина нет ключей API СДЭК:
+        # кнопка, которая всё равно ничего не покажет, хуже её отсутствия.
+        settings["cdek_points"] = "on" if all(cdek_credentials()) else ""
         return settings
 
     @staticmethod
@@ -1459,7 +1478,6 @@ async def create_inquiry(request: web.Request) -> web.Response:
     require(isinstance(requested, list) and len(requested) <= 30, "В заявке допускается не больше 30 моделей.")
     require(bool(requested) or len(message) >= 10, "Выберите товар или опишите вопрос (от 10 символов).")
     require(not requested or len(city) >= 2, "Укажите город доставки — магазин отправляет заказы по России.")
-    require(not requested or len(cdek_pvz) >= 3, "Укажите адрес или код пункта выдачи СДЭК.")
     origin = return_origin(request)
     online_payment = bool(requested) and origin is not None and (
         (payment_method in ("sbp", "card") and _payment_configured())
@@ -1665,6 +1683,18 @@ async def tbank_notification(request: web.Request) -> web.Response:
     return web.Response(text="OK", content_type="text/plain")
 
 
+async def reachability_check(host: str, url: str) -> dict[str, Any]:
+    """Отвечает ли сервер магазина хотя бы TCP+TLS: без этого никакая оплата не пройдёт."""
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=8), trust_env=True) as client:
+            async with client.post(url, json={}) as response:
+                status = response.status
+    except (ClientError, OSError, asyncio.TimeoutError, ValueError) as error:
+        return {"title": f"Связь сервера с {host}", "ok": False,
+                "detail": f"нет соединения — {network_error(error)}"}
+    return {"title": f"Связь сервера с {host}", "ok": True, "detail": f"соединение есть (HTTP {status})"}
+
+
 async def payment_check(request: web.Request) -> web.Response:
     """Проверка настроек оплаты для владельца: что задано и что отвечает банк.
 
@@ -1691,6 +1721,8 @@ async def payment_check(request: web.Request) -> web.Response:
         checks.append({"title": f"Способ «{title}» в CRM", "ok": settings[key] == "on",
                        "detail": {"on": "доступно покупателю", "preparing": "готовим подключение — покупатель не увидит",
                                   "off": "не подключено — покупатель не увидит"}[settings[key]]})
+    checks.append(await reachability_check("securepay.tinkoff.ru", "https://securepay.tinkoff.ru/v2/GetState"))
+    checks.append(await reachability_check("forma.tinkoff.ru", TBANK_CREDIT_URL))
     urls = payment_return_urls(origin or "https://example.invalid", "0" * 32, SBP_NOTIFICATION_PATH)
     credit_urls = payment_return_urls(origin or "https://example.invalid", "0" * 32, CREDIT_NOTIFICATION_PATH)
     report: dict[str, Any] = {

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CdekPvzPicker, describeOffice } from './CdekPvzPicker';
+import { CdekPvzPicker, cdekMapLink, describeOffice } from './CdekPvzPicker';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
@@ -16,11 +16,20 @@ function stubPoints(answer: unknown) {
 const office = { code: 'SCH1', name: 'Сочи-1', address: 'ул. Тестовая, 3', city: 'Сочи', work_time: 'Пн-Пт 10:00-19:00' };
 
 describe('CDEK pickup point picker', () => {
-  it('keeps the manual field alone when CDEK is not configured', async () => {
-    const fetchMock = stubPoints({ points: [], available: false, reason: 'Список пунктов выдачи пока не подключён.' });
-    const { container } = render(<CdekPvzPicker apiKey="" city="Сочи" onChoose={vi.fn()} />);
-    // Пока покупатель не нажал кнопку, запросов нет: форма заказа не ходит в сеть сама.
+  it('offers a working map link instead of a dead button when CDEK is not connected', () => {
+    const fetchMock = stubPoints({ points: [], available: false, reason: 'не подключено' });
+    render(<CdekPvzPicker apiKey="" city="Сочи" onChoose={vi.fn()} />);
+    // Без ключей СДЭК кнопки списка нет вовсе: она всё равно ничего бы не показала.
+    expect(screen.queryByRole('button')).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+    const link = screen.getByRole('link', { name: 'Посмотреть пункты СДЭК в городе Сочи' });
+    expect(link).toHaveAttribute('href', cdekMapLink('Сочи'));
+    expect(screen.getByText(/можно оставить пустым/i)).toBeTruthy();
+  });
+
+  it('hides the list when the server proxy has nothing to show', async () => {
+    stubPoints({ points: [], available: false, reason: 'СДЭК не отвечает.' });
+    const { container } = render(<CdekPvzPicker apiKey="" pointsEnabled city="Сочи" onChoose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Показать пункты выдачи в городе Сочи' }));
     await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
@@ -33,7 +42,7 @@ describe('CDEK pickup point picker', () => {
   it('lists the pickup points from the server proxy and reports the choice', async () => {
     stubPoints({ points: [office], available: true, reason: '' });
     const onChoose = vi.fn();
-    render(<CdekPvzPicker apiKey="" city="Сочи" onChoose={onChoose} />);
+    render(<CdekPvzPicker apiKey="" pointsEnabled city="Сочи" onChoose={onChoose} />);
     const toggle = await screen.findByRole('button', { name: 'Показать пункты выдачи в городе Сочи' });
     fireEvent.click(toggle);
     expect(await screen.findByText(/ул\. Тестовая, 3/)).toBeTruthy();

@@ -1118,6 +1118,33 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Неверный токен", report["bank"]["detail"])
         await self.assert_error(await self.client.post("/api/admin/payment-check"), 403)
 
+    async def test_order_goes_through_without_a_pickup_point(self):
+        await self.login()
+        product = await self.published_product()
+        await self.enable_inquiries()
+        response = await self.client.post("/api/inquiries", json={
+            "name": "Customer", "contact": "+7 999 111 22 33", "message": "",
+            "city": "Краснодар", "cdek_pvz": "", "payment_method": "sbp",
+            "items": [{"product_id": product["id"], "quantity": 1}], "consent": True,
+        }, headers={"Origin": self.origin})
+        self.assertEqual(response.status, 201, await response.text())
+        inquiry = (await (await self.client.get("/api/admin/inquiries")).json())["inquiries"][0]
+        self.assertEqual(inquiry["cdek_pvz"], "")
+        # Город по-прежнему обязателен: без него заказ отправлять некуда.
+        await self.assert_error(await self.client.post("/api/inquiries", json={
+            "name": "Customer", "contact": "+7 999 111 22 44", "message": "",
+            "city": "", "cdek_pvz": "", "payment_method": "sbp",
+            "items": [{"product_id": product["id"], "quantity": 1}], "consent": True,
+        }, headers={"Origin": self.origin}), 400)
+
+    async def test_pickup_list_is_announced_only_with_cdek_keys(self):
+        with patch.dict(os.environ, {"CDEK_CLIENT_ID": "", "CDEK_CLIENT_SECRET": ""}):
+            settings = (await (await self.client.get("/api/settings")).json())["settings"]
+        self.assertEqual(settings["cdek_points"], "")
+        with patch.dict(os.environ, {"CDEK_CLIENT_ID": "account", "CDEK_CLIENT_SECRET": "secret"}):
+            settings = (await (await self.client.get("/api/settings")).json())["settings"]
+        self.assertEqual(settings["cdek_points"], "on")
+
 
 class FakeCdekSession:
     """Сеть СДЭК в тестах: токен и список пунктов задаются тестом, запросы записываются."""

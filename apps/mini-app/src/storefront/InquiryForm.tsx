@@ -102,8 +102,8 @@ export function InquiryForm({ settings, items, total = 0, account = null, city =
       || /^@[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(trimmedContact)
       || (/^[+0-9 ()-]{7,32}$/.test(trimmedContact) && trimmedContact.replace(/\D/g, '').length >= 7 && trimmedContact.replace(/\D/g, '').length <= 15);
     if (name.trim().length < 2 || !validContact || !consent || (!items.length && message.trim().length < 10)
-        || (items.length > 0 && (destination.trim().length < 2 || cdekPvz.trim().length < 3))) {
-      setError('Укажите имя, контакт, город доставки и адрес или код ПВЗ СДЭК. Для вопроса без товаров добавьте сообщение от 10 символов и подтвердите согласие.');
+        || (items.length > 0 && destination.trim().length < 2)) {
+      setError('Укажите имя, контакт и город доставки. Пункт выдачи можно выбрать позже. Для вопроса без товаров добавьте сообщение от 10 символов и подтвердите согласие.');
       requestAnimationFrame(() => errorRef.current?.focus());
       return;
     }
@@ -144,8 +144,8 @@ export function InquiryForm({ settings, items, total = 0, account = null, city =
       <label>Ваше имя<input name="name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={event => setName(event.target.value)} /></label>
       <label>Телефон, email или @Telegram<input name="contact" autoComplete="email" required minLength={5} maxLength={150} value={contact} onChange={event => setContact(event.target.value)} placeholder="Как с вами связаться" /></label>
       {items.length > 0 && <label>Город доставки<input name="city" list="sf-cities" autoComplete="address-level2" required minLength={2} maxLength={80} value={destination} onChange={event => setDestination(event.target.value)} placeholder="Например, Краснодар" /><CityDatalist /></label>}
-      {items.length > 0 && <label>Пункт выдачи СДЭК<input name="cdek_pvz" required minLength={3} maxLength={300} value={cdekPvz} onChange={event => setCdekPvz(event.target.value)} placeholder="Код или полный адрес ПВЗ" /><span className="sf-field-help">Выберите пункт ниже — код и адрес подставятся сюда сами. Можно вписать их вручную: пункты есть на <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener noreferrer">карте СДЭК</a>.</span></label>}
-      {items.length > 0 && <CdekPvzPicker apiKey={settings.cdek_widget_key} city={destination} onChoose={choice => {
+      {items.length > 0 && <label>Пункт выдачи СДЭК — можно указать позже<input name="cdek_pvz" maxLength={300} value={cdekPvz} onChange={event => setCdekPvz(event.target.value)} placeholder="Код или адрес ПВЗ, если уже выбрали" /></label>}
+      {items.length > 0 && <CdekPvzPicker apiKey={settings.cdek_widget_key} pointsEnabled={settings.cdek_points === 'on'} city={destination} onChoose={choice => {
         setCdekPvz(choice.address.slice(0, 300));
         if (choice.city) setDestination(current => current.trim() ? current : choice.city);
       }} />}
