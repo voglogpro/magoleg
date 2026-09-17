@@ -15,8 +15,9 @@ from aiohttp.test_utils import TestClient, TestServer
 from PIL import Image, PngImagePlugin
 
 from store_api import (ACCOUNT_COOKIE, ACCOUNT_SESSION_AGE, COOKIE_NAME, CREDIT_NOTIFICATION_PATH,
-                       MAX_UPLOAD, STORE_KEY, hash_password, payment_return_urls, return_origin,
-                       setup_store, tbank_token, valid_phone, verify_password)
+                       MAX_UPLOAD, STORE_KEY, APIError, hash_password, init_tbank_credit,
+                       init_tbank_payment, payment_return_urls, return_origin, setup_store,
+                       tbank_token, valid_phone, verify_password)
 
 TEST_PASSWORD = "isolated-test-password-only"
 CUSTOMER_PASSWORD = "isolated-customer-password"
@@ -57,6 +58,86 @@ def fake_request(host, scheme="https", forwarded=None):
     request.scheme = scheme
     request.headers = {"X-Forwarded-Proto": forwarded} if forwarded else {}
     return request
+
+
+class FakeResponse:
+    status = 200
+
+    def __init__(self, payload):
+        self.payload = payload
+
+    async def json(self, content_type=None):
+        return self.payload
+
+
+class FakeSession:
+    """Заменяет сетевой вызов банка: запрос сохраняется, ответ задаётся тестом."""
+
+    def __init__(self, payload, captured):
+        self.payload, self.captured = payload, captured
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    def post(self, url, json=None):
+        self.captured["url"], self.captured["json"] = url, json
+        return FakeSession._Response(FakeResponse(self.payload))
+
+    class _Response:
+        def __init__(self, response):
+            self.response = response
+
+        async def __aenter__(self):
+            return self.response
+
+        async def __aexit__(self, *args):
+            return False
+
+
+class OnlinePaymentTests(unittest.IsolatedAsyncioTestCase):
+    order = {"id": "b" * 32, "name": "Customer", "contact": "buyer@example.com", "total": 1.0,
+             "payment_method": "card", "items": [{"name": "Тестовый товар", "price": 1.0, "quantity": 1}]}
+
+    async def test_card_accepts_a_one_rouble_test_order(self):
+        captured = {}
+        session = FakeSession({"Success": True, "PaymentURL": "https://securepay.tinkoff.ru/x", "PaymentId": "42"}, captured)
+        with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "TinkoffTest", "TBANK_PASSWORD": "secret", "TBANK_TAXATION": ""}), \
+                patch("store_api.ClientSession", session):
+            payment = await init_tbank_payment(self.order, "https://g-partner.store")
+        self.assertEqual(payment["payment_url"], "https://securepay.tinkoff.ru/x")
+        self.assertEqual(captured["json"]["Amount"], 100)
+        self.assertEqual(captured["json"]["NotificationURL"], "https://g-partner.store/api/payments/tbank/notification")
+        self.assertTrue(captured["json"]["SuccessURL"].startswith("https://g-partner.store/#order-success"))
+
+    async def test_sbp_keeps_the_ten_rouble_floor_of_the_bank(self):
+        with patch.dict(os.environ, {"TBANK_TERMINAL_KEY": "TinkoffTest", "TBANK_PASSWORD": "secret"}):
+            with self.assertRaises(APIError) as failure:
+                await init_tbank_payment({**self.order, "payment_method": "sbp"}, "https://g-partner.store")
+        self.assertIn("10 рублей", str(failure.exception))
+
+    async def test_installment_explains_the_programme_minimum(self):
+        with patch.dict(os.environ, {"TBANK_CREDIT_MIN": ""}):
+            with self.assertRaises(APIError) as failure:
+                await init_tbank_credit({**self.order, "payment_method": "installment"}, "https://g-partner.store")
+        self.assertIn("3000", str(failure.exception).replace(" ", "").replace("\u202f", ""))
+
+    async def test_installment_sends_the_showcase_identifiers_and_return_links(self):
+        captured = {}
+        session = FakeSession({"id": "credit-9", "link": "https://forma.tinkoff.ru/order/9"}, captured)
+        with patch("store_api.ClientSession", session):
+            payment = await init_tbank_credit({**self.order, "payment_method": "installment", "total": 45000.0},
+                                              "https://g-partner.store")
+        self.assertEqual(payment, {"payment_id": "credit-9", "payment_url": "https://forma.tinkoff.ru/order/9"})
+        self.assertEqual(captured["json"]["shopId"], "8879c474-d8e0-4f1b-b7fe-628b5d7f6a07")
+        self.assertEqual(captured["json"]["showcaseId"], "563f8b7f-91e8-47f3-9776-f18e7d663707")
+        self.assertEqual(captured["json"]["sum"], 45000.0)
+        self.assertEqual(captured["json"]["webhookURL"], f"https://g-partner.store{CREDIT_NOTIFICATION_PATH}")
 
 
 class ReturnOriginTests(unittest.TestCase):
@@ -159,26 +240,22 @@ class StoreAPITests(unittest.IsolatedAsyncioTestCase):
         await self.login()
         public = await self.client.get("/api/settings")
         defaults = (await public.json())["settings"]
-        # СБП работает, «Долями» временно выключено, остальные финансовые продукты готовятся.
+        # Оплата Т-Банка работает: СБП, карта, рассрочка и кредит. «Долями» выключено.
         self.assertEqual(defaults["payment_sbp"], "on")
-        self.assertEqual(defaults["payment_card"], "off")
+        self.assertEqual(defaults["payment_card"], "on")
         self.assertEqual(defaults["payment_dolyame"], "off")
-        self.assertEqual(defaults["payment_installment"], "preparing")
-        self.assertEqual(defaults["payment_credit"], "preparing")
+        self.assertEqual(defaults["payment_installment"], "on")
+        self.assertEqual(defaults["payment_credit"], "on")
         self.assertEqual(defaults["payment_on_delivery"], "off")
         for values in ({"payment_card": "yes"}, {"payment_invoice": ""}, {"payment_sbp": "включено"}):
             response = await self.client.put("/api/admin/settings", json=values, headers=self.headers)
             await self.assert_error(response, 400)
-        # Оплата банковской картой отключена и не может быть снова включена из CRM.
-        response = await self.client.put("/api/admin/settings", json={"payment_card": "on"}, headers=self.headers)
-        await self.assert_error(response, 400)
-        response = await self.client.put("/api/admin/settings", json={
-            "payment_card": "on", "payment_provider": "Тестовый платёжный сервис",
-            "payment_receipt": "Чек направляется покупателю.",
-        }, headers=self.headers)
-        await self.assert_error(response, 400)
-        saved = (await (await self.client.get("/api/settings")).json())["settings"]
-        self.assertEqual(saved["payment_card"], "off")
+        # Владелец сам решает, показывать ли карту: оба положения сохраняются.
+        for status in ("off", "on"):
+            response = await self.client.put("/api/admin/settings", json={"payment_card": status}, headers=self.headers)
+            self.assertEqual(response.status, 200, await response.text())
+            saved = (await (await self.client.get("/api/settings")).json())["settings"]
+            self.assertEqual(saved["payment_card"], status)
 
     async def test_drive_payload_and_licence_categories_round_trip(self):
         await self.login()

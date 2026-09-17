@@ -76,7 +76,7 @@ export type ShopSettings = {
 export type CartItem = { product_id: string; quantity: number };
 export const MAX_QUANTITY = 20;
 export const MAX_CART_MODELS = 30;
-export type PaymentChoice = 'sbp' | 'dolyame' | 'installment' | 'credit';
+export type PaymentChoice = 'sbp' | 'card' | 'dolyame' | 'installment' | 'credit';
 export type InquiryPayload = { name: string; contact: string; city: string; cdek_pvz: string; payment_method: PaymentChoice; message: string; items: CartItem[]; consent: true };
 export type Inquiry = { id: string; total: number | null; status: string; payment_url?: string; tracking_number?: string; paid_at?: string };
 export type Filters = {
@@ -95,8 +95,8 @@ export const defaultSettings: ShopSettings = {
   delivery: '', payment: '', legal_name: '', legal_details: '', warranty: '', inquiries_enabled: false,
   delivery_origin: '', delivery_schedule: '', return_address: '',
   privacy_document: '', consent_document: '', offer_document: '', returns_document: '', contacts_document: '',
-  payment_sbp: 'on', payment_card: 'off', payment_dolyame: 'off', payment_installment: 'off',
-  payment_credit: 'off', payment_invoice: 'off', payment_on_delivery: 'off',
+  payment_sbp: 'on', payment_card: 'on', payment_dolyame: 'off', payment_installment: 'on',
+  payment_credit: 'on', payment_invoice: 'off', payment_on_delivery: 'off',
   payment_provider: '', payment_installment_partner: '', payment_receipt: '', cdek_widget_key: '',
 };
 export const defaultFilters: Filters = { category: 'all', tag: 'all', license: 'all', stock: 'all', sale: false, min: '', max: '', sort: 'featured' };

@@ -7,12 +7,11 @@ afterEach(cleanup);
 const withSettings = (patch: Partial<ShopSettings> = {}) => ({ ...defaultSettings, ...patch });
 
 describe('раздел оплаты', () => {
-  it('по умолчанию предлагает только СБП', () => {
+  it('по умолчанию предлагает оплату Т-Банка: СБП, карту, рассрочку и кредит', () => {
     render(<Payment settings={withSettings()} />);
-    expect(screen.getByText('СБП')).toBeInTheDocument();
-    expect(screen.getByText('Доступно')).toBeInTheDocument();
-    expect(screen.queryByText('Банковской картой онлайн')).toBeNull();
-    expect(screen.queryByText('Рассрочка и кредит')).toBeNull();
+    for (const title of ['СБП', 'Банковская карта', 'Рассрочка', 'Кредит']) expect(screen.getByText(title)).toBeInTheDocument();
+    expect(screen.getAllByText('Доступно')).toHaveLength(4);
+    expect(screen.queryByText('Долями')).toBeNull();
     expect(screen.queryByText('Оплата при получении')).toBeNull();
     expect(screen.getByText(/способы оплаты, подтверждённые магазином/)).toBeInTheDocument();
   });
@@ -28,22 +27,21 @@ describe('раздел оплаты', () => {
   });
 
   it('не выдаёт неподключённый способ за рабочий', () => {
-    render(<Payment settings={withSettings({ payment_sbp: 'off', payment_installment: 'preparing' })} />);
+    render(<Payment settings={withSettings({ payment_sbp: 'off', payment_card: 'off', payment_credit: 'off', payment_installment: 'preparing' })} />);
     expect(screen.getByText('Готовим подключение')).toBeInTheDocument();
     expect(screen.queryByText('Доступно')).toBeNull();
     expect(screen.getByText(/Сейчас сайт принимает заявку без списания денег/)).toBeInTheDocument();
   });
 
-  it('не показывает оплату банковской картой даже для старой настройки', () => {
-    render(<Payment settings={withSettings({ payment_card: 'on', payment_provider: 'Тестовый сервис' })} />);
-    expect(screen.queryByText('Банковской картой онлайн')).toBeNull();
-    expect(screen.queryByText(/Тестовый сервис/)).toBeNull();
+  it('скрывает оплату картой, когда владелец её отключил', () => {
+    render(<Payment settings={withSettings({ payment_card: 'off' })} />);
+    expect(screen.queryByText('Банковская карта')).toBeNull();
   });
 
   it('временно скрывает Долями и не показывает устаревшие способы', () => {
     render(<Payment settings={withSettings({ payment_dolyame: 'preparing', payment_installment: 'preparing', payment_credit: 'preparing', payment_invoice: 'on', payment_on_delivery: 'on' })} />);
-    expect(screen.getAllByRole('group')).toHaveLength(3);
-    for (const title of ['СБП', 'Рассрочка', 'Кредит']) expect(screen.getByText(title)).toBeInTheDocument();
+    expect(screen.getAllByRole('group')).toHaveLength(4);
+    for (const title of ['СБП', 'Банковская карта', 'Рассрочка', 'Кредит']) expect(screen.getByText(title)).toBeInTheDocument();
     expect(screen.queryByText('Долями')).toBeNull();
     expect(screen.queryByText('Счёт для организаций')).toBeNull();
     expect(screen.queryByText('Оплата при получении')).toBeNull();

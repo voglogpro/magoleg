@@ -72,6 +72,11 @@ TBANK_CREDIT_URL = "https://forma.tinkoff.ru/api/partners/v2/orders/create"
 SBP_NOTIFICATION_PATH = "/api/payments/tbank/notification"
 CREDIT_NOTIFICATION_PATH = "/api/payments/tbank/credit-notification"
 # Статусы заявки на рассрочку: договор подписан — заказ оплачен, отказ — заказ отменён.
+# Минимальные суммы платежа: СБП — 10 ₽ по правилам банка, карта принимает и 1 ₽
+# (этого хватает для проверочного заказа), рассрочка — порог программы банка.
+MIN_SBP_KOPECKS = 1000
+MIN_CARD_KOPECKS = 100
+DEFAULT_CREDIT_MIN = Decimal("3000")
 CREDIT_SIGNED_STATUSES = ("signed", "completed", "issued")
 CREDIT_FAILED_STATUSES = ("rejected", "canceled", "cancelled", "expired", "declined")
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 3
@@ -85,8 +90,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "contacts_document": "",
     # Способы расчёта. "on" публикуется как рабочий, поэтому включается только вместе
     # с реквизитами продавца: покупатель не должен видеть оплату, которой ещё нет.
-    "payment_sbp": "on", "payment_card": "off", "payment_dolyame": "off",
-    "payment_installment": "preparing", "payment_credit": "preparing",
+    "payment_sbp": "on", "payment_card": "on", "payment_dolyame": "off",
+    "payment_installment": "on", "payment_credit": "on",
     "payment_invoice": "off", "payment_on_delivery": "off",
     "payment_provider": "Т-Бизнес", "payment_installment_partner": "Т-Банк", "payment_receipt": "",
     # Публичный ключ виджета СДЭК: с ним карта пунктов выдачи открывается прямо в корзине.
@@ -271,7 +276,10 @@ async def init_tbank_payment(inquiry: dict[str, Any], origin: str) -> dict[str, 
     password = os.getenv("TBANK_PASSWORD", "").strip()
     require(terminal and password, "Онлайн-оплата ещё не настроена магазином.", 503)
     amount = int((Decimal(str(inquiry["total"])) * 100).quantize(Decimal("1")))
-    require(amount >= 1000, "Минимальная сумма оплаты через СБП — 10 рублей.")
+    if inquiry["payment_method"] == "card":
+        require(amount >= MIN_CARD_KOPECKS, "Минимальная сумма оплаты картой — 1 рубль.")
+    else:
+        require(amount >= MIN_SBP_KOPECKS, "Минимальная сумма оплаты через СБП — 10 рублей.")
     urls = payment_return_urls(origin, inquiry["id"], SBP_NOTIFICATION_PATH)
     payload: dict[str, Any] = {
         "TerminalKey": terminal,
@@ -326,7 +334,13 @@ async def init_tbank_credit(inquiry: dict[str, Any], origin: str) -> dict[str, s
     shop, showcase = tbank_shop_id(), tbank_showcase_id()
     require(bool(shop and showcase), "Рассрочка ещё не настроена магазином.", 503)
     total = Decimal(str(inquiry["total"])).quantize(Decimal(".01"))
-    require(total > 0, "Сумма заказа должна быть больше нуля.")
+    minimum = DEFAULT_CREDIT_MIN
+    configured = os.getenv("TBANK_CREDIT_MIN", "").strip()
+    if re.fullmatch(r"[0-9]{1,9}([.,][0-9]{1,2})?", configured or ""):
+        minimum = Decimal(configured.replace(",", "."))
+    require(total >= minimum,
+            f"Рассрочка и кредит доступны для заказов от {minimum:.0f} ₽. "
+            "Для меньшей суммы выберите оплату картой или через СБП.")
     urls = payment_return_urls(origin, inquiry["id"], CREDIT_NOTIFICATION_PATH)
     payload: dict[str, Any] = {
         "shopId": shop,
@@ -586,6 +600,17 @@ class Store:
                 payment_settings["payment_card"] = "off"
                 connection.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(payment_settings, ensure_ascii=False),))
                 connection.execute("INSERT INTO meta(key,value) VALUES(?,?)", (no_card_key, now_iso()))
+            # Карта, рассрочка и кредит Т-Банка включены: оплата проходит через
+            # подключённый терминал и витрину банка. Владелец может отключить любой
+            # способ в CRM — миграция срабатывает один раз.
+            tbank_key = "enable-tbank-card-and-credit-2026-09-17"
+            if connection.execute("SELECT 1 FROM meta WHERE key=?", (tbank_key,)).fetchone() is None:
+                row = connection.execute("SELECT data FROM settings WHERE id=1").fetchone()
+                payment_settings = json.loads(row["data"])
+                for key in ("payment_card", "payment_installment", "payment_credit"):
+                    payment_settings[key] = "on"
+                connection.execute("UPDATE settings SET data=? WHERE id=1", (json.dumps(payment_settings, ensure_ascii=False),))
+                connection.execute("INSERT INTO meta(key,value) VALUES(?,?)", (tbank_key, now_iso()))
             # «Долями» временно выключено по всему сайту. Поле настройки остаётся в
             # схеме, чтобы позднее включить его только для корзин дешевле 30 000 ₽.
             no_dolyame_key = "disable-dolyame-2026-09-14"
@@ -1236,7 +1261,6 @@ async def save_settings(request: web.Request) -> web.Response:
         elif key in PAYMENT_STATUS_FIELDS:
             status = text_value(value, key, 20, 1)
             require(status in PAYMENT_STATUSES, f"Статус {PAYMENT_LABELS[key]}: выберите «не подключено», «готовим» или «доступно».")
-            require(key != "payment_card" or status == "off", "Оплата банковской картой отключена.")
             settings[key] = status
         else:
             maximum = 12000 if key.endswith("_document") else 8000 if key in ("legal_details", "delivery", "payment", "warranty", "delivery_schedule", "payment_receipt") else 500
@@ -1320,7 +1344,7 @@ async def create_inquiry(request: web.Request) -> web.Response:
     city = text_value(data.get("city", ""), "Город доставки", 80)
     cdek_pvz = text_value(data.get("cdek_pvz", ""), "Пункт выдачи СДЭК", 300)
     payment_method = text_value(data.get("payment_method", "sbp"), "Способ оплаты", 24, 1)
-    require(payment_method in ("sbp", "installment", "credit"), "Выберите доступный способ оплаты.")
+    require(payment_method in ("sbp", "card", "installment", "credit"), "Выберите доступный способ оплаты.")
     require(valid_phone(contact) or
             bool(re.fullmatch(r"@?[A-Za-z][A-Za-z0-9_]{4,31}", contact)) or
             bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact)),
@@ -1336,9 +1360,9 @@ async def create_inquiry(request: web.Request) -> web.Response:
     require(not requested or len(cdek_pvz) >= 3, "Укажите адрес или код пункта выдачи СДЭК.")
     origin = return_origin(request)
     online_payment = bool(requested) and origin is not None and (
-        (payment_method == "sbp" and _payment_configured())
+        (payment_method in ("sbp", "card") and _payment_configured())
         or (payment_method in ("installment", "credit") and _credit_configured()))
-    require(not requested or payment_method != "sbp" or not _payment_configured() or origin is not None,
+    require(not requested or payment_method not in ("sbp", "card") or not _payment_configured() or origin is not None,
             "Онлайн-оплата временно недоступна: магазин не настроил адрес возврата.", 503)
     with store.connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
@@ -1350,6 +1374,8 @@ async def create_inquiry(request: web.Request) -> web.Response:
                 "Приём заявок пока не открыт. Контакты магазина доступны в разделе «Контакты».", 503)
         require(payment_method != "sbp" or settings["payment_sbp"] == "on",
                 "Оплата через СБП временно недоступна.", 409)
+        require(payment_method != "card" or settings["payment_card"] == "on",
+                "Оплата картой временно недоступна.", 409)
         require(payment_method != "installment" or settings["payment_installment"] == "on",
                 "Рассрочка временно недоступна.", 409)
         require(payment_method != "credit" or settings["payment_credit"] == "on",
@@ -1386,7 +1412,7 @@ async def create_inquiry(request: web.Request) -> web.Response:
     payment_url = ""
     if online_payment:
         try:
-            payment = (await init_tbank_payment(inquiry, origin or "") if payment_method == "sbp"
+            payment = (await init_tbank_payment(inquiry, origin or "") if payment_method in ("sbp", "card")
                        else await init_tbank_credit(inquiry, origin or ""))
         except APIError:
             with store.connect() as connection:
@@ -1395,7 +1421,7 @@ async def create_inquiry(request: web.Request) -> web.Response:
                     connection.execute("DELETE FROM inquiry_requests WHERE key_hash=?", (request_key[0],))
             raise
         inquiry.update(payment_id=payment["payment_id"],
-                       payment_status="NEW" if payment_method == "sbp" else "draft",
+                       payment_status="NEW" if payment_method in ("sbp", "card") else "draft",
                        updated_at=now_iso())
         payment_url = payment["payment_url"]
         with store.connect() as connection:

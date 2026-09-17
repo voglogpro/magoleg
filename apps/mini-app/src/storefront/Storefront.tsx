@@ -5,7 +5,7 @@ import { Cart } from './Cart';
 import { CityBar, CityPicker } from './CityPicker';
 import { Home } from './Home';
 import { PickCards } from './PickCards';
-import { cargoLabel, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, powerLabel, powerTotal, sanitizeCity, sanitizeIds, smartPicks, telegramLink } from './domain';
+import { cargoLabel, cartTotal, catalogHref, effectiveLicense, filterProducts, money, parseFilters, plural, powerLabel, powerTotal, sanitizeCity, sanitizeIds, smartPicks, telegramLink } from './domain';
 import { Analytics, trackCommerce, trackGoal } from './Analytics';
 import { useCustomerCart } from './CustomerData';
 import { seller } from './legal-texts';
@@ -242,7 +242,7 @@ export function Storefront() {
 
       {path === 'order-success' && <div className="sf-cart-page"><PaymentResult orderId={new URLSearchParams(search).get('order') || ''} /></div>}
       {path === 'cart' && <div className="sf-cart-page">{receipt ? <InquiryConfirmation inquiry={receipt} /> : catalogState || (cart.length ? <Cart items={cart} products={products} settings={settings} city={city.name} onCity={() => setCityOpen(true)} onRetry={retry} onQuantity={changeQuantity} onRemove={removeCart}>
-        <InquiryForm settings={settings} account={account} city={city.name} preferredPayment={new URLSearchParams(search).get('finance') === '1' ? 'installment' : 'sbp'} onCity={chooseCity} items={cart} blocked={!cartReady || cart.some(item => !products.some(product => product.id === item.product_id && product.stock_status !== 'out-of-stock'))} onSuccess={inquiry => { trackGoal('inquiry_submitted'); setReceipt(inquiry); setCart([]); window.scrollTo({ top: 0, behavior: 'instant' }); }} />
+        <InquiryForm settings={settings} total={cartTotal(cart, products).knownTotal} account={account} city={city.name} preferredPayment={new URLSearchParams(search).get('finance') === '1' ? 'installment' : 'sbp'} onCity={chooseCity} items={cart} blocked={!cartReady || cart.some(item => !products.some(product => product.id === item.product_id && product.stock_status !== 'out-of-stock'))} onSuccess={inquiry => { trackGoal('inquiry_submitted'); setReceipt(inquiry); setCart([]); window.scrollTo({ top: 0, behavior: 'instant' }); }} />
       </Cart> : <Empty title="В корзине пока пусто" icon={ShoppingBag}>Добавьте понравившуюся модель — в корзине можно уточнить наличие, доставку и итоговую цену у магазина.</Empty>)}</div>}
 
       {Object.hasOwn(infoTitles, path) && <Information key={path} topic={path} settings={settings} city={city.name} onCity={chooseCity} />}

@@ -6,8 +6,10 @@ import { money } from './domain';
 import { type AccountProfile, type CartItem, type Inquiry, type PaymentChoice, type ShopSettings } from './types';
 
 const paymentChoiceLabels: Record<PaymentChoice, string> = {
-  sbp: 'СБП', dolyame: 'Долями', installment: 'Рассрочка', credit: 'Кредит',
+  sbp: 'СБП', card: 'Банковская карта', dolyame: 'Долями', installment: 'Рассрочка', credit: 'Кредит',
 };
+/** Порог программы банка: ниже этой суммы рассрочка и кредит не оформляются. */
+export const CREDIT_MIN_TOTAL = 3000;
 
 export const ORDER_ACCEPTED_TEXT = 'Ваш заказ принят! Сборка и отправка товара со склада производителя занимает до 3 рабочих дней. Как только посылка будет передана в транспортную службу, в этом заказе появится трек-номер для отслеживания.';
 
@@ -56,8 +58,8 @@ export function PaymentResult({ orderId }: { orderId: string }) {
   return <InquiryConfirmation inquiry={order} />;
 }
 
-export function InquiryForm({ settings, items, account = null, city = '', preferredPayment = 'sbp', onCity, blocked = false, onSuccess }: {
-  settings: ShopSettings; items: CartItem[]; account?: AccountProfile | null; city?: string;
+export function InquiryForm({ settings, items, total = 0, account = null, city = '', preferredPayment = 'sbp', onCity, blocked = false, onSuccess }: {
+  settings: ShopSettings; items: CartItem[]; total?: number; account?: AccountProfile | null; city?: string;
   preferredPayment?: PaymentChoice; onCity?: (city: string) => void; blocked?: boolean; onSuccess?: (inquiry: Inquiry) => void;
 }) {
   const [name, setName] = useState('');
@@ -74,8 +76,12 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
   const submission = useRef({ signature: '', key: '' });
   const errorRef = useRef<HTMLParagraphElement>(null);
   const availablePayments = ([
-    ['sbp', settings.payment_sbp], ['installment', settings.payment_installment], ['credit', settings.payment_credit],
-  ] as [PaymentChoice, ShopSettings['payment_sbp']][]).filter(([, status]) => status === 'on');
+    ['sbp', settings.payment_sbp], ['card', settings.payment_card],
+    ['installment', settings.payment_installment], ['credit', settings.payment_credit],
+  ] as [PaymentChoice, ShopSettings['payment_sbp']][])
+    // Рассрочку и кредит банк не оформляет на маленькие суммы — не предлагаем их там, где они не сработают.
+    .filter(([value, status]) => status === 'on'
+      && (!['installment', 'credit'].includes(value) || total === 0 || total >= CREDIT_MIN_TOTAL));
   const effectivePayment = availablePayments.some(([value]) => value === paymentMethod)
     ? paymentMethod : availablePayments[0]?.[0] || 'sbp';
 
@@ -149,7 +155,7 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
           <input type="radio" name="payment_method" value={value} checked={effectivePayment === value} onChange={() => setPaymentMethod(value)} />
           <span>{paymentChoiceLabels[value]}<small>доступно</small></span>
         </label>)}</div>
-        <p className="sf-field-help">СБП открывается на защищённой странице Т‑Банка. Условия рассрочки и кредита банк показывает до подписания договора.</p>
+        <p className="sf-field-help">СБП и карта открываются на защищённой странице Т‑Банка: реквизиты карты вводятся только там. Условия рассрочки и кредита банк показывает до подписания договора{total > 0 && total < CREDIT_MIN_TOTAL ? `; они доступны для заказов от ${CREDIT_MIN_TOTAL} ₽` : ''}.</p>
       </fieldset>}
       <label>{items.length ? 'Комментарий — необязательно' : 'Ваш вопрос'}<textarea name="message" rows={3} required={!items.length} minLength={items.length ? undefined : 10} maxLength={3000} value={message} onChange={event => setMessage(event.target.value)} placeholder={items.length ? 'Район доставки, вопросы о модели' : 'Какой транспорт ищете, куда и как далеко планируете ездить'} /></label>
       <label className="sf-consent"><input name="consent" type="checkbox" checked={consent} required onChange={event => setConsent(event.target.checked)} /><span>{items.length
@@ -158,7 +164,7 @@ export function InquiryForm({ settings, items, account = null, city = '', prefer
       {error && <p className="sf-error" role="alert" ref={errorRef} tabIndex={-1}>{error}</p>}
       {blocked && <p className="sf-error">Удалите недоступные товары из корзины перед отправкой заявки.</p>}
       {/* Кнопка расчёта включается только принятой галочкой: акцепт оферты фиксируется до оплаты. */}
-      <button className="sf-button" type="submit" disabled={pending || blocked || (items.length > 0 && !consent)}>{pending ? 'Готовим оплату…' : !items.length ? 'Отправить вопрос' : effectivePayment === 'installment' ? 'Оформить рассрочку' : effectivePayment === 'credit' ? 'Оформить кредит' : 'Оплатить заказ'}</button>
+      <button className="sf-button" type="submit" disabled={pending || blocked || (items.length > 0 && !consent)}>{pending ? 'Готовим оплату…' : !items.length ? 'Отправить вопрос' : effectivePayment === 'installment' ? 'Купить в рассрочку' : effectivePayment === 'credit' ? 'Оформить кредит' : effectivePayment === 'card' ? 'Оплатить картой' : 'Оплатить заказ'}</button>
       {items.length > 0 && !consent && <p className="sf-muted" aria-live="polite">Отметьте согласие с документами — кнопка оплаты станет активной.</p>}
     </fieldset>
   </form>;
